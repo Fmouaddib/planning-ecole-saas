@@ -1,6 +1,6 @@
 import React from 'react'
 import { clsx } from 'clsx'
-import { 
+import {
   Calendar,
   Users,
   Building2,
@@ -10,7 +10,8 @@ import {
   LogOut,
   Home,
   BookOpen,
-  Clock
+  Clock,
+  Shield
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -191,13 +192,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Système
             </h3>
             <div className="space-y-1">
-              {secondaryNavigation.map((item, index) => (
-                <NavItem
-                  key={index}
-                  item={item}
-                  onClick={() => handleItemClick(item)}
-                />
-              ))}
+              {secondaryNavigation
+                .filter(item => item.label !== 'Déconnexion')
+                .map((item, index) => (
+                  <NavItem
+                    key={index}
+                    item={item}
+                    onClick={() => handleItemClick(item)}
+                  />
+                ))
+              }
+
+              {/* Super Admin - avant Déconnexion */}
+              {(userRole === 'admin') && (
+                <button
+                  onClick={() => { window.location.hash = '#/super-admin'; }}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Shield size={18} className="text-red-500 group-hover:text-red-600 transition-colors duration-200" />
+                    <span className="text-sm">Espace Super Admin</span>
+                  </div>
+                  <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">SA</span>
+                </button>
+              )}
+
+              {/* Déconnexion toujours en dernier */}
+              {secondaryNavigation
+                .filter(item => item.label === 'Déconnexion')
+                .map((item, index) => (
+                  <NavItem
+                    key={`logout-${index}`}
+                    item={item}
+                    onClick={() => handleItemClick(item)}
+                  />
+                ))
+              }
             </div>
           </div>
         </nav>

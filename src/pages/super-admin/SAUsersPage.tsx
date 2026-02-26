@@ -1,0 +1,357 @@
+import { useState } from 'react';
+import {
+  useSuperAdminUsers,
+  useCreateSAUser,
+  useUpdateSAUser,
+  useToggleSAUserActive,
+  useResetSAUserPassword,
+  useBulkToggleSAUserActive,
+} from '@/hooks/super-admin/useSuperAdminUsers';
+import { useSuperAdminCenters } from '@/hooks/super-admin/useSuperAdminCenters';
+import { usePagination } from '@/hooks/usePagination';
+import { exportToCSV } from '@/utils/csv-export';
+import { SAPagination } from '@/components/super-admin/components/SAPagination';
+import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
+import type { CreateUserData, SuperAdminUserProfile } from '@/types/super-admin';
+
+export const SAUsersPage = () => {
+  const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<SuperAdminUserProfile | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmAction, setConfirmAction] = useState<{ type: 'toggle' | 'bulk'; id?: string; isActive?: boolean } | null>(null);
+
+  const { data: users, isLoading } = useSuperAdminUsers(search || undefined);
+  const { data: centers } = useSuperAdminCenters();
+  const createUser = useCreateSAUser();
+  const updateUser = useUpdateSAUser();
+  const toggleActive = useToggleSAUserActive();
+  const resetPassword = useResetSAUserPassword();
+  const bulkToggle = useBulkToggleSAUserActive();
+
+  const filteredUsers = roleFilter
+    ? (users || []).filter(u => u.role === roleFilter)
+    : (users || []);
+
+  const {
+    page, totalPages, totalItems, pageSize, paginatedData,
+    canNext, canPrev, nextPage, prevPage, setPageSize,
+  } = usePagination(filteredUsers);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const data: CreateUserData = {
+      email: form.get('email') as string,
+      full_name: form.get('full_name') as string,
+      role: form.get('role') as CreateUserData['role'],
+      phone: form.get('phone') as string || undefined,
+      center_id: form.get('center_id') as string || undefined,
+      password: form.get('password') as string || undefined,
+    };
+
+    if (editingUser) {
+      updateUser.mutate({ id: editingUser.id, data }, { onSuccess: () => { setShowModal(false); setEditingUser(null); } });
+    } else {
+      createUser.mutate(data, { onSuccess: () => { setShowModal(false); } });
+    }
+  };
+
+  const openEdit = (user: SuperAdminUserProfile) => {
+    setEditingUser(user);
+    setShowModal(true);
+  };
+
+  const openCreate = () => {
+    setEditingUser(null);
+    setShowModal(true);
+  };
+
+  const handleToggleActive = (id: string, isActive: boolean) => {
+    setConfirmAction({ type: 'toggle', id, isActive });
+  };
+
+  const handleConfirmAction = () => {
+    if (!confirmAction) return;
+    if (confirmAction.type === 'toggle' && confirmAction.id != null) {
+      toggleActive.mutate({ id: confirmAction.id, isActive: confirmAction.isActive! }, {
+        onSuccess: () => setConfirmAction(null),
+      });
+    } else if (confirmAction.type === 'bulk') {
+      const ids = Array.from(selectedIds);
+      bulkToggle.mutate({ ids, isActive: confirmAction.isActive! }, {
+        onSuccess: () => { setConfirmAction(null); setSelectedIds(new Set()); },
+      });
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedData.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedData.map(u => u.id)));
+    }
+  };
+
+  const handleExportCSV = () => {
+    exportToCSV(filteredUsers, [
+      { header: 'Nom', accessor: (u) => u.full_name },
+      { header: 'Email', accessor: (u) => u.email },
+      { header: 'Role', accessor: (u) => u.role },
+      { header: 'Centre', accessor: (u) => u.center_id ? (centers || []).find(c => c.id === u.center_id)?.name || u.center_id : '' },
+      { header: 'Statut', accessor: (u) => u.is_active ? 'Actif' : 'Inactif' },
+      { header: 'Date creation', accessor: (u) => new Date(u.created_at).toLocaleDateString('fr-FR') },
+    ], 'utilisateurs');
+  };
+
+  return (
+    <div className="p-6">
+      <div className="sa-page-header">
+        <div>
+          <h1 className="sa-page-title">Utilisateurs</h1>
+          <p className="sa-page-subtitle">{filteredUsers.length} utilisateur(s)</p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="sa-btn sa-btn-secondary" onClick={handleExportCSV}>Exporter CSV</button>
+          <button className="sa-btn sa-btn-primary" onClick={openCreate}>+ Nouvel utilisateur</button>
+        </div>
+      </div>
+
+      {/* Search & Filters */}
+      <div className="sa-search-bar">
+        <input
+          type="text"
+          className="sa-search-input"
+          placeholder="Rechercher par nom ou email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {['', 'admin', 'trainer', 'coordinator', 'staff', 'student', 'super_admin'].map(role => (
+          <button
+            key={role}
+            className={`sa-filter-btn ${roleFilter === role ? 'active' : ''}`}
+            onClick={() => setRoleFilter(role)}
+          >
+            {role || 'Tous'}
+          </button>
+        ))}
+      </div>
+
+      {/* Bulk Actions */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px',
+          background: '#eff6ff', borderRadius: '8px', marginBottom: '12px', fontSize: '0.85rem',
+        }}>
+          <span style={{ fontWeight: 600, color: '#1e40af' }}>{selectedIds.size} selectionne(s)</span>
+          <button
+            className="sa-btn sa-btn-danger"
+            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+            onClick={() => setConfirmAction({ type: 'bulk', isActive: false })}
+          >
+            Desactiver
+          </button>
+          <button
+            className="sa-btn sa-btn-success"
+            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+            onClick={() => setConfirmAction({ type: 'bulk', isActive: true })}
+          >
+            Activer
+          </button>
+          <button
+            className="sa-btn sa-btn-secondary"
+            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Deselectionner
+          </button>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="sa-table-container">
+        {isLoading ? (
+          <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="sa-empty-state">
+            <div className="sa-empty-icon">👥</div>
+            <div className="sa-empty-title">Aucun utilisateur trouve</div>
+            <div className="sa-empty-text">Modifiez vos filtres ou creez un nouvel utilisateur.</div>
+          </div>
+        ) : (
+          <>
+            <table className="sa-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '40px' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === paginatedData.length && paginatedData.length > 0}
+                      onChange={toggleSelectAll}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
+                  <th>Utilisateur</th>
+                  <th>Role</th>
+                  <th>Centre</th>
+                  <th>Statut</th>
+                  <th>Date creation</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedData.map((user) => (
+                  <tr key={user.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(user.id)}
+                        onChange={() => toggleSelect(user.id)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </td>
+                    <td>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{user.full_name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#737373' }}>{user.email}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`sa-status ${user.role === 'super_admin' ? 'active' : ''}`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '0.8rem', color: '#737373' }}>
+                      {user.center_id ? (centers || []).find(c => c.id === user.center_id)?.name || user.center_id : '-'}
+                    </td>
+                    <td>
+                      <span className={`sa-status ${user.is_active ? 'active' : 'inactive'}`}>
+                        {user.is_active ? 'Actif' : 'Inactif'}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '0.8rem', color: '#737373' }}>
+                      {new Date(user.created_at).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button className="sa-btn sa-btn-secondary" onClick={() => openEdit(user)}>Modifier</button>
+                        <button
+                          className={`sa-btn ${user.is_active ? 'sa-btn-danger' : 'sa-btn-success'}`}
+                          onClick={() => handleToggleActive(user.id, !user.is_active)}
+                        >
+                          {user.is_active ? 'Desactiver' : 'Activer'}
+                        </button>
+                        <button
+                          className="sa-btn sa-btn-secondary"
+                          onClick={() => resetPassword.mutate(user.email)}
+                        >
+                          Reset MDP
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <SAPagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              canNext={canNext}
+              canPrev={canPrev}
+              onNext={nextPage}
+              onPrev={prevPage}
+              onPageSizeChange={setPageSize}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Confirm Modal */}
+      {confirmAction && (
+        <SAConfirmModal
+          title={confirmAction.type === 'bulk'
+            ? `${confirmAction.isActive ? 'Activer' : 'Desactiver'} ${selectedIds.size} utilisateur(s)`
+            : `${confirmAction.isActive ? 'Activer' : 'Desactiver'} cet utilisateur`
+          }
+          message={confirmAction.type === 'bulk'
+            ? `Etes-vous sur de vouloir ${confirmAction.isActive ? 'activer' : 'desactiver'} les ${selectedIds.size} utilisateurs selectionnes ?`
+            : `Etes-vous sur de vouloir ${confirmAction.isActive ? 'activer' : 'desactiver'} cet utilisateur ?`
+          }
+          variant="danger"
+          confirmLabel={confirmAction.isActive ? 'Activer' : 'Desactiver'}
+          isLoading={toggleActive.isPending || bulkToggle.isPending}
+          onConfirm={handleConfirmAction}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
+
+      {/* Modal */}
+      {showModal && (
+        <div className="sa-modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="sa-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="sa-modal-title">
+              {editingUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <div className="sa-form-group">
+                <label className="sa-form-label">Nom complet</label>
+                <input name="full_name" className="sa-form-input" required defaultValue={editingUser?.full_name || ''} />
+              </div>
+              <div className="sa-form-group">
+                <label className="sa-form-label">Email</label>
+                <input name="email" type="email" className="sa-form-input" required defaultValue={editingUser?.email || ''} readOnly={!!editingUser} />
+              </div>
+              {!editingUser && (
+                <div className="sa-form-group">
+                  <label className="sa-form-label">Mot de passe</label>
+                  <input name="password" type="password" className="sa-form-input" placeholder="Minimum 8 caracteres" />
+                </div>
+              )}
+              <div className="sa-form-group">
+                <label className="sa-form-label">Role</label>
+                <select name="role" className="sa-form-select" defaultValue={editingUser?.role || 'trainer'}>
+                  <option value="admin">Admin</option>
+                  <option value="trainer">Formateur</option>
+                  <option value="coordinator">Coordinateur</option>
+                  <option value="staff">Staff</option>
+                  <option value="student">Etudiant (lecture seule)</option>
+                  <option value="super_admin">Super Admin</option>
+                </select>
+              </div>
+              <div className="sa-form-group">
+                <label className="sa-form-label">Centre</label>
+                <select name="center_id" className="sa-form-select" defaultValue={editingUser?.center_id || ''}>
+                  <option value="">Aucun centre</option>
+                  {(centers || []).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sa-form-group">
+                <label className="sa-form-label">Telephone</label>
+                <input name="phone" className="sa-form-input" defaultValue={editingUser?.phone || ''} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="sa-btn sa-btn-secondary" onClick={() => setShowModal(false)}>Annuler</button>
+                <button type="submit" className="sa-btn sa-btn-primary" disabled={createUser.isPending || updateUser.isPending}>
+                  {editingUser ? 'Mettre a jour' : 'Creer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

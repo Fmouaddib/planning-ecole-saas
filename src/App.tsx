@@ -4,6 +4,7 @@ import { DashboardPage } from '@/pages/dashboard'
 import { Layout } from '@/components/layout'
 import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
+import { SuperAdminApp } from '@/components/super-admin/SuperAdminApp'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
 
@@ -16,7 +17,7 @@ const mockUser: User = {
   email: 'jean.martin@supinfo.com',
   firstName: 'Jean',
   lastName: 'Martin',
-  role: 'teacher',
+  role: 'admin',
   schoolId: 'school-1',
   establishmentId: 'school-1',
   isActive: true,
@@ -191,6 +192,16 @@ export default function App() {
       >
         <LandingPage />
       </Suspense>
+    )
+  }
+
+  // Super Admin space
+  if (hash.startsWith('#/super-admin')) {
+    return (
+      <SuperAdminApp
+        user={_user ? { email: _user.email, firstName: _user.firstName, lastName: _user.lastName, role: _user.role } : null}
+        onLogout={handleLogout}
+      />
     )
   }
 
