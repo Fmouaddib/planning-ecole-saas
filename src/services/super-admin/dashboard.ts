@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { MockStore } from './mock-store';
 import type { SuperAdminDashboardStats } from '@/types/super-admin';
 
 export class SADashboardService {
@@ -15,7 +16,6 @@ export class SADashboardService {
       const users = usersRes.data || [];
       const subs = subsRes.data || [];
 
-      // Calculate MRR from active subscriptions
       let mrr = 0;
       if (subs.length > 0) {
         const planIds = [...new Set(subs.map(s => s.plan_id))];
@@ -40,9 +40,9 @@ export class SADashboardService {
         recentActivity: auditRes.data || [],
         mrrHistory: SADashboardService.generateMrrHistory(mrr),
       };
-    } catch (error) {
-      console.log('Mode simulation Dashboard - Stats simulees');
-      return SADashboardService.getMockStats();
+    } catch {
+      // Derive stats from MockStore (live data)
+      return MockStore.getStats();
     }
   }
 
@@ -65,29 +65,5 @@ export class SADashboardService {
       });
     }
     return history;
-  }
-
-  private static getMockStats(): SuperAdminDashboardStats {
-    return {
-      totalCenters: 12,
-      activeCenters: 10,
-      totalUsers: 87,
-      activeUsers: 72,
-      mrr: 1245,
-      activeSubscriptions: 8,
-      recentActivity: [
-        { id: '1', action: 'user.login', user_email: 'admin@formapro.fr', entity_type: 'auth', details: {}, created_at: new Date().toISOString() },
-        { id: '2', action: 'center.created', user_email: 'superadmin@antiplanning.com', entity_type: 'center', entity_id: 'c1', details: { name: 'FormaPro Nice' }, created_at: new Date(Date.now() - 3600000).toISOString() },
-        { id: '3', action: 'subscription.activated', user_email: 'superadmin@antiplanning.com', entity_type: 'subscription', details: { plan: 'Pro' }, created_at: new Date(Date.now() - 7200000).toISOString() },
-      ],
-      mrrHistory: [
-        { month: 'Sep', amount: 490 },
-        { month: 'Oct', amount: 637 },
-        { month: 'Nov', amount: 833 },
-        { month: 'Déc', amount: 980 },
-        { month: 'Jan', amount: 1127 },
-        { month: 'Fév', amount: 1245 },
-      ],
-    };
   }
 }
