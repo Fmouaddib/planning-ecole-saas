@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { LoginPage, SignupPage } from '@/pages/auth'
 import { DashboardPage } from '@/pages/dashboard'
+import { Layout } from '@/components/layout'
 import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
 
@@ -144,8 +145,6 @@ export default function App() {
     // Implémenter la logique de récupération de mot de passe
   }
 
-  // Ces handlers seront utilisés quand les pages accepteront les props
-  void handleLogout
   void _handleForgotPassword
 
   // États de chargement et d'erreur
@@ -197,29 +196,22 @@ export default function App() {
 
   // Application principale
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Router simulation - dans une vraie app, utiliser React Router */}
-      {currentPath === '/' && (
-        <DashboardPage />
-      )}
-      
-      {/* Ici on ajouterait les autres routes pour:
-          - /planning - Interface de planning
-          - /rooms - Gestion des salles
-          - /users - Gestion des utilisateurs
-          - /settings - Paramètres
-          - /profile - Profil utilisateur
-          etc.
-      */}
-      
+    <Layout
+      user={_user}
+      currentPath={currentPath}
+      onNavigate={handleNavigate}
+      onLogout={handleLogout}
+    >
+      {currentPath === '/' && <DashboardPage />}
+
       {currentPath !== '/' && (
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-neutral-900 mb-4">
               Page en cours de développement
             </h1>
             <p className="text-neutral-600 mb-6">
-              La page "{currentPath}" sera bientôt disponible.
+              La page &quot;{currentPath}&quot; sera bientôt disponible.
             </p>
             <button
               onClick={() => handleNavigate('/')}
@@ -230,6 +222,6 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   )
 }

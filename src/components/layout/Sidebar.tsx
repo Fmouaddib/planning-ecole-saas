@@ -149,11 +149,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Sidebar header - Mobile only */}
         <div className="lg:hidden flex items-center justify-between p-4 border-b border-neutral-200">
           <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">PE</span>
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm text-white" style={{ background: 'linear-gradient(135deg, #FF5B46, #FBA625)' }}>
+              A
             </div>
             <span className="font-display font-semibold text-lg text-neutral-900">
-              PlanningÉcole
+              AntiPlanning
             </span>
           </div>
           <button
@@ -205,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer */}
         <div className="p-4 border-t border-neutral-200">
           <div className="text-xs text-neutral-500">
-            <p className="font-medium">PlanningÉcole v1.0</p>
+            <p className="font-medium">AntiPlanning v1.0</p>
             <p>Gestion premium pour établissements</p>
           </div>
         </div>

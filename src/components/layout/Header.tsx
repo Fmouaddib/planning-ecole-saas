@@ -54,11 +54,11 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Logo */}
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">PE</span>
+          <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm text-white" style={{ background: 'linear-gradient(135deg, #FF5B46, #FBA625)' }}>
+            A
           </div>
           <span className="hidden sm:block font-display font-semibold text-xl text-neutral-900">
-            PlanningÉcole
+            AntiPlanning
           </span>
         </div>
 
