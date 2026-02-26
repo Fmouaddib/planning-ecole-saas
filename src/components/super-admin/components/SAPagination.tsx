@@ -31,7 +31,7 @@ export const SAPagination = ({
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
           >
-            {[10, 25, 50].map(size => (
+            {[5, 10, 25, 50].map(size => (
               <option key={size} value={size}>{size} / page</option>
             ))}
           </select>
