@@ -1,9 +1,10 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { SuperAdminUserProfile, CreateUserData } from '@/types/super-admin';
 
 export class SAUsersService {
   static async getUsers(search?: string): Promise<SuperAdminUserProfile[]> {
+    if (isDemoMode) return MockStore.getUsers(search);
     try {
       let query = supabase
         .from('profiles')
@@ -23,6 +24,10 @@ export class SAUsersService {
   }
 
   static async createUser(userData: CreateUserData): Promise<SuperAdminUserProfile> {
+    if (isDemoMode) return MockStore.addUser({
+      email: userData.email, full_name: userData.full_name, role: userData.role,
+      phone: userData.phone, center_id: userData.center_id, is_active: true,
+    });
     try {
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: userData.email,
@@ -55,6 +60,7 @@ export class SAUsersService {
   }
 
   static async updateUser(id: string, data: Partial<CreateUserData>): Promise<SuperAdminUserProfile> {
+    if (isDemoMode) return MockStore.updateUser(id, data as Partial<SuperAdminUserProfile>) || { id, ...data, is_active: true, created_at: '', updated_at: new Date().toISOString() } as SuperAdminUserProfile;
     try {
       const { data: updated, error } = await supabase
         .from('profiles')
@@ -71,6 +77,7 @@ export class SAUsersService {
   }
 
   static async toggleActive(id: string, isActive: boolean): Promise<void> {
+    if (isDemoMode) { MockStore.updateUser(id, { is_active: isActive }); return; }
     try {
       const { error } = await supabase.from('profiles').update({ is_active: isActive }).eq('id', id);
       if (error) throw error;
@@ -80,6 +87,7 @@ export class SAUsersService {
   }
 
   static async bulkToggleActive(ids: string[], isActive: boolean): Promise<void> {
+    if (isDemoMode) { ids.forEach(id => MockStore.updateUser(id, { is_active: isActive })); return; }
     try {
       const { error } = await supabase.from('profiles').update({ is_active: isActive }).in('id', ids);
       if (error) throw error;
@@ -89,6 +97,7 @@ export class SAUsersService {
   }
 
   static async deleteUser(id: string): Promise<void> {
+    if (isDemoMode) { MockStore.deleteUser(id); return; }
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
       if (error) throw error;
@@ -98,6 +107,7 @@ export class SAUsersService {
   }
 
   static async resetPassword(email: string): Promise<void> {
+    if (isDemoMode) { console.log(`Mode simulation - Reset password envoye a ${email}`); return; }
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;

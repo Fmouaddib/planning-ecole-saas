@@ -1,9 +1,10 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { SuperAdminDashboardStats } from '@/types/super-admin';
 
 export class SADashboardService {
   static async getStats(): Promise<SuperAdminDashboardStats> {
+    if (isDemoMode) return MockStore.getStats();
     try {
       const [centersRes, usersRes, subsRes, auditRes] = await Promise.all([
         supabase.from('training_centers').select('id, is_active', { count: 'exact' }),

@@ -1,9 +1,10 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { SuperAdminCenter, CreateCenterData } from '@/types/super-admin';
 
 export class SACentersService {
   static async getCenters(search?: string): Promise<SuperAdminCenter[]> {
+    if (isDemoMode) return MockStore.getCenters(search);
     try {
       let query = supabase
         .from('training_centers')
@@ -41,6 +42,7 @@ export class SACentersService {
   }
 
   static async createCenter(data: CreateCenterData): Promise<SuperAdminCenter> {
+    if (isDemoMode) return MockStore.addCenter(data);
     try {
       const { data: center, error } = await supabase
         .from('training_centers')
@@ -56,6 +58,7 @@ export class SACentersService {
   }
 
   static async updateCenter(id: string, data: Partial<CreateCenterData>): Promise<SuperAdminCenter> {
+    if (isDemoMode) return MockStore.updateCenter(id, data) || { id, ...data, is_active: true, settings: {}, created_at: '', updated_at: new Date().toISOString() } as SuperAdminCenter;
     try {
       const { data: center, error } = await supabase
         .from('training_centers')
@@ -72,6 +75,7 @@ export class SACentersService {
   }
 
   static async toggleActive(id: string, isActive: boolean): Promise<void> {
+    if (isDemoMode) { MockStore.updateCenter(id, { is_active: isActive }); return; }
     try {
       const { error } = await supabase.from('training_centers').update({ is_active: isActive }).eq('id', id);
       if (error) throw error;
@@ -81,6 +85,7 @@ export class SACentersService {
   }
 
   static async deleteCenter(id: string): Promise<void> {
+    if (isDemoMode) { MockStore.deleteCenter(id); return; }
     try {
       const { error } = await supabase.from('training_centers').delete().eq('id', id);
       if (error) throw error;

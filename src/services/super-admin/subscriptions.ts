@@ -1,9 +1,10 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { SubscriptionPlan, CenterSubscription, BillingEvent, CreatePlanData, AssignPlanData } from '@/types/super-admin';
 
 export class SASubscriptionsService {
   static async getPlans(): Promise<SubscriptionPlan[]> {
+    if (isDemoMode) return MockStore.getPlans();
     try {
       const { data, error } = await supabase.from('subscription_plans').select('*').order('sort_order');
       if (error) throw error;
@@ -14,6 +15,7 @@ export class SASubscriptionsService {
   }
 
   static async createPlan(planData: CreatePlanData): Promise<SubscriptionPlan> {
+    if (isDemoMode) return MockStore.addPlan(planData);
     try {
       const { data, error } = await supabase
         .from('subscription_plans')
@@ -28,6 +30,7 @@ export class SASubscriptionsService {
   }
 
   static async updatePlan(id: string, data: Partial<CreatePlanData>): Promise<SubscriptionPlan> {
+    if (isDemoMode) return MockStore.updatePlan(id, data) || { id, ...data, currency: 'EUR', is_active: true, sort_order: 0, created_at: '', updated_at: new Date().toISOString() } as SubscriptionPlan;
     try {
       const { data: plan, error } = await supabase
         .from('subscription_plans').update(data).eq('id', id).select().single();
@@ -39,6 +42,7 @@ export class SASubscriptionsService {
   }
 
   static async deletePlan(id: string): Promise<void> {
+    if (isDemoMode) { MockStore.deletePlan(id); return; }
     try {
       const { error } = await supabase.from('subscription_plans').delete().eq('id', id);
       if (error) throw error;
@@ -48,6 +52,7 @@ export class SASubscriptionsService {
   }
 
   static async getSubscriptions(): Promise<CenterSubscription[]> {
+    if (isDemoMode) return MockStore.getSubscriptions();
     try {
       const { data, error } = await supabase
         .from('center_subscriptions')
@@ -61,6 +66,7 @@ export class SASubscriptionsService {
   }
 
   static async assignPlanToCenter(data: AssignPlanData): Promise<CenterSubscription> {
+    if (isDemoMode) return MockStore.addSubscription(data);
     try {
       const now = new Date();
       const periodEnd = new Date(now);
@@ -84,6 +90,7 @@ export class SASubscriptionsService {
   }
 
   static async updateSubscription(id: string, data: { plan_id?: string; billing_cycle?: 'monthly' | 'yearly' }): Promise<CenterSubscription> {
+    if (isDemoMode) return MockStore.updateSubscription(id, data) || { id, ...data, status: 'active', cancel_at_period_end: false, created_at: '', updated_at: new Date().toISOString() } as CenterSubscription;
     try {
       const { data: sub, error } = await supabase
         .from('center_subscriptions')
@@ -99,6 +106,7 @@ export class SASubscriptionsService {
   }
 
   static async cancelSubscription(subscriptionId: string): Promise<void> {
+    if (isDemoMode) { MockStore.cancelSubscription(subscriptionId); return; }
     try {
       const { error } = await supabase
         .from('center_subscriptions')
@@ -111,6 +119,7 @@ export class SASubscriptionsService {
   }
 
   static async getBillingHistory(centerId?: string): Promise<BillingEvent[]> {
+    if (isDemoMode) return MockStore.getBilling(centerId);
     try {
       let query = supabase
         .from('billing_events')
