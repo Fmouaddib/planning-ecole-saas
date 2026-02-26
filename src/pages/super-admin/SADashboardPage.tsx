@@ -1,7 +1,7 @@
 import { useSuperAdminDashboard } from '@/hooks/super-admin/useSuperAdminDashboard';
 
 export const SADashboardPage = () => {
-  const { data: stats, isLoading } = useSuperAdminDashboard();
+  const { data: stats, isLoading, isError, isFetching, refetch } = useSuperAdminDashboard();
 
   if (isLoading) {
     return (
@@ -24,6 +24,27 @@ export const SADashboardPage = () => {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="p-6">
+        <div className="sa-page-header">
+          <div>
+            <h1 className="sa-page-title">Tableau de bord</h1>
+            <p className="sa-page-subtitle">Vue d'ensemble de la plateforme</p>
+          </div>
+        </div>
+        <div className="sa-empty-state">
+          <div className="sa-empty-icon">⚠️</div>
+          <div className="sa-empty-title">Erreur lors du chargement des donnees</div>
+          <div className="sa-empty-text">Impossible de recuperer les statistiques. Verifiez votre connexion.</div>
+          <button className="sa-btn sa-btn-primary" style={{ marginTop: '16px' }} onClick={() => refetch()}>
+            Reessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const kpis = [
     { label: 'Centres', value: stats?.totalCenters || 0, sub: `${stats?.activeCenters || 0} actifs` },
     { label: 'Utilisateurs', value: stats?.totalUsers || 0, sub: `${stats?.activeUsers || 0} actifs` },
@@ -40,6 +61,13 @@ export const SADashboardPage = () => {
           <h1 className="sa-page-title">Tableau de bord</h1>
           <p className="sa-page-subtitle">Vue d'ensemble de la plateforme AntiPlanning</p>
         </div>
+        <button
+          className="sa-btn sa-btn-secondary"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          {isFetching ? 'Actualisation...' : 'Actualiser'}
+        </button>
       </div>
 
       {/* KPI Cards */}

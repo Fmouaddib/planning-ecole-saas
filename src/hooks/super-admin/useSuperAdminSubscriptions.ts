@@ -42,6 +42,35 @@ export const useUpdateSAPlan = () => {
   });
 };
 
+export const useDeleteSAPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => SASubscriptionsService.deletePlan(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: SA_KEYS.plans });
+      SAAuditService.logAction({ action: 'plan.deleted', entityType: 'plan', entityId: id });
+      toast.success('Plan supprime');
+    },
+    onError: () => toast.error('Erreur lors de la suppression du plan'),
+  });
+};
+
+export const useUpdateSubscription = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { plan_id?: string; billing_cycle?: 'monthly' | 'yearly' } }) =>
+      SASubscriptionsService.updateSubscription(id, data),
+    onSuccess: (sub) => {
+      queryClient.invalidateQueries({ queryKey: SA_KEYS.subscriptions });
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'centers'] });
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'dashboard'] });
+      SAAuditService.logAction({ action: 'subscription.updated', entityType: 'subscription', entityId: sub.id, details: { plan_id: sub.plan_id } });
+      toast.success('Abonnement mis a jour');
+    },
+    onError: () => toast.error('Erreur lors de la mise a jour de l\'abonnement'),
+  });
+};
+
 export const useSuperAdminSubscriptions = () => {
   return useQuery({
     queryKey: SA_KEYS.subscriptions,

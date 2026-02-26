@@ -27,12 +27,9 @@ export const SAPagination = ({
       <div className="sa-pagination-controls">
         {onPageSizeChange && (
           <select
+            className="sa-pagination-select"
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            style={{
-              padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--color-gray-300)',
-              fontSize: '0.8rem', background: 'white', cursor: 'pointer',
-            }}
           >
             {[10, 25, 50].map(size => (
               <option key={size} value={size}>{size} / page</option>
@@ -43,18 +40,18 @@ export const SAPagination = ({
           className="sa-btn sa-btn-secondary"
           onClick={onPrev}
           disabled={!canPrev}
-          style={{ opacity: canPrev ? 1 : 0.4, padding: '6px 12px', fontSize: '0.8rem' }}
+          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
         >
-          Precedent
+          Précédent
         </button>
-        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-gray-500)' }}>
+        <span className="sa-pagination-current">
           {page} / {totalPages}
         </span>
         <button
           className="sa-btn sa-btn-secondary"
           onClick={onNext}
           disabled={!canNext}
-          style={{ opacity: canNext ? 1 : 0.4, padding: '6px 12px', fontSize: '0.8rem' }}
+          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
         >
           Suivant
         </button>

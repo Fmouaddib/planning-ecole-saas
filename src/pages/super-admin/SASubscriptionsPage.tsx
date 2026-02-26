@@ -1,13 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   useSuperAdminSubscriptions,
   useSuperAdminPlans,
   useAssignPlan,
   useCancelSubscription,
   useBillingHistory,
+  useUpdateSubscription,
 } from '@/hooks/super-admin/useSuperAdminSubscriptions';
 import { useSuperAdminCenters } from '@/hooks/super-admin/useSuperAdminCenters';
+import { usePagination } from '@/hooks/usePagination';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { exportToCSV } from '@/utils/csv-export';
+import { SAPagination } from '@/components/super-admin/components/SAPagination';
+import type { CenterSubscription } from '@/types/super-admin';
 
 /** Calculer le prix Enterprise en fonction du nombre d'etudiants */
 const computeEnterprisePrice = (maxStudents: number): number => {
@@ -17,6 +22,8 @@ const computeEnterprisePrice = (maxStudents: number): number => {
   return 199 + extra;
 };
 
+const STATUS_OPTIONS = ['active', 'trialing', 'past_due', 'cancelled', 'expired'] as const;
+
 export const SASubscriptionsPage = () => {
   const { data: subscriptions, isLoading } = useSuperAdminSubscriptions();
   const { data: plans } = useSuperAdminPlans();
@@ -24,12 +31,18 @@ export const SASubscriptionsPage = () => {
   const { data: billing } = useBillingHistory();
   const assignPlan = useAssignPlan();
   const cancelSub = useCancelSubscription();
+  const updateSub = useUpdateSubscription();
 
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'billing'>('subscriptions');
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [maxStudentsInput, setMaxStudentsInput] = useState(100);
+  const [subSearch, setSubSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [editingSub, setEditingSub] = useState<CenterSubscription | null>(null);
+  const [editPlanId, setEditPlanId] = useState('');
+  const [editCycle, setEditCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   const selectedPlan = useMemo(
     () => (plans || []).find(p => p.id === selectedPlanId),
@@ -37,6 +50,36 @@ export const SASubscriptionsPage = () => {
   );
   const isEnterprisePlan = selectedPlan?.slug === 'enterprise';
   const computedPrice = isEnterprisePlan ? computeEnterprisePrice(maxStudentsInput) : null;
+
+  // Filtered subscriptions
+  const filteredSubs = useMemo(() => {
+    let result = subscriptions || [];
+    if (subSearch) {
+      const s = subSearch.toLowerCase();
+      result = result.filter(sub =>
+        (sub.center?.name || '').toLowerCase().includes(s) ||
+        (sub.plan?.name || '').toLowerCase().includes(s)
+      );
+    }
+    if (statusFilter) {
+      result = result.filter(sub => sub.status === statusFilter);
+    }
+    return result;
+  }, [subscriptions, subSearch, statusFilter]);
+
+  // Pagination for subscriptions tab
+  const subsPagination = usePagination(filteredSubs);
+
+  // Pagination for billing tab
+  const billingPagination = usePagination(billing || [], { initialPageSize: 25 });
+
+  const closeAllModals = useCallback(() => {
+    if (cancelConfirmId) { setCancelConfirmId(null); return; }
+    if (editingSub) { setEditingSub(null); return; }
+    if (showAssignModal) { setShowAssignModal(false); }
+  }, [cancelConfirmId, editingSub, showAssignModal]);
+
+  useEscapeKey(closeAllModals);
 
   const handleAssign = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,7 +92,32 @@ export const SASubscriptionsPage = () => {
     }, { onSuccess: () => setShowAssignModal(false) });
   };
 
+  const handleEditSub = () => {
+    if (!editingSub) return;
+    updateSub.mutate(
+      { id: editingSub.id, data: { plan_id: editPlanId, billing_cycle: editCycle } },
+      { onSuccess: () => setEditingSub(null) }
+    );
+  };
+
+  const openEditSub = (sub: CenterSubscription) => {
+    setEditingSub(sub);
+    setEditPlanId(sub.plan_id);
+    setEditCycle(sub.billing_cycle || 'monthly');
+  };
+
   const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
+
+  const handleExportSubsCSV = () => {
+    exportToCSV(filteredSubs, [
+      { header: 'Centre', accessor: (s) => s.center?.name || s.center_id || '' },
+      { header: 'Plan', accessor: (s) => s.plan?.name || s.plan_id || '' },
+      { header: 'Statut', accessor: (s) => s.status },
+      { header: 'Cycle', accessor: (s) => s.billing_cycle || '' },
+      { header: 'Debut', accessor: (s) => formatDate(s.current_period_start) },
+      { header: 'Fin', accessor: (s) => formatDate(s.current_period_end) },
+    ], 'abonnements');
+  };
 
   const handleExportBillingCSV = () => {
     exportToCSV(billing || [], [
@@ -84,68 +152,120 @@ export const SASubscriptionsPage = () => {
       </div>
 
       {activeTab === 'subscriptions' && (
-        <div className="sa-table-container">
-          {isLoading ? (
-            <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
-          ) : (subscriptions || []).length === 0 ? (
-            <div className="sa-empty-state">
-              <div className="sa-empty-icon">📋</div>
-              <div className="sa-empty-title">Aucun abonnement</div>
-              <div className="sa-empty-text">Assignez un plan a un centre pour commencer.</div>
-            </div>
-          ) : (
-            <table className="sa-table">
-              <thead>
-                <tr>
-                  <th>Centre</th>
-                  <th>Plan</th>
-                  <th>Statut</th>
-                  <th>Cycle</th>
-                  <th>Periode</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(subscriptions || []).map((sub) => (
-                  <tr key={sub.id}>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{sub.center?.name || sub.center_id}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#737373' }}>{sub.center?.email || ''}</div>
-                    </td>
-                    <td>
-                      <strong>{sub.plan?.name || sub.plan_id}</strong>
-                      {sub.plan?.price_monthly != null && (
-                        <div style={{ fontSize: '0.75rem', color: '#737373' }}>{sub.plan.price_monthly}{'\u20AC'}/mois</div>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`sa-status ${sub.status}`}>
-                        {sub.status}
-                      </span>
-                      {sub.cancel_at_period_end && (
-                        <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Annulation en fin de periode</div>
-                      )}
-                    </td>
-                    <td style={{ textTransform: 'capitalize' }}>{sub.billing_cycle}</td>
-                    <td style={{ fontSize: '0.8rem', color: '#737373' }}>
-                      {formatDate(sub.current_period_start)} - {formatDate(sub.current_period_end)}
-                    </td>
-                    <td>
-                      {sub.status === 'active' && (
-                        <button
-                          className="sa-btn sa-btn-danger"
-                          onClick={() => setCancelConfirmId(sub.id)}
-                        >
-                          Annuler
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <>
+          {/* Search + Filters + CSV */}
+          <div className="sa-search-bar" style={{ flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              className="sa-search-input"
+              placeholder="Rechercher par centre ou plan..."
+              value={subSearch}
+              onChange={(e) => setSubSearch(e.target.value)}
+            />
+            <button
+              className={`sa-filter-btn ${statusFilter === '' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('')}
+            >
+              Tous
+            </button>
+            {STATUS_OPTIONS.map(status => (
+              <button
+                key={status}
+                className={`sa-filter-btn ${statusFilter === status ? 'active' : ''}`}
+                onClick={() => setStatusFilter(status)}
+              >
+                {status}
+              </button>
+            ))}
+            <button className="sa-btn sa-btn-secondary" onClick={handleExportSubsCSV}>Exporter CSV</button>
+          </div>
+
+          <div className="sa-table-container">
+            {isLoading ? (
+              <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+            ) : filteredSubs.length === 0 ? (
+              <div className="sa-empty-state">
+                <div className="sa-empty-icon">📋</div>
+                <div className="sa-empty-title">Aucun abonnement</div>
+                <div className="sa-empty-text">Assignez un plan a un centre pour commencer.</div>
+              </div>
+            ) : (
+              <>
+                <table className="sa-table">
+                  <thead>
+                    <tr>
+                      <th>Centre</th>
+                      <th>Plan</th>
+                      <th>Statut</th>
+                      <th>Cycle</th>
+                      <th>Periode</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subsPagination.paginatedData.map((sub) => (
+                      <tr key={sub.id}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{sub.center?.name || sub.center_id}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#737373' }}>{sub.center?.email || ''}</div>
+                        </td>
+                        <td>
+                          <strong>{sub.plan?.name || sub.plan_id}</strong>
+                          {sub.plan?.price_monthly != null && (
+                            <div style={{ fontSize: '0.75rem', color: '#737373' }}>{sub.plan.price_monthly}{'\u20AC'}/mois</div>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`sa-status ${sub.status}`}>
+                            {sub.status}
+                          </span>
+                          {sub.cancel_at_period_end && (
+                            <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Annulation en fin de periode</div>
+                          )}
+                        </td>
+                        <td style={{ textTransform: 'capitalize' }}>{sub.billing_cycle}</td>
+                        <td style={{ fontSize: '0.8rem', color: '#737373' }}>
+                          {formatDate(sub.current_period_start)} - {formatDate(sub.current_period_end)}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              className="sa-btn sa-btn-secondary"
+                              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                              onClick={() => openEditSub(sub)}
+                            >
+                              Modifier
+                            </button>
+                            {sub.status === 'active' && (
+                              <button
+                                className="sa-btn sa-btn-danger"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                                onClick={() => setCancelConfirmId(sub.id)}
+                              >
+                                Annuler
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <SAPagination
+                  page={subsPagination.page}
+                  totalPages={subsPagination.totalPages}
+                  totalItems={subsPagination.totalItems}
+                  pageSize={subsPagination.pageSize}
+                  canNext={subsPagination.canNext}
+                  canPrev={subsPagination.canPrev}
+                  onNext={subsPagination.nextPage}
+                  onPrev={subsPagination.prevPage}
+                  onPageSizeChange={subsPagination.setPageSize}
+                />
+              </>
+            )}
+          </div>
+        </>
       )}
 
       {activeTab === 'billing' && (
@@ -160,28 +280,41 @@ export const SASubscriptionsPage = () => {
               <div className="sa-empty-title">Aucun evenement de facturation</div>
             </div>
           ) : (
-            <table className="sa-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Centre</th>
-                  <th>Type</th>
-                  <th>Montant</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(billing || []).map((event) => (
-                  <tr key={event.id}>
-                    <td style={{ fontSize: '0.8rem' }}>{formatDate(event.created_at)}</td>
-                    <td>{event.center?.name || event.center_id || '-'}</td>
-                    <td><span className="sa-status active">{event.event_type}</span></td>
-                    <td style={{ fontWeight: 600 }}>{event.amount != null ? `${event.amount}\u20AC` : '-'}</td>
-                    <td style={{ fontSize: '0.85rem', color: '#737373' }}>{event.description || '-'}</td>
+            <>
+              <table className="sa-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Centre</th>
+                    <th>Type</th>
+                    <th>Montant</th>
+                    <th>Description</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {billingPagination.paginatedData.map((event) => (
+                    <tr key={event.id}>
+                      <td style={{ fontSize: '0.8rem' }}>{formatDate(event.created_at)}</td>
+                      <td>{event.center?.name || event.center_id || '-'}</td>
+                      <td><span className="sa-status active">{event.event_type}</span></td>
+                      <td style={{ fontWeight: 600 }}>{event.amount != null ? `${event.amount}\u20AC` : '-'}</td>
+                      <td style={{ fontSize: '0.85rem', color: '#737373' }}>{event.description || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <SAPagination
+                page={billingPagination.page}
+                totalPages={billingPagination.totalPages}
+                totalItems={billingPagination.totalItems}
+                pageSize={billingPagination.pageSize}
+                canNext={billingPagination.canNext}
+                canPrev={billingPagination.canPrev}
+                onNext={billingPagination.nextPage}
+                onPrev={billingPagination.prevPage}
+                onPageSizeChange={billingPagination.setPageSize}
+              />
+            </>
           )}
         </div>
         </div>
@@ -192,10 +325,10 @@ export const SASubscriptionsPage = () => {
         <div className="sa-modal-overlay" onClick={() => setCancelConfirmId(null)}>
           <div className="sa-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
             <h2 className="sa-modal-title">Confirmer l'annulation</h2>
-            <p style={{ fontSize: '0.9rem', color: '#737373', marginBottom: '24px' }}>
+            <p className="sa-text-muted" style={{ marginBottom: '24px' }}>
               Etes-vous sur de vouloir annuler cet abonnement ? Le centre conservera l'acces jusqu'a la fin de la periode en cours.
             </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <div className="sa-modal-actions">
               <button className="sa-btn sa-btn-secondary" onClick={() => setCancelConfirmId(null)}>Non, garder</button>
               <button
                 className="sa-btn sa-btn-danger"
@@ -205,6 +338,39 @@ export const SASubscriptionsPage = () => {
                 }}
               >
                 {cancelSub.isPending ? 'Annulation...' : 'Oui, annuler'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Subscription Modal */}
+      {editingSub && (
+        <div className="sa-modal-overlay" onClick={() => setEditingSub(null)}>
+          <div className="sa-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <h2 className="sa-modal-title">Modifier l'abonnement</h2>
+            <p className="sa-text-muted" style={{ marginBottom: '16px' }}>
+              Centre : <strong>{editingSub.center?.name || editingSub.center_id}</strong>
+            </p>
+            <div className="sa-form-group">
+              <label className="sa-form-label">Plan</label>
+              <select className="sa-form-select" value={editPlanId} onChange={(e) => setEditPlanId(e.target.value)}>
+                {(plans || []).map(p => (
+                  <option key={p.id} value={p.id}>{p.name} — {p.price_monthly}{'\u20AC'}/mois</option>
+                ))}
+              </select>
+            </div>
+            <div className="sa-form-group">
+              <label className="sa-form-label">Cycle de facturation</label>
+              <select className="sa-form-select" value={editCycle} onChange={(e) => setEditCycle(e.target.value as 'monthly' | 'yearly')}>
+                <option value="monthly">Mensuel</option>
+                <option value="yearly">Annuel</option>
+              </select>
+            </div>
+            <div className="sa-modal-actions" style={{ marginTop: '24px' }}>
+              <button className="sa-btn sa-btn-secondary" onClick={() => setEditingSub(null)}>Annuler</button>
+              <button className="sa-btn sa-btn-primary" onClick={handleEditSub} disabled={updateSub.isPending}>
+                {updateSub.isPending ? 'Mise a jour...' : 'Mettre a jour'}
               </button>
             </div>
           </div>
@@ -264,7 +430,7 @@ export const SASubscriptionsPage = () => {
                   <option value="yearly">Annuel</option>
                 </select>
               </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <div className="sa-modal-actions" style={{ marginTop: '24px' }}>
                 <button type="button" className="sa-btn sa-btn-secondary" onClick={() => setShowAssignModal(false)}>Annuler</button>
                 <button type="submit" className="sa-btn sa-btn-primary" disabled={assignPlan.isPending}>
                   Assigner

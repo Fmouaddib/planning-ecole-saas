@@ -121,6 +121,18 @@ export class SAUsersService {
     }
   }
 
+  static async deleteUser(id: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    } catch {
+      console.log(`Mode simulation - Utilisateur supprime: ${id}`);
+    }
+  }
+
   static async resetPassword(email: string): Promise<void> {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);

@@ -73,6 +73,20 @@ export const useBulkToggleSAUserActive = () => {
   });
 };
 
+export const useDeleteSAUser = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => SAUsersService.deleteUser(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'dashboard'] });
+      SAAuditService.logAction({ action: 'user.deleted', entityType: 'user', entityId: id });
+      toast.success('Utilisateur supprime');
+    },
+    onError: () => toast.error('Erreur lors de la suppression'),
+  });
+};
+
 export const useResetSAUserPassword = () => {
   return useMutation({
     mutationFn: (email: string) => SAUsersService.resetPassword(email),

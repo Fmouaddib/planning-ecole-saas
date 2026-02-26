@@ -116,16 +116,15 @@ export class SACentersService {
     }
   }
 
-  static async getUsageStats(centerId: string) {
+  static async deleteCenter(id: string): Promise<void> {
     try {
-      const [sessions, users, rooms] = await Promise.all([
-        supabase.from('training_sessions').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('center_id', centerId),
-        supabase.from('rooms').select('id', { count: 'exact', head: true }).eq('center_id', centerId),
-      ]);
-      return { sessions: sessions.count || 0, users: users.count || 0, rooms: rooms.count || 0 };
+      const { error } = await supabase
+        .from('training_centers')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
     } catch {
-      return { sessions: 15, users: 8, rooms: 3 };
+      console.log(`Mode simulation - Centre supprime: ${id}`);
     }
   }
 

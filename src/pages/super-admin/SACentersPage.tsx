@@ -1,24 +1,30 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   useSuperAdminCenters,
   useCreateSACenter,
   useUpdateSACenter,
   useToggleSACenterActive,
+  useDeleteSACenter,
 } from '@/hooks/super-admin/useSuperAdminCenters';
 import { usePagination } from '@/hooks/usePagination';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { exportToCSV } from '@/utils/csv-export';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
+import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
 import type { CreateCenterData, SuperAdminCenter } from '@/types/super-admin';
 
 export const SACentersPage = () => {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingCenter, setEditingCenter] = useState<SuperAdminCenter | null>(null);
+  const [toggleConfirm, setToggleConfirm] = useState<SuperAdminCenter | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<SuperAdminCenter | null>(null);
 
   const { data: centers, isLoading } = useSuperAdminCenters(search || undefined);
   const createCenter = useCreateSACenter();
   const updateCenter = useUpdateSACenter();
   const toggleActive = useToggleSACenterActive();
+  const deleteCenter = useDeleteSACenter();
 
   const allCenters = centers || [];
 
@@ -26,6 +32,14 @@ export const SACentersPage = () => {
     page, totalPages, totalItems, pageSize, paginatedData,
     canNext, canPrev, nextPage, prevPage, setPageSize,
   } = usePagination(allCenters);
+
+  const closeAllModals = useCallback(() => {
+    if (deleteConfirm) { setDeleteConfirm(null); return; }
+    if (toggleConfirm) { setToggleConfirm(null); return; }
+    if (showModal) { setShowModal(false); setEditingCenter(null); }
+  }, [deleteConfirm, toggleConfirm, showModal]);
+
+  useEscapeKey(closeAllModals);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -139,9 +153,15 @@ export const SACentersPage = () => {
                   </button>
                   <button
                     className={`sa-btn ${center.is_active ? 'sa-btn-danger' : 'sa-btn-success'}`}
-                    onClick={() => toggleActive.mutate({ id: center.id, isActive: !center.is_active })}
+                    onClick={() => setToggleConfirm(center)}
                   >
                     {center.is_active ? 'Desactiver' : 'Activer'}
+                  </button>
+                  <button
+                    className="sa-btn sa-btn-danger"
+                    onClick={() => setDeleteConfirm(center)}
+                  >
+                    Supprimer
                   </button>
                 </div>
               </div>
@@ -163,7 +183,40 @@ export const SACentersPage = () => {
         </>
       )}
 
-      {/* Modal */}
+      {/* Toggle Confirm Modal */}
+      {toggleConfirm && (
+        <SAConfirmModal
+          title={toggleConfirm.is_active ? 'Desactiver le centre' : 'Activer le centre'}
+          message={`Etes-vous sur de vouloir ${toggleConfirm.is_active ? 'desactiver' : 'activer'} le centre "${toggleConfirm.name}" ?`}
+          confirmLabel={toggleConfirm.is_active ? 'Desactiver' : 'Activer'}
+          variant={toggleConfirm.is_active ? 'danger' : 'primary'}
+          isLoading={toggleActive.isPending}
+          onConfirm={() => {
+            toggleActive.mutate(
+              { id: toggleConfirm.id, isActive: !toggleConfirm.is_active },
+              { onSuccess: () => setToggleConfirm(null) }
+            );
+          }}
+          onCancel={() => setToggleConfirm(null)}
+        />
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <SAConfirmModal
+          title="Supprimer le centre"
+          message={`Etes-vous sur de vouloir supprimer definitivement le centre "${deleteConfirm.name}" ? Cette action est irreversible.`}
+          confirmLabel="Supprimer"
+          variant="danger"
+          isLoading={deleteCenter.isPending}
+          onConfirm={() => {
+            deleteCenter.mutate(deleteConfirm.id, { onSuccess: () => setDeleteConfirm(null) });
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      {/* Create/Edit Modal */}
       {showModal && (
         <div className="sa-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="sa-modal" onClick={(e) => e.stopPropagation()}>
@@ -191,7 +244,7 @@ export const SACentersPage = () => {
                 <label className="sa-form-label">Site web</label>
                 <input name="website" className="sa-form-input" defaultValue={editingCenter?.website || ''} />
               </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <div className="sa-modal-actions" style={{ marginTop: '24px' }}>
                 <button type="button" className="sa-btn sa-btn-secondary" onClick={() => setShowModal(false)}>Annuler</button>
                 <button type="submit" className="sa-btn sa-btn-primary" disabled={createCenter.isPending || updateCenter.isPending}>
                   {editingCenter ? 'Mettre a jour' : 'Creer'}

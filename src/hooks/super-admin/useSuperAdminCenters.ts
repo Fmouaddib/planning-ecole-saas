@@ -42,6 +42,20 @@ export const useUpdateSACenter = () => {
   });
 };
 
+export const useDeleteSACenter = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => SACentersService.deleteCenter(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'centers'] });
+      queryClient.invalidateQueries({ queryKey: ['super-admin', 'dashboard'] });
+      SAAuditService.logAction({ action: 'center.deleted', entityType: 'center', entityId: id });
+      toast.success('Centre supprime');
+    },
+    onError: () => toast.error('Erreur lors de la suppression du centre'),
+  });
+};
+
 export const useToggleSACenterActive = () => {
   const queryClient = useQueryClient();
   return useMutation({

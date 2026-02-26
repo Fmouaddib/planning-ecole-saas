@@ -1,13 +1,37 @@
-import { useState } from 'react';
-import { useSuperAdminPlans, useCreateSAPlan, useUpdateSAPlan } from '@/hooks/super-admin/useSuperAdminSubscriptions';
+import { useState, useMemo, useCallback } from 'react';
+import { useSuperAdminPlans, useCreateSAPlan, useUpdateSAPlan, useDeleteSAPlan } from '@/hooks/super-admin/useSuperAdminSubscriptions';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
+import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
 import type { SubscriptionPlan, CreatePlanData } from '@/types/super-admin';
 
 export const SAPlansPage = () => {
   const { data: plans, isLoading } = useSuperAdminPlans();
   const createPlan = useCreateSAPlan();
   const updatePlan = useUpdateSAPlan();
+  const deletePlan = useDeleteSAPlan();
   const [showModal, setShowModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<SubscriptionPlan | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  const filteredPlans = useMemo(() => {
+    let result = plans || [];
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(p => p.name.toLowerCase().includes(s) || p.slug.toLowerCase().includes(s));
+    }
+    if (statusFilter === 'active') result = result.filter(p => p.is_active);
+    if (statusFilter === 'inactive') result = result.filter(p => !p.is_active);
+    return result;
+  }, [plans, search, statusFilter]);
+
+  const closeAllModals = useCallback(() => {
+    if (deleteConfirm) { setDeleteConfirm(null); return; }
+    if (showModal) { setShowModal(false); setEditingPlan(null); }
+  }, [deleteConfirm, showModal]);
+
+  useEscapeKey(closeAllModals);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -47,13 +71,39 @@ export const SAPlansPage = () => {
         </button>
       </div>
 
+      {/* Search + Filter */}
+      <div className="sa-search-bar">
+        <input
+          type="text"
+          className="sa-search-input"
+          placeholder="Rechercher un plan..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {(['all', 'active', 'inactive'] as const).map(status => (
+          <button
+            key={status}
+            className={`sa-filter-btn ${statusFilter === status ? 'active' : ''}`}
+            onClick={() => setStatusFilter(status)}
+          >
+            {status === 'all' ? 'Tous' : status === 'active' ? 'Actifs' : 'Inactifs'}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+      ) : filteredPlans.length === 0 ? (
+        <div className="sa-empty-state">
+          <div className="sa-empty-icon">💎</div>
+          <div className="sa-empty-title">Aucun plan trouve</div>
+          <div className="sa-empty-text">Ajustez vos filtres ou creez un nouveau plan.</div>
+        </div>
       ) : (
         <div className="sa-plans-grid">
-          {(plans || []).map((plan, idx) => (
-            <div key={plan.id} className={`sa-plan-card ${idx === 1 ? 'featured' : ''}`}>
-              {idx === 1 && (
+          {filteredPlans.map((plan) => (
+            <div key={plan.id} className={`sa-plan-card ${plan.slug === 'pro' ? 'featured' : ''}`}>
+              {plan.slug === 'pro' && (
                 <div style={{ position: 'absolute', top: '-1px', right: '20px', background: '#e74c3c', color: 'white', fontSize: '0.65rem', padding: '4px 12px', borderRadius: '0 0 8px 8px', fontWeight: 700, textTransform: 'uppercase' }}>
                   Populaire
                 </div>
@@ -102,6 +152,9 @@ export const SAPlansPage = () => {
                 <button className="sa-btn sa-btn-secondary" onClick={() => { setEditingPlan(plan); setShowModal(true); }}>
                   Modifier
                 </button>
+                <button className="sa-btn sa-btn-danger" onClick={() => setDeleteConfirm(plan)}>
+                  Supprimer
+                </button>
                 {plan.stripe_product_id ? (
                   <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center' }}>Stripe synced</span>
                 ) : (
@@ -113,7 +166,22 @@ export const SAPlansPage = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <SAConfirmModal
+          title="Supprimer le plan"
+          message={`Etes-vous sur de vouloir supprimer le plan "${deleteConfirm.name}" ? Les abonnements existants ne seront pas affectes.`}
+          confirmLabel="Supprimer"
+          variant="danger"
+          isLoading={deletePlan.isPending}
+          onConfirm={() => {
+            deletePlan.mutate(deleteConfirm.id, { onSuccess: () => setDeleteConfirm(null) });
+          }}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      {/* Create/Edit Modal */}
       {showModal && (
         <div className="sa-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="sa-modal" onClick={(e) => e.stopPropagation()}>
@@ -169,7 +237,7 @@ export const SAPlansPage = () => {
                 <label className="sa-form-label">Features (une par ligne)</label>
                 <textarea name="features" className="sa-form-textarea" rows={4} defaultValue={editingPlan?.features?.join('\n') || ''} />
               </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <div className="sa-modal-actions" style={{ marginTop: '24px' }}>
                 <button type="button" className="sa-btn sa-btn-secondary" onClick={() => setShowModal(false)}>Annuler</button>
                 <button type="submit" className="sa-btn sa-btn-primary">{editingPlan ? 'Mettre a jour' : 'Creer'}</button>
               </div>

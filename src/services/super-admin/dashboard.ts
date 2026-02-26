@@ -52,7 +52,7 @@ export class SADashboardService {
   }
 
   private static generateMrrHistory(currentMrr: number): { month: string; amount: number }[] {
-    const months = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
     const now = new Date();
     const history = [];
 
@@ -84,9 +84,9 @@ export class SADashboardService {
         { month: 'Sep', amount: 490 },
         { month: 'Oct', amount: 637 },
         { month: 'Nov', amount: 833 },
-        { month: 'Dec', amount: 980 },
+        { month: 'Déc', amount: 980 },
         { month: 'Jan', amount: 1127 },
-        { month: 'Fev', amount: 1245 },
+        { month: 'Fév', amount: 1245 },
       ],
     };
   }

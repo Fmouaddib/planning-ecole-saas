@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 interface SADateRangePickerProps {
   startDate: string;
   endDate: string;
@@ -5,12 +7,29 @@ interface SADateRangePickerProps {
   onEndDateChange: (date: string) => void;
 }
 
+type QuickRange = 'today' | 7 | 30 | 'month';
+
 export const SADateRangePicker = ({
   startDate, endDate, onStartDateChange, onEndDateChange,
 }: SADateRangePickerProps) => {
   const today = new Date().toISOString().slice(0, 10);
 
-  const setQuickRange = (days: number | 'today' | 'month') => {
+  const activeRange = useMemo((): QuickRange | null => {
+    if (!startDate || !endDate) return null;
+    const s = startDate.slice(0, 10);
+    const e = endDate.slice(0, 10);
+    if (s === today && e === today) return 'today';
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    if (s === monthStart && e === today) return 'month';
+    const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (s === d7 && e === today) return 7;
+    const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (s === d30 && e === today) return 30;
+    return null;
+  }, [startDate, endDate, today]);
+
+  const setQuickRange = (days: QuickRange) => {
     const end = new Date();
     let start: Date;
 
@@ -36,22 +55,27 @@ export const SADateRangePicker = ({
     onEndDateChange('');
   };
 
+  const quickButtons: { label: string; value: QuickRange }[] = [
+    { label: "Aujourd'hui", value: 'today' },
+    { label: '7 jours', value: 7 },
+    { label: '30 jours', value: 30 },
+    { label: 'Ce mois', value: 'month' },
+  ];
+
   return (
     <div className="sa-date-range">
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <input
           type="date"
-          className="sa-form-input"
-          style={{ width: '160px', padding: '8px 10px', fontSize: '0.8rem' }}
+          className="sa-form-input sa-date-input"
           value={startDate ? startDate.slice(0, 10) : ''}
           onChange={(e) => onStartDateChange(e.target.value)}
           max={today}
         />
-        <span style={{ color: 'var(--color-gray-400)', fontSize: '0.8rem' }}>a</span>
+        <span className="sa-text-muted" style={{ fontSize: '0.8rem' }}>à</span>
         <input
           type="date"
-          className="sa-form-input"
-          style={{ width: '160px', padding: '8px 10px', fontSize: '0.8rem' }}
+          className="sa-form-input sa-date-input"
           value={endDate ? endDate.slice(0, 10) : ''}
           onChange={(e) => onEndDateChange(e.target.value + 'T23:59:59')}
           max={today}
@@ -67,18 +91,16 @@ export const SADateRangePicker = ({
         )}
       </div>
       <div className="sa-quick-dates">
-        <button className="sa-filter-btn" onClick={() => setQuickRange('today')} style={{ padding: '6px 10px', fontSize: '0.75rem' }}>
-          Aujourd'hui
-        </button>
-        <button className="sa-filter-btn" onClick={() => setQuickRange(7)} style={{ padding: '6px 10px', fontSize: '0.75rem' }}>
-          7 jours
-        </button>
-        <button className="sa-filter-btn" onClick={() => setQuickRange(30)} style={{ padding: '6px 10px', fontSize: '0.75rem' }}>
-          30 jours
-        </button>
-        <button className="sa-filter-btn" onClick={() => setQuickRange('month')} style={{ padding: '6px 10px', fontSize: '0.75rem' }}>
-          Ce mois
-        </button>
+        {quickButtons.map((btn) => (
+          <button
+            key={btn.label}
+            className={`sa-filter-btn ${activeRange === btn.value ? 'active' : ''}`}
+            onClick={() => setQuickRange(btn.value)}
+            style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+          >
+            {btn.label}
+          </button>
+        ))}
       </div>
     </div>
   );

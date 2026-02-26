@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSuperAdminAudit, useLoginActivity } from '@/hooks/super-admin/useSuperAdminAudit';
 import { usePagination } from '@/hooks/usePagination';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { exportToCSV } from '@/utils/csv-export';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import { SADateRangePicker } from '@/components/super-admin/components/SADateRangePicker';
@@ -10,6 +11,8 @@ export const SAAuditPage = () => {
   const [actionFilter, setActionFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [loginSearch, setLoginSearch] = useState('');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const filters: Record<string, string> = {};
   if (actionFilter) filters.action = actionFilter;
@@ -21,13 +24,36 @@ export const SAAuditPage = () => {
   );
   const { data: loginActivity, isLoading: loadingLogins } = useLoginActivity();
 
-  const entries = activeTab === 'logins' ? (loginActivity || []) : (auditLog || []);
+  // Filter logins by search
+  const filteredLogins = (loginActivity || []).filter(entry => {
+    if (!loginSearch) return true;
+    const s = loginSearch.toLowerCase();
+    return (entry.user_email || '').toLowerCase().includes(s) ||
+           (entry.user?.full_name || '').toLowerCase().includes(s);
+  });
+
+  const entries = activeTab === 'logins' ? filteredLogins : (auditLog || []);
   const isLoading = activeTab === 'logins' ? loadingLogins : loadingAudit;
 
   const {
     page, totalPages, totalItems, pageSize, paginatedData,
     canNext, canPrev, nextPage, prevPage, setPageSize,
   } = usePagination(entries, { initialPageSize: 25 });
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const closeAllModals = useCallback(() => {
+    setExpandedRows(new Set());
+  }, []);
+
+  useEscapeKey(closeAllModals);
 
   const actionIcons: Record<string, string> = {
     'user.login': '🔑',
@@ -54,6 +80,33 @@ export const SAAuditPage = () => {
       { header: 'Entite', accessor: (e) => e.entity_type || '' },
       { header: 'Details', accessor: (e) => e.details ? JSON.stringify(e.details) : '' },
     ], 'audit');
+  };
+
+  const renderDetails = (entry: typeof entries[0]) => {
+    if (!entry.details || Object.keys(entry.details).length === 0) return '-';
+    const isExpanded = expandedRows.has(entry.id);
+
+    return (
+      <div>
+        <button
+          className="sa-btn sa-btn-secondary"
+          style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+          onClick={() => toggleRow(entry.id)}
+        >
+          {isExpanded ? 'Masquer' : 'Voir details'}
+        </button>
+        {isExpanded && (
+          <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--color-gray-50, #fafafa)', borderRadius: '6px', fontSize: '0.8rem' }}>
+            {Object.entries(entry.details).map(([key, value]) => (
+              <div key={key} style={{ display: 'flex', gap: '8px', padding: '3px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <span style={{ fontWeight: 600, color: '#737373', minWidth: '80px' }}>{key}</span>
+                <span style={{ color: '#171717' }}>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -100,6 +153,19 @@ export const SAAuditPage = () => {
               {action ? action.split('.').join(' ') : 'Toutes'}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Login search */}
+      {activeTab === 'logins' && (
+        <div className="sa-search-bar">
+          <input
+            type="text"
+            className="sa-search-input"
+            placeholder="Rechercher par email ou nom..."
+            value={loginSearch}
+            onChange={(e) => setLoginSearch(e.target.value)}
+          />
         </div>
       )}
 
@@ -154,11 +220,7 @@ export const SAAuditPage = () => {
                       ) : '-'}
                     </td>
                     <td style={{ maxWidth: '250px' }}>
-                      {entry.details && Object.keys(entry.details).length > 0 ? (
-                        <code style={{ fontSize: '0.7rem', background: 'var(--color-gray-100)', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {JSON.stringify(entry.details)}
-                        </code>
-                      ) : '-'}
+                      {renderDetails(entry)}
                     </td>
                   </tr>
                 ))}

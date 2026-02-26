@@ -118,6 +118,35 @@ export class SASubscriptionsService {
     }
   }
 
+  static async deletePlan(id: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('subscription_plans')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    } catch {
+      console.log(`Mode simulation - Plan supprime: ${id}`);
+    }
+  }
+
+  static async updateSubscription(id: string, data: { plan_id?: string; billing_cycle?: 'monthly' | 'yearly' }): Promise<CenterSubscription> {
+    try {
+      const { data: sub, error } = await supabase
+        .from('center_subscriptions')
+        .update(data)
+        .eq('id', id)
+        .select('*, plan:subscription_plans(*), center:training_centers(id, name, email)')
+        .single();
+
+      if (error) throw error;
+      return sub as CenterSubscription;
+    } catch {
+      console.log('Mode simulation - Abonnement mis a jour:', id);
+      return { id, ...data, status: 'active', cancel_at_period_end: false, created_at: '', updated_at: new Date().toISOString() } as CenterSubscription;
+    }
+  }
+
   static async cancelSubscription(subscriptionId: string): Promise<void> {
     try {
       const { error } = await supabase
