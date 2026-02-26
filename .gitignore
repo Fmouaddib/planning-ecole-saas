@@ -39,3 +39,10 @@ coverage
 # Temporary files
 *.tmp
 *.temp
+
+# Claude Code
+.claude/
+.mcp.json
+
+# Vercel
+.vercel/
