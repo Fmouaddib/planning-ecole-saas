@@ -1,0 +1,341 @@
+{
+  "meta": {
+    "description": "Messages d'erreur contextuels pour l'application Planning École",
+    "principles": [
+      "Être empathique, jamais culpabilisant",
+      "Proposer une solution concrète",
+      "Utiliser un langage humain et accessible",
+      "Rassurer sans minimiser le problème"
+    ]
+  },
+
+  "authentication": {
+    "invalidCredentials": {
+      "title": "Identifiants incorrects",
+      "message": "L'email ou le mot de passe ne correspond pas. Voulez-vous réinitialiser votre mot de passe ?",
+      "actions": ["resetPassword", "retry"],
+      "tone": "helpful"
+    },
+    "accountLocked": {
+      "title": "Compte temporairement verrouillé",
+      "message": "Pour votre sécurité, votre compte a été verrouillé après plusieurs tentatives. Réessayez dans 15 minutes ou contactez le support.",
+      "actions": ["contactSupport", "resetPassword"],
+      "tone": "security"
+    },
+    "emailNotVerified": {
+      "title": "Email non vérifié",
+      "message": "Vérifiez votre boîte email et cliquez sur le lien de confirmation. Rien reçu ?",
+      "actions": ["resendEmail", "changeEmail"],
+      "tone": "guiding"
+    },
+    "expiredSession": {
+      "title": "Session expirée",
+      "message": "Vous avez été déconnecté pour votre sécurité. Reconnectez-vous pour continuer.",
+      "actions": ["login"],
+      "tone": "informative"
+    },
+    "passwordTooWeak": {
+      "title": "Mot de passe trop simple",
+      "message": "Pour protéger votre compte, choisissez un mot de passe plus complexe : 8 caractères minimum avec chiffres et lettres.",
+      "actions": ["retry"],
+      "tone": "educational"
+    }
+  },
+
+  "rooms": {
+    "nameAlreadyExists": {
+      "title": "Cette salle existe déjà",
+      "message": "Une salle avec ce nom est déjà configurée. Choisissez un autre nom ou modifiez la salle existante.",
+      "actions": ["editExisting", "chooseDifferentName"],
+      "tone": "helpful"
+    },
+    "capacityRequired": {
+      "title": "Capacité manquante",
+      "message": "Indiquez le nombre de places de cette salle pour optimiser vos planifications.",
+      "actions": ["addCapacity"],
+      "tone": "encouraging"
+    },
+    "roomInUse": {
+      "title": "Salle utilisée",
+      "message": "Cette salle a des cours programmés. Déplacez-les d'abord ou supprimez-les pour continuer.",
+      "actions": ["viewSchedule", "moveEvents", "forceDelete"],
+      "tone": "protective"
+    },
+    "invalidLocation": {
+      "title": "Emplacement incomplet",
+      "message": "Précisez l'emplacement de la salle (bâtiment, étage...) pour faciliter la navigation.",
+      "actions": ["addLocation"],
+      "tone": "helpful"
+    },
+    "equipmentConflict": {
+      "title": "Équipement indisponible",
+      "message": "L'équipement sélectionné n'est plus disponible. Mettez à jour la configuration de la salle.",
+      "actions": ["updateEquipment", "removeEquipment"],
+      "tone": "informative"
+    }
+  },
+
+  "schedule": {
+    "timeConflict": {
+      "title": "Conflit de planning",
+      "message": "Cette salle est déjà occupée de {startTime} à {endTime} par '{conflictingEvent}'. Choisissez un autre créneau ou une autre salle.",
+      "actions": ["changeTime", "changeRoom", "viewConflict"],
+      "tone": "solution-oriented"
+    },
+    "pastDateTime": {
+      "title": "Date passée",
+      "message": "Impossible de programmer un cours dans le passé. Sélectionnez une date future.",
+      "actions": ["selectFutureDate"],
+      "tone": "logical"
+    },
+    "invalidDuration": {
+      "title": "Durée invalide",
+      "message": "La fin du cours ne peut pas être avant le début. Vérifiez les heures saisies.",
+      "actions": ["fixTiming"],
+      "tone": "helpful"
+    },
+    "roomCapacityExceeded": {
+      "title": "Salle trop petite",
+      "message": "Cette salle accueille {roomCapacity} personnes, mais vous prévoyez {plannedStudents} étudiants. Choisissez une salle plus grande ?",
+      "actions": ["selectLargerRoom", "reduceStudents", "continueAnyway"],
+      "tone": "advisory"
+    },
+    "noRoomSelected": {
+      "title": "Salle manquante",
+      "message": "Sélectionnez une salle pour ce cours. Si aucune ne convient, vous pouvez en créer une nouvelle.",
+      "actions": ["selectRoom", "createRoom"],
+      "tone": "guiding"
+    },
+    "instructorRequired": {
+      "title": "Enseignant manquant",
+      "message": "Qui va donner ce cours ? Ajoutez le nom de l'enseignant pour finaliser la programmation.",
+      "actions": ["addInstructor"],
+      "tone": "encouraging"
+    },
+    "weekendWarning": {
+      "title": "Cours le weekend ?",
+      "message": "Vous programmez un cours un {dayName}. C'est inhabituel, voulez-vous confirmer ?",
+      "actions": ["confirm", "selectWeekday"],
+      "tone": "checking"
+    },
+    "tooManyStudents": {
+      "title": "Nombre d'étudiants élevé",
+      "message": "Ce nombre d'étudiants ({studentCount}) semble élevé. Vérifiez qu'il s'agit bien du bon effectif.",
+      "actions": ["confirm", "modify"],
+      "tone": "verification"
+    },
+    "recurringSeriesError": {
+      "title": "Erreur de récurrence",
+      "message": "Impossible de créer toute la série. Certains créneaux sont en conflit. Voulez-vous créer uniquement les cours possibles ?",
+      "actions": ["createAvailable", "fixConflicts", "cancel"],
+      "tone": "solution-oriented"
+    }
+  },
+
+  "profile": {
+    "emailAlreadyUsed": {
+      "title": "Email déjà utilisé",
+      "message": "Cette adresse email est associée à un autre compte. Utilisez une autre adresse ou récupérez votre compte existant.",
+      "actions": ["useOtherEmail", "recoverAccount"],
+      "tone": "informative"
+    },
+    "invalidPhoneNumber": {
+      "title": "Numéro invalide",
+      "message": "Ce format de téléphone n'est pas reconnu. Exemple : +33 1 23 45 67 89",
+      "actions": ["correctFormat"],
+      "tone": "educational"
+    },
+    "passwordMismatch": {
+      "title": "Mots de passe différents",
+      "message": "La confirmation ne correspond pas au nouveau mot de passe. Ressaisissez-les identiquement.",
+      "actions": ["retryPassword"],
+      "tone": "helpful"
+    },
+    "currentPasswordWrong": {
+      "title": "Mot de passe actuel incorrect",
+      "message": "Pour votre sécurité, confirmez votre mot de passe actuel avant de le changer.",
+      "actions": ["retryCurrentPassword", "resetPassword"],
+      "tone": "security"
+    },
+    "uploadTooLarge": {
+      "title": "Fichier trop volumineux",
+      "message": "Votre photo fait {fileSize}. Choisissez une image de moins de 5 Mo.",
+      "actions": ["selectSmallerFile", "compressImage"],
+      "tone": "technical"
+    },
+    "invalidImageFormat": {
+      "title": "Format non supporté",
+      "message": "Seuls les formats JPG, PNG et GIF sont acceptés pour votre photo de profil.",
+      "actions": ["convertImage", "selectOtherImage"],
+      "tone": "technical"
+    }
+  },
+
+  "settings": {
+    "invalidWorkingHours": {
+      "title": "Heures d'ouverture incorrectes",
+      "message": "L'heure de fermeture ne peut pas être avant l'ouverture. Vérifiez vos horaires.",
+      "actions": ["fixHours"],
+      "tone": "logical"
+    },
+    "backupFailed": {
+      "title": "Sauvegarde échouée",
+      "message": "Impossible de créer la sauvegarde. Vérifiez votre connexion et réessayez.",
+      "actions": ["retry", "contactSupport"],
+      "tone": "technical"
+    },
+    "exportTooLarge": {
+      "title": "Export volumineux",
+      "message": "Vos données sont importantes ! L'export peut prendre plusieurs minutes. Restez connecté.",
+      "actions": ["continueExport", "exportPartial"],
+      "tone": "informative"
+    },
+    "importFormatError": {
+      "title": "Format non reconnu",
+      "message": "Le fichier importé n'a pas le bon format. Utilisez le modèle Excel fourni ou un fichier CSV.",
+      "actions": ["downloadTemplate", "selectOtherFile"],
+      "tone": "helpful"
+    },
+    "planLimitReached": {
+      "title": "Limite de forfait atteinte",
+      "message": "Vous avez atteint la limite de {limitType} de votre forfait. Passez au forfait supérieur pour continuer ?",
+      "actions": ["upgrade", "deleteOld", "contactSales"],
+      "tone": "commercial"
+    }
+  },
+
+  "system": {
+    "networkError": {
+      "title": "Problème de connexion",
+      "message": "Vérifiez votre connexion internet. Nous réessayons automatiquement...",
+      "actions": ["retry", "refresh"],
+      "tone": "technical",
+      "autoRetry": true
+    },
+    "serverError": {
+      "title": "Nos serveurs font une pause",
+      "message": "Notre équipe technique a été notifiée et résout le problème. Réessayez dans quelques minutes.",
+      "actions": ["retry", "contactSupport"],
+      "tone": "reassuring",
+      "severity": "high"
+    },
+    "maintenanceMode": {
+      "title": "Maintenance en cours",
+      "message": "Nous améliorons votre expérience ! Maintenance programmée jusqu'à {endTime}.",
+      "actions": ["checkStatus"],
+      "tone": "informative",
+      "severity": "low"
+    },
+    "browserNotSupported": {
+      "title": "Navigateur non supporté",
+      "message": "Pour une expérience optimale, utilisez Chrome, Firefox, Safari ou Edge dans leur dernière version.",
+      "actions": ["updateBrowser", "continueAnyway"],
+      "tone": "technical"
+    },
+    "storageQuotaExceeded": {
+      "title": "Espace de stockage plein",
+      "message": "Votre navigateur manque d'espace. Videz le cache ou libérez de l'espace disque.",
+      "actions": ["clearCache", "freeSpace"],
+      "tone": "technical"
+    },
+    "permissionDenied": {
+      "title": "Permission refusée",
+      "message": "Vous n'avez pas les droits pour cette action. Contactez votre administrateur si nécessaire.",
+      "actions": ["contactAdmin", "goBack"],
+      "tone": "administrative"
+    },
+    "dataCorrupted": {
+      "title": "Données endommagées",
+      "message": "Certaines données semblent corrompues. Nous restaurons automatiquement depuis la dernière sauvegarde.",
+      "actions": ["waitRestore", "contactSupport"],
+      "tone": "technical",
+      "severity": "medium"
+    },
+    "rateLimit": {
+      "title": "Trop de requêtes",
+      "message": "Ralentissez un peu ! Attendez quelques secondes avant votre prochaine action.",
+      "actions": ["wait"],
+      "tone": "playful",
+      "autoRetry": true
+    }
+  },
+
+  "validation": {
+    "fieldRequired": {
+      "title": "Champ obligatoire",
+      "message": "Cette information est nécessaire pour continuer.",
+      "tone": "neutral"
+    },
+    "emailInvalid": {
+      "title": "Format d'email incorrect",
+      "message": "Vérifiez que votre email ressemble à : nom@ecole.fr",
+      "tone": "educational"
+    },
+    "textTooShort": {
+      "title": "Trop court",
+      "message": "Saisissez au moins {minLength} caractères (actuellement {currentLength}).",
+      "tone": "informative"
+    },
+    "textTooLong": {
+      "title": "Trop long",
+      "message": "Maximum {maxLength} caractères (vous en avez {currentLength}).",
+      "tone": "limiting"
+    },
+    "numberOutOfRange": {
+      "title": "Nombre invalide",
+      "message": "Saisissez une valeur entre {min} et {max}.",
+      "tone": "mathematical"
+    },
+    "dateInvalid": {
+      "title": "Date invalide",
+      "message": "Vérifiez le format : DD/MM/AAAA (ex: 15/03/2026).",
+      "tone": "formatting"
+    },
+    "timeInvalid": {
+      "title": "Heure invalide",
+      "message": "Format attendu : HH:MM (ex: 14:30).",
+      "tone": "formatting"
+    }
+  },
+
+  "notifications": {
+    "permissionRequired": {
+      "title": "Autoriser les notifications ?",
+      "message": "Recevez des rappels pour vos cours et alertes importantes. Vous pouvez modifier cela plus tard.",
+      "actions": ["allow", "later"],
+      "tone": "requesting"
+    },
+    "browserNotSupported": {
+      "title": "Notifications non supportées",
+      "message": "Votre navigateur ne supporte pas les notifications. Vous recevrez les alertes par email.",
+      "actions": ["useEmail"],
+      "tone": "alternative"
+    }
+  },
+
+  "accessibility": {
+    "screenReaderSupport": {
+      "title": "Mode accessibilité",
+      "message": "Interface optimisée pour les lecteurs d'écran activée. Utilisez Tab pour naviguer.",
+      "tone": "supportive"
+    },
+    "keyboardNavigation": {
+      "title": "Navigation clavier",
+      "message": "Utilisez Tab, Entrée et les flèches pour naviguer. Échap pour fermer les menus.",
+      "tone": "instructional"
+    }
+  },
+
+  "contextualHelp": {
+    "errorPatterns": {
+      "repeated": "Cette erreur se répète ? Contactez le support avec le code : {errorCode}",
+      "new": "Première fois que vous voyez cette erreur ? Consultez notre guide de dépannage",
+      "critical": "Erreur critique détectée. Sauvegardez votre travail et contactez le support immédiatement"
+    },
+    "userActions": {
+      "beginner": "Nouveau sur l'app ? Consultez notre guide de démarrage",
+      "advanced": "Besoin d'aide avancée ? Documentation complète disponible",
+      "admin": "Problème d'administration ? Support prioritaire disponible"
+    }
+  }
+}

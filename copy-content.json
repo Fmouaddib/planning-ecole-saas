@@ -1,0 +1,565 @@
+{
+  "meta": {
+    "version": "1.0",
+    "lastUpdated": "2026-02-24",
+    "description": "Copy content pour l'application SaaS de planning d'établissement supérieur",
+    "tone": "chaleureux, malin, humain"
+  },
+  
+  "authentication": {
+    "login": {
+      "title": "Ravis de vous retrouver !",
+      "subtitle": "Connectez-vous pour accéder à votre planning",
+      "emailPlaceholder": "votre.email@ecole.fr",
+      "passwordPlaceholder": "Votre mot de passe",
+      "submitButton": "Se connecter",
+      "forgotPassword": "Mot de passe oublié ?",
+      "signupLink": "Première visite ? Créez votre compte",
+      "loading": "Connexion en cours...",
+      "rememberMe": "Se souvenir de moi"
+    },
+    "signup": {
+      "title": "Bienvenue dans la famille !",
+      "subtitle": "Créez votre compte et révolutionnez votre planning en 2 minutes",
+      "establishmentPlaceholder": "Nom de votre établissement",
+      "firstNamePlaceholder": "Votre prénom",
+      "lastNamePlaceholder": "Votre nom",
+      "emailPlaceholder": "votre.email@ecole.fr",
+      "passwordPlaceholder": "Choisissez un mot de passe solide",
+      "confirmPasswordPlaceholder": "Confirmez votre mot de passe",
+      "submitButton": "Créer mon compte",
+      "loginLink": "Déjà inscrit ? Connectez-vous",
+      "loading": "Création du compte...",
+      "termsAccept": "J'accepte les conditions d'utilisation et la politique de confidentialité",
+      "steps": {
+        "step1": "Vos informations",
+        "step2": "Configuration",
+        "step3": "Validation"
+      }
+    },
+    "forgotPassword": {
+      "title": "Pas de panique !",
+      "subtitle": "Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe",
+      "emailPlaceholder": "votre.email@ecole.fr",
+      "submitButton": "Envoyer le lien",
+      "backToLogin": "Retour à la connexion",
+      "success": "Email envoyé ! Vérifiez votre boîte de réception",
+      "loading": "Envoi en cours..."
+    },
+    "resetPassword": {
+      "title": "Nouveau mot de passe",
+      "subtitle": "Choisissez un nouveau mot de passe sécurisé",
+      "newPasswordPlaceholder": "Nouveau mot de passe",
+      "confirmPasswordPlaceholder": "Confirmez le nouveau mot de passe",
+      "submitButton": "Sauvegarder",
+      "loading": "Mise à jour..."
+    }
+  },
+
+  "dashboard": {
+    "header": {
+      "greeting": "Bonjour",
+      "subtitle": "Voici un aperçu de votre établissement aujourd'hui"
+    },
+    "navigation": {
+      "dashboard": "Tableau de bord",
+      "rooms": "Salles",
+      "schedule": "Planning",
+      "profile": "Profil",
+      "settings": "Paramètres",
+      "logout": "Se déconnecter"
+    },
+    "widgets": {
+      "todaySchedule": {
+        "title": "Aujourd'hui",
+        "subtitle": "Votre planning du jour",
+        "noEvents": "Rien de prévu aujourd'hui, profitez-en ! ☕",
+        "viewAll": "Voir tout le planning"
+      },
+      "roomsStatus": {
+        "title": "État des salles",
+        "available": "disponibles",
+        "occupied": "occupées",
+        "maintenance": "en maintenance",
+        "viewRooms": "Gérer les salles"
+      },
+      "quickActions": {
+        "title": "Actions rapides",
+        "addEvent": "Nouveau cours",
+        "manageRooms": "Gérer les salles",
+        "viewReports": "Voir les rapports"
+      },
+      "upcomingEvents": {
+        "title": "Prochains cours",
+        "noUpcoming": "Rien de prévu dans les heures qui viennent",
+        "timeRemaining": "dans"
+      },
+      "statistics": {
+        "title": "Cette semaine",
+        "hoursScheduled": "heures programmées",
+        "roomsUsed": "salles utilisées",
+        "efficiency": "taux d'occupation"
+      }
+    },
+    "emptyState": {
+      "title": "Votre planning est vide",
+      "description": "Commencez par ajouter des salles et créer votre premier cours",
+      "primaryAction": "Ajouter une salle",
+      "secondaryAction": "Voir le guide de démarrage"
+    }
+  },
+
+  "rooms": {
+    "header": {
+      "title": "Gestion des salles",
+      "subtitle": "Organisez et configurez vos espaces d'enseignement",
+      "addButton": "Ajouter une salle"
+    },
+    "list": {
+      "searchPlaceholder": "Rechercher une salle...",
+      "filterAll": "Toutes",
+      "filterAvailable": "Disponibles",
+      "filterOccupied": "Occupées",
+      "filterMaintenance": "Maintenance",
+      "noResults": "Aucune salle trouvée",
+      "noResultsDescription": "Essayez de modifier vos critères de recherche"
+    },
+    "card": {
+      "capacity": "places",
+      "equipment": "Équipements",
+      "status": {
+        "available": "Disponible",
+        "occupied": "Occupée",
+        "maintenance": "Maintenance"
+      },
+      "actions": {
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "viewSchedule": "Voir le planning"
+      }
+    },
+    "addModal": {
+      "title": "Ajouter une salle",
+      "namePlaceholder": "Ex: Salle A101",
+      "capacityPlaceholder": "Nombre de places",
+      "locationPlaceholder": "Bâtiment, étage...",
+      "descriptionPlaceholder": "Description de la salle (optionnel)",
+      "equipmentLabel": "Équipements disponibles",
+      "equipmentOptions": {
+        "projector": "Projecteur",
+        "computer": "Ordinateurs",
+        "whiteboard": "Tableau blanc",
+        "smartboard": "Tableau interactif",
+        "audio": "Système audio",
+        "wifi": "Wi-Fi",
+        "ac": "Climatisation"
+      },
+      "submitButton": "Créer la salle",
+      "cancelButton": "Annuler",
+      "loading": "Création en cours..."
+    },
+    "editModal": {
+      "title": "Modifier la salle",
+      "submitButton": "Sauvegarder",
+      "cancelButton": "Annuler",
+      "loading": "Mise à jour..."
+    },
+    "deleteModal": {
+      "title": "Supprimer cette salle ?",
+      "description": "Cette action est irréversible. Tous les cours programmés dans cette salle seront supprimés.",
+      "confirmButton": "Oui, supprimer",
+      "cancelButton": "Annuler",
+      "loading": "Suppression..."
+    },
+    "emptyState": {
+      "title": "Aucune salle configurée",
+      "description": "Ajoutez votre première salle pour commencer à organiser vos cours",
+      "primaryAction": "Ajouter ma première salle",
+      "illustration": "🏫"
+    }
+  },
+
+  "schedule": {
+    "header": {
+      "title": "Planning",
+      "subtitle": "Vue d'ensemble de vos cours et réservations",
+      "addEventButton": "Nouveau cours"
+    },
+    "navigation": {
+      "views": {
+        "day": "Jour",
+        "week": "Semaine",
+        "month": "Mois"
+      },
+      "today": "Aujourd'hui",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "timeSlots": {
+      "allDay": "Toute la journée",
+      "morning": "Matin",
+      "afternoon": "Après-midi",
+      "evening": "Soir"
+    },
+    "event": {
+      "duration": "durée",
+      "room": "Salle",
+      "instructor": "Enseignant",
+      "students": "étudiants",
+      "actions": {
+        "edit": "Modifier",
+        "duplicate": "Dupliquer",
+        "cancel": "Annuler",
+        "delete": "Supprimer"
+      }
+    },
+    "addEventModal": {
+      "title": "Nouveau cours",
+      "titlePlaceholder": "Titre du cours",
+      "descriptionPlaceholder": "Description (optionnel)",
+      "instructorPlaceholder": "Nom de l'enseignant",
+      "roomLabel": "Salle",
+      "roomPlaceholder": "Choisir une salle",
+      "dateLabel": "Date",
+      "startTimeLabel": "Heure de début",
+      "endTimeLabel": "Heure de fin",
+      "studentsLabel": "Nombre d'étudiants",
+      "studentsPlaceholder": "Ex: 25",
+      "recurring": {
+        "label": "Cours récurrent",
+        "none": "Aucune récurrence",
+        "daily": "Quotidien",
+        "weekly": "Hebdomadaire",
+        "monthly": "Mensuel"
+      },
+      "submitButton": "Créer le cours",
+      "cancelButton": "Annuler",
+      "loading": "Création..."
+    },
+    "editEventModal": {
+      "title": "Modifier le cours",
+      "submitButton": "Sauvegarder",
+      "editSeries": "Modifier toute la série",
+      "editSingle": "Modifier uniquement ce cours"
+    },
+    "emptyState": {
+      "title": "Planning vide",
+      "description": "Aucun cours programmé pour cette période",
+      "primaryAction": "Ajouter un cours",
+      "illustration": "📅"
+    },
+    "conflicts": {
+      "roomUnavailable": "Cette salle n'est pas disponible à ce créneau",
+      "overlapping": "Ce cours chevauche avec un autre événement",
+      "pastDate": "Vous ne pouvez pas programmer un cours dans le passé"
+    }
+  },
+
+  "profile": {
+    "header": {
+      "title": "Mon profil",
+      "subtitle": "Gérez vos informations personnelles et préférences"
+    },
+    "sections": {
+      "personal": {
+        "title": "Informations personnelles",
+        "firstNameLabel": "Prénom",
+        "lastNameLabel": "Nom",
+        "emailLabel": "Email",
+        "phoneLabel": "Téléphone",
+        "phonePlaceholder": "Votre numéro de téléphone"
+      },
+      "establishment": {
+        "title": "Établissement",
+        "nameLabel": "Nom de l'établissement",
+        "roleLabel": "Votre rôle",
+        "rolePlaceholder": "Ex: Directeur, Coordinateur..."
+      },
+      "preferences": {
+        "title": "Préférences",
+        "languageLabel": "Langue",
+        "timezoneLabel": "Fuseau horaire",
+        "notificationsLabel": "Notifications",
+        "emailNotifications": "Recevoir les notifications par email",
+        "pushNotifications": "Notifications push"
+      },
+      "security": {
+        "title": "Sécurité",
+        "changePassword": "Changer le mot de passe",
+        "twoFactorAuth": "Authentification à deux facteurs",
+        "loginHistory": "Historique des connexions"
+      }
+    },
+    "buttons": {
+      "save": "Sauvegarder",
+      "cancel": "Annuler",
+      "edit": "Modifier",
+      "loading": "Sauvegarde..."
+    },
+    "changePasswordModal": {
+      "title": "Changer le mot de passe",
+      "currentPasswordPlaceholder": "Mot de passe actuel",
+      "newPasswordPlaceholder": "Nouveau mot de passe",
+      "confirmPasswordPlaceholder": "Confirmer le nouveau mot de passe",
+      "submitButton": "Mettre à jour",
+      "cancelButton": "Annuler"
+    }
+  },
+
+  "settings": {
+    "header": {
+      "title": "Paramètres",
+      "subtitle": "Configurez votre application selon vos besoins"
+    },
+    "sections": {
+      "general": {
+        "title": "Général",
+        "establishmentName": "Nom de l'établissement",
+        "academicYear": "Année académique",
+        "defaultView": "Vue par défaut du planning",
+        "workingHours": {
+          "title": "Heures d'ouverture",
+          "start": "Heure d'ouverture",
+          "end": "Heure de fermeture"
+        }
+      },
+      "notifications": {
+        "title": "Notifications",
+        "eventReminders": "Rappels de cours",
+        "roomChanges": "Changements de salle",
+        "systemUpdates": "Mises à jour système",
+        "reminderTime": "Délai de rappel",
+        "options": {
+          "15min": "15 minutes avant",
+          "30min": "30 minutes avant",
+          "1hour": "1 heure avant",
+          "24hours": "24 heures avant"
+        }
+      },
+      "data": {
+        "title": "Données",
+        "export": "Exporter mes données",
+        "import": "Importer des données",
+        "backup": "Sauvegarde automatique",
+        "retention": "Durée de conservation"
+      },
+      "account": {
+        "title": "Compte",
+        "plan": "Forfait actuel",
+        "billing": "Facturation",
+        "usage": "Utilisation",
+        "deleteAccount": "Supprimer mon compte"
+      }
+    },
+    "buttons": {
+      "save": "Sauvegarder",
+      "export": "Exporter",
+      "upgrade": "Mettre à niveau"
+    }
+  },
+
+  "common": {
+    "buttons": {
+      "save": "Sauvegarder",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "add": "Ajouter",
+      "close": "Fermer",
+      "confirm": "Confirmer",
+      "retry": "Réessayer",
+      "loadMore": "Charger plus",
+      "refresh": "Actualiser",
+      "back": "Retour",
+      "next": "Suivant",
+      "previous": "Précédent",
+      "submit": "Valider"
+    },
+    "states": {
+      "loading": "Chargement...",
+      "saving": "Sauvegarde...",
+      "deleting": "Suppression...",
+      "updating": "Mise à jour...",
+      "noData": "Aucune donnée",
+      "error": "Une erreur est survenue",
+      "success": "Opération réussie",
+      "empty": "Vide",
+      "offline": "Hors ligne"
+    },
+    "time": {
+      "now": "maintenant",
+      "today": "aujourd'hui",
+      "yesterday": "hier",
+      "tomorrow": "demain",
+      "thisWeek": "cette semaine",
+      "nextWeek": "la semaine prochaine",
+      "thisMonth": "ce mois-ci",
+      "nextMonth": "le mois prochain"
+    },
+    "validation": {
+      "required": "Ce champ est obligatoire",
+      "email": "Format d'email invalide",
+      "phone": "Format de téléphone invalide",
+      "minLength": "Trop court",
+      "maxLength": "Trop long",
+      "passwordWeak": "Mot de passe trop faible",
+      "passwordMatch": "Les mots de passe ne correspondent pas",
+      "invalidDate": "Date invalide",
+      "invalidTime": "Heure invalide",
+      "futureDate": "La date doit être dans le futur",
+      "pastDate": "La date doit être dans le passé"
+    },
+    "search": {
+      "placeholder": "Rechercher...",
+      "noResults": "Aucun résultat trouvé",
+      "resultsFor": "Résultats pour",
+      "clear": "Effacer la recherche"
+    },
+    "pagination": {
+      "previous": "Précédent",
+      "next": "Suivant",
+      "page": "Page",
+      "of": "sur",
+      "showing": "Affichage de",
+      "to": "à",
+      "results": "résultats"
+    },
+    "filters": {
+      "all": "Tous",
+      "active": "Actifs",
+      "inactive": "Inactifs",
+      "recent": "Récents",
+      "clear": "Effacer les filtres",
+      "apply": "Appliquer"
+    }
+  },
+
+  "errors": {
+    "network": {
+      "title": "Problème de connexion",
+      "message": "Vérifiez votre connexion internet et réessayez",
+      "retry": "Réessayer"
+    },
+    "server": {
+      "title": "Erreur serveur",
+      "message": "Nos serveurs font une petite pause. Nous résolvons le problème !",
+      "contact": "Contacter le support"
+    },
+    "notFound": {
+      "title": "Page introuvable",
+      "message": "Oups ! Cette page n'existe pas",
+      "home": "Retour à l'accueil"
+    },
+    "unauthorized": {
+      "title": "Accès non autorisé",
+      "message": "Vous devez vous connecter pour accéder à cette page",
+      "login": "Se connecter"
+    },
+    "validation": {
+      "title": "Données invalides",
+      "message": "Vérifiez les informations saisies"
+    },
+    "conflict": {
+      "title": "Conflit détecté",
+      "message": "Cette action entre en conflit avec des données existantes"
+    }
+  },
+
+  "success": {
+    "saved": "✅ Sauvegardé avec succès",
+    "created": "✅ Créé avec succès",
+    "updated": "✅ Mis à jour avec succès",
+    "deleted": "✅ Supprimé avec succès",
+    "emailSent": "✅ Email envoyé",
+    "passwordChanged": "✅ Mot de passe mis à jour",
+    "profileUpdated": "✅ Profil mis à jour",
+    "settingsSaved": "✅ Paramètres sauvegardés",
+    "eventCreated": "✅ Cours créé",
+    "roomAdded": "✅ Salle ajoutée",
+    "importCompleted": "✅ Import terminé"
+  },
+
+  "onboarding": {
+    "welcome": {
+      "title": "Bienvenue ! 👋",
+      "subtitle": "Configurons votre planning en 3 étapes simples"
+    },
+    "steps": {
+      "establishment": {
+        "title": "Votre établissement",
+        "description": "Parlez-nous de votre école",
+        "nameLabel": "Nom de l'établissement",
+        "typeLabel": "Type d'établissement",
+        "sizeLabel": "Nombre d'étudiants"
+      },
+      "rooms": {
+        "title": "Vos salles",
+        "description": "Ajoutons vos premières salles de cours",
+        "addFirst": "Ajouter ma première salle",
+        "addMore": "Ajouter une autre salle",
+        "skip": "Je ferai ça plus tard"
+      },
+      "complete": {
+        "title": "C'est parti ! 🚀",
+        "description": "Votre planning est prêt à l'emploi",
+        "startButton": "Commencer à planifier",
+        "features": {
+          "schedule": "Créez vos premiers cours",
+          "rooms": "Gérez vos salles",
+          "reports": "Suivez vos statistiques"
+        }
+      }
+    },
+    "navigation": {
+      "skip": "Passer",
+      "back": "Retour",
+      "next": "Suivant",
+      "finish": "Terminer"
+    }
+  },
+
+  "notifications": {
+    "types": {
+      "info": "Information",
+      "success": "Succès",
+      "warning": "Attention",
+      "error": "Erreur"
+    },
+    "actions": {
+      "dismiss": "Ignorer",
+      "viewDetails": "Voir les détails",
+      "markAsRead": "Marquer comme lu"
+    },
+    "messages": {
+      "courseReminder": "Votre cours '{courseName}' commence dans {time}",
+      "roomConflict": "Conflit détecté pour la salle {roomName}",
+      "systemMaintenance": "Maintenance programmée ce soir de 22h à 24h",
+      "newFeature": "Nouvelle fonctionnalité disponible !",
+      "weeklyReport": "Votre rapport hebdomadaire est prêt"
+    }
+  },
+
+  "help": {
+    "contact": {
+      "title": "Besoin d'aide ?",
+      "subtitle": "Notre équipe est là pour vous accompagner",
+      "email": "support@planningecole.fr",
+      "phone": "+33 1 23 45 67 89",
+      "hours": "Du lundi au vendredi, 9h-18h"
+    },
+    "faq": {
+      "title": "Questions fréquentes",
+      "items": {
+        "howToAddRoom": "Comment ajouter une salle ?",
+        "scheduleConflicts": "Que faire en cas de conflit de planning ?",
+        "dataExport": "Comment exporter mes données ?",
+        "userPermissions": "Comment gérer les permissions utilisateurs ?"
+      }
+    },
+    "guides": {
+      "gettingStarted": "Guide de démarrage",
+      "advanced": "Fonctionnalités avancées",
+      "troubleshooting": "Résolution de problèmes"
+    }
+  }
+}
