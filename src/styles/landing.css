@@ -838,13 +838,20 @@
 
 @media (max-width: 768px) {
   .landing-nav-links,
-  .landing-nav-actions .landing-btn-ghost,
-  .landing-nav-actions .landing-btn-coral {
+  .landing-nav-actions {
     display: none;
   }
 
   .landing-hamburger {
     display: block;
+  }
+
+  .landing-navbar {
+    padding: 1rem 1.25rem;
+  }
+
+  .landing-navbar.scrolled {
+    padding: 0.75rem 1.25rem;
   }
 
   .landing-hero-inner {
@@ -859,6 +866,7 @@
 
   .landing-hero-subtitle {
     max-width: 100%;
+    font-size: 1.05rem;
   }
 
   .landing-hero-buttons {
@@ -873,8 +881,18 @@
     grid-template-columns: 1fr;
   }
 
+  .landing-feature-card {
+    padding: 1.5rem;
+  }
+
   .landing-pricing-grid {
     grid-template-columns: 1fr;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .landing-pricing-card {
+    padding: 2rem 1.5rem;
   }
 
   .landing-pricing-popular {
@@ -883,6 +901,20 @@
 
   .landing-pricing-popular:hover {
     transform: translateY(-4px);
+  }
+
+  .landing-pricing-card-price .amount {
+    font-size: 2.5rem;
+  }
+
+  .landing-pricing-toggle {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .landing-footer {
+    padding: 3rem 1.25rem 2rem;
   }
 
   .landing-footer-inner {
@@ -905,7 +937,11 @@
   }
 
   .landing-hero h1 {
-    font-size: 1.875rem;
+    font-size: 1.75rem;
+  }
+
+  .landing-hero-subtitle {
+    font-size: 0.95rem;
   }
 
   .landing-hero-buttons {
@@ -916,6 +952,38 @@
   .landing-features,
   .landing-pricing,
   .landing-cta {
-    padding: 4rem 1rem;
+    padding: 3rem 1rem;
+  }
+
+  .landing-section-title {
+    font-size: 1.625rem;
+  }
+
+  .landing-section-subtitle {
+    font-size: 1rem;
+  }
+
+  .landing-cta h2 {
+    font-size: 1.625rem;
+  }
+
+  .landing-cta p {
+    font-size: 1rem;
+  }
+
+  .landing-feature-card {
+    padding: 1.25rem;
+  }
+
+  .landing-feature-card h3 {
+    font-size: 1.1rem;
+  }
+
+  .landing-pricing-card-price .amount {
+    font-size: 2rem;
+  }
+
+  .landing-pricing-card-price .currency {
+    font-size: 1.125rem;
   }
 }
