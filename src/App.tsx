@@ -177,13 +177,38 @@ export default function App() {
         localStorage.setItem('isAuthenticated', 'true')
       } else {
         // Mode réel : connexion Supabase
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: credentials.email,
           password: credentials.password,
         })
 
         if (error) throw error
-        // Le onAuthStateChange va mettre à jour l'état automatiquement
+
+        // Mettre à jour l'état directement (ne pas dépendre uniquement de onAuthStateChange)
+        if (data.session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, role, center_id')
+            .eq('id', data.session.user.id)
+            .single()
+
+          if (profile) {
+            const nameParts = (profile.full_name || '').split(' ')
+            setUser({
+              id: profile.id,
+              email: profile.email,
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' ') || '',
+              role: profile.role || 'student',
+              schoolId: profile.center_id,
+              establishmentId: profile.center_id,
+              isActive: true,
+              createdAt: '',
+              updatedAt: '',
+            })
+            setAppState('authenticated')
+          }
+        }
       }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Erreur de connexion')
