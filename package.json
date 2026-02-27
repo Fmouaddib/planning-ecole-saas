@@ -23,6 +23,7 @@
     "@tanstack/react-query-devtools": "^5.17.0",
     "clsx": "^2.0.0",
     "date-fns": "^3.0.0",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",

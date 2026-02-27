@@ -26,11 +26,12 @@ import { useRooms } from '@/hooks/useRooms'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { formatTimeRange } from '@/utils/helpers'
 import { MATIERES, DIPLOMES, NIVEAUX } from '@/utils/constants'
-import { exportToExcel, exportToCSV, exportToPDF, exportToWord } from '@/utils/export'
+import { exportToExcel, exportToCSV, exportToPDF, exportToWord, exportToExcelCalendar, exportToCSVCalendar, exportToPDFCalendar, exportToWordCalendar } from '@/utils/export'
 import { mockCalendarData } from '@/data/mock-calendar-data'
 import { ColorLegend } from './ColorLegend'
 import { MiniCalendar } from './MiniCalendar'
 import { CreateBookingModal } from './CreateBookingModal'
+import { RoomsView } from './RoomsView'
 import type { CalendarEvent, ExportFormat, BookingType } from '@/types'
 import {
   ChevronLeft,
@@ -45,7 +46,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 
-type ViewMode = 'week' | 'month' | 'day'
+type ViewMode = 'week' | 'month' | 'day' | 'rooms'
 
 const HOUR_START = 8
 const HOUR_END = 20
@@ -281,13 +282,23 @@ function CalendarPage() {
     )
   }
 
-  const handleExport = (fmt: ExportFormat) => {
+  const handleExport = async (fmt: ExportFormat, mode: 'list' | 'calendar' = 'list') => {
     const filename = `planning-${format(currentDate, 'yyyy-MM-dd')}`
-    switch (fmt) {
-      case 'excel': exportToExcel(filteredEvents, filename); break
-      case 'csv': exportToCSV(filteredEvents, filename); break
-      case 'pdf': exportToPDF(filteredEvents, filename); break
-      case 'word': exportToWord(filteredEvents, filename); break
+    if (mode === 'calendar') {
+      const calFilename = `${filename}-calendrier`
+      switch (fmt) {
+        case 'excel': await exportToExcelCalendar(filteredEvents, currentDate, calFilename); break
+        case 'csv': exportToCSVCalendar(filteredEvents, currentDate, calFilename); break
+        case 'pdf': exportToPDFCalendar(filteredEvents, currentDate, calFilename); break
+        case 'word': exportToWordCalendar(filteredEvents, currentDate, calFilename); break
+      }
+    } else {
+      switch (fmt) {
+        case 'excel': await exportToExcel(filteredEvents, filename); break
+        case 'csv': exportToCSV(filteredEvents, filename); break
+        case 'pdf': exportToPDF(filteredEvents, filename); break
+        case 'word': exportToWord(filteredEvents, filename); break
+      }
     }
     setShowExportMenu(false)
   }
@@ -299,12 +310,12 @@ function CalendarPage() {
   // Navigation
   const goToToday = () => setCurrentDate(new Date())
   const goNext = () => {
-    if (view === 'week') setCurrentDate(d => addWeeks(d, 1))
+    if (view === 'week' || view === 'rooms') setCurrentDate(d => addWeeks(d, 1))
     else if (view === 'month') setCurrentDate(d => addMonths(d, 1))
     else setCurrentDate(d => addDays(d, 1))
   }
   const goPrev = () => {
-    if (view === 'week') setCurrentDate(d => subWeeks(d, 1))
+    if (view === 'week' || view === 'rooms') setCurrentDate(d => subWeeks(d, 1))
     else if (view === 'month') setCurrentDate(d => subMonths(d, 1))
     else setCurrentDate(d => subDays(d, 1))
   }
@@ -358,7 +369,7 @@ function CalendarPage() {
   }
 
   const headerLabel = useMemo(() => {
-    if (view === 'week') {
+    if (view === 'week' || view === 'rooms') {
       const start = startOfWeek(currentDate, { weekStartsOn: 1 })
       const end = endOfWeek(currentDate, { weekStartsOn: 1 })
       return `${format(start, 'd MMM', { locale: fr })} - ${format(end, 'd MMM yyyy', { locale: fr })}`
@@ -417,7 +428,7 @@ function CalendarPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
-            {(['day', 'week', 'month'] as ViewMode[]).map(v => (
+            {(['day', 'week', 'month', 'rooms'] as ViewMode[]).map(v => (
               <button
                 key={v}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -425,7 +436,7 @@ function CalendarPage() {
                 }`}
                 onClick={() => setView(v)}
               >
-                {v === 'day' ? 'Jour' : v === 'week' ? 'Semaine' : 'Mois'}
+                {v === 'day' ? 'Jour' : v === 'week' ? 'Semaine' : v === 'month' ? 'Mois' : 'Salles'}
               </button>
             ))}
           </div>
@@ -469,20 +480,38 @@ function CalendarPage() {
               <ChevronDown size={14} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
             </button>
             {showExportMenu && (
-              <div className="absolute right-0 z-50 mt-1 w-44 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden">
+              <div className="absolute right-0 z-50 mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg py-1">
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">Grille semaine</div>
                 {([
-                  { fmt: 'excel' as ExportFormat, label: 'Excel (.xlsx)', icon: '📊' },
-                  { fmt: 'csv' as ExportFormat, label: 'CSV (.csv)', icon: '📄' },
-                  { fmt: 'pdf' as ExportFormat, label: 'PDF (.pdf)', icon: '📕' },
-                  { fmt: 'word' as ExportFormat, label: 'Word (.doc)', icon: '📝' },
-                ]).map(({ fmt, label, icon }) => (
+                  { fmt: 'excel' as ExportFormat, label: 'Excel', ext: '.xlsx' },
+                  { fmt: 'pdf' as ExportFormat, label: 'PDF', ext: '.pdf' },
+                  { fmt: 'word' as ExportFormat, label: 'Word', ext: '.doc' },
+                  { fmt: 'csv' as ExportFormat, label: 'CSV', ext: '.csv' },
+                ]).map(({ fmt, label, ext }) => (
                   <button
-                    key={fmt}
-                    className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors flex items-center gap-2"
-                    onClick={() => handleExport(fmt)}
+                    key={`cal-${fmt}`}
+                    className="w-full text-left px-3 py-1.5 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 transition-colors flex items-center justify-between"
+                    onClick={() => handleExport(fmt, 'calendar')}
                   >
-                    <span>{icon}</span>
-                    {label}
+                    <span>{label}</span>
+                    <span className="text-[10px] text-neutral-400">{ext}</span>
+                  </button>
+                ))}
+                <div className="my-1 border-t border-neutral-100" />
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">Liste</div>
+                {([
+                  { fmt: 'excel' as ExportFormat, label: 'Excel', ext: '.xlsx' },
+                  { fmt: 'pdf' as ExportFormat, label: 'PDF', ext: '.pdf' },
+                  { fmt: 'word' as ExportFormat, label: 'Word', ext: '.doc' },
+                  { fmt: 'csv' as ExportFormat, label: 'CSV', ext: '.csv' },
+                ]).map(({ fmt, label, ext }) => (
+                  <button
+                    key={`list-${fmt}`}
+                    className="w-full text-left px-3 py-1.5 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 transition-colors flex items-center justify-between"
+                    onClick={() => handleExport(fmt, 'list')}
+                  >
+                    <span>{label}</span>
+                    <span className="text-[10px] text-neutral-400">{ext}</span>
                   </button>
                 ))}
               </div>
@@ -587,6 +616,13 @@ function CalendarPage() {
               onEventClick={setSelectedEvent}
               onSlotClick={handleSlotClick}
               onEventUpdate={handleEventUpdate}
+            />
+          )}
+          {view === 'rooms' && (
+            <RoomsView
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={setSelectedEvent}
             />
           )}
         </div>
