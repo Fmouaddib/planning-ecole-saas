@@ -20,6 +20,7 @@ import {
   getMinutes,
   differenceInMinutes,
   isToday,
+  isBefore,
   getDay,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -223,6 +224,14 @@ function CalendarPage() {
   const [createDate, setCreateDate] = useState<Date | null>(null)
   const [createHour, setCreateHour] = useState<number | null>(null)
 
+  // Pending move confirmation state (drag & drop)
+  const [pendingMove, setPendingMove] = useState<{
+    eventId: string
+    event: CalendarEvent
+    newStart: string
+    newEnd: string
+  } | null>(null)
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
@@ -370,17 +379,26 @@ function CalendarPage() {
     }
   }
 
-  // Drag & drop handler for event move/resize
-  const handleEventUpdate = async (eventId: string, newStart: string, newEnd: string) => {
+  // Drag & drop handler — ouvre la modale de confirmation au lieu de sauvegarder directement
+  const handleEventUpdate = (eventId: string, newStart: string, newEnd: string) => {
+    const event = filteredEvents.find(e => e.id === eventId)
+    if (!event) return
+    setPendingMove({ eventId, event, newStart, newEnd })
+  }
+
+  // Confirmation du déplacement après validation modale
+  const confirmMove = async () => {
+    if (!pendingMove) return
     try {
       await updateBooking({
-        id: eventId,
-        startDateTime: newStart,
-        endDateTime: newEnd,
+        id: pendingMove.eventId,
+        startDateTime: pendingMove.newStart,
+        endDateTime: pendingMove.newEnd,
       })
     } catch {
-      // Error handled by hook toast
+      // Erreur gérée par le toast du hook (conflit inclus)
     }
+    setPendingMove(null)
   }
 
   const headerLabel = useMemo(() => {
@@ -751,6 +769,49 @@ function CalendarPage() {
         prefilledHour={createHour}
         rooms={roomOptions}
       />
+
+      {/* Move Confirmation Modal */}
+      <Modal
+        isOpen={!!pendingMove}
+        onClose={() => setPendingMove(null)}
+        title="Déplacer la séance"
+        size="sm"
+      >
+        {pendingMove && (() => {
+          const oldStart = typeof pendingMove.event.start === 'string' ? parseISO(pendingMove.event.start) : pendingMove.event.start
+          const newStart = parseISO(pendingMove.newStart)
+          const dayChanged = !isSameDay(oldStart, newStart)
+          return (
+            <div>
+              <p className="font-medium text-neutral-900">{pendingMove.event.title}</p>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-neutral-500 w-12">Avant :</span>
+                  <span className="text-neutral-700">
+                    {format(oldStart, 'EEEE d MMM', { locale: fr })} · {formatTimeRange(pendingMove.event.start as string, pendingMove.event.end as string)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-neutral-500 w-12">Après :</span>
+                  <span className="text-primary-600 font-medium">
+                    {format(newStart, 'EEEE d MMM', { locale: fr })} · {formatTimeRange(pendingMove.newStart, pendingMove.newEnd)}
+                  </span>
+                </div>
+              </div>
+              {dayChanged && (
+                <div className="mt-3 flex items-center gap-2 text-amber-600 bg-amber-50 rounded-md px-3 py-2 text-sm">
+                  <AlertTriangle size={14} />
+                  <span>Changement de jour</span>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setPendingMove(null)}>Annuler</Button>
+          <Button onClick={confirmMove}>Confirmer le déplacement</Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 }
@@ -818,6 +879,10 @@ function WeekView({
     (e: React.PointerEvent, event: CalendarEvent, mode: 'move' | 'resize', dayIndex: number) => {
       // Check pointer: fine only (no touch)
       if (window.matchMedia('(pointer: coarse)').matches) return
+
+      // Bloquer le drag des séances passées
+      const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
+      if (isBefore(eventStart, new Date())) return
 
       e.preventDefault()
       e.stopPropagation()
@@ -969,6 +1034,8 @@ function WeekView({
                 const leftPct = col * widthPct
 
                 const isDragging = drag?.active && drag.eventId === event.id
+                const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
+                const isPast = isBefore(eventStart, new Date())
 
                 const eventStyle: React.CSSProperties = isDragging
                   ? {
@@ -998,9 +1065,9 @@ function WeekView({
                     style={eventStyle}
                   >
                     <div
-                      className={`h-full rounded-md px-1.5 py-0.5 text-xs text-white overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-left relative ${
+                      className={`h-full rounded-md px-1.5 py-0.5 text-xs text-white overflow-hidden transition-opacity text-left relative ${
                         isConflict ? 'ring-2 ring-red-500 ring-offset-1' : ''
-                      }`}
+                      } ${isPast ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}
                       style={{
                         backgroundColor: event.color || '#3b82f6',
                         backgroundImage: isConflict
@@ -1015,9 +1082,11 @@ function WeekView({
                       }}
                       onPointerDown={(e) => handlePointerDown(e, event, 'move', dayIndex)}
                       title={
-                        isConflict
-                          ? `⚠ Conflit de salle : ${event.roomName}`
-                          : `${event.title} - ${event.roomName}`
+                        isPast
+                          ? `${event.title} - ${event.roomName} (séance passée)`
+                          : isConflict
+                            ? `⚠ Conflit de salle : ${event.roomName}`
+                            : `${event.title} - ${event.roomName}`
                       }
                     >
                       <div className="flex items-center gap-1">
@@ -1026,14 +1095,16 @@ function WeekView({
                         {isConflict && <AlertTriangle size={10} className="flex-shrink-0 text-yellow-200" />}
                       </div>
                       <div className="opacity-80 truncate">{event.roomName}</div>
-                      {/* Resize handle */}
-                      <div
-                        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20"
-                        onPointerDown={(e) => {
-                          e.stopPropagation()
-                          handlePointerDown(e, event, 'resize', dayIndex)
-                        }}
-                      />
+                      {/* Resize handle — masqué pour les séances passées */}
+                      {!isPast && (
+                        <div
+                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20"
+                          onPointerDown={(e) => {
+                            e.stopPropagation()
+                            handlePointerDown(e, event, 'resize', dayIndex)
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 )
@@ -1428,6 +1499,11 @@ function DayView({
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, event: CalendarEvent, mode: 'move' | 'resize') => {
       if (window.matchMedia('(pointer: coarse)').matches) return
+
+      // Bloquer le drag des séances passées
+      const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
+      if (isBefore(eventStart, new Date())) return
+
       e.preventDefault()
       e.stopPropagation()
       const { top, height } = getEventPosition(event)
@@ -1526,6 +1602,8 @@ function DayView({
             const leftPct = col * widthPct
             const isConflict = roomConflicts.has(event.id)
             const isDragging = drag?.active && drag.eventId === event.id
+            const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
+            const isPast = isBefore(eventStart, new Date())
 
             const eventStyle: React.CSSProperties = isDragging
               ? {
@@ -1547,9 +1625,9 @@ function DayView({
             return (
               <div key={event.id} className="absolute" style={eventStyle}>
                 <div
-                  className={`h-full rounded-md px-2 py-1 text-sm text-white overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-left relative ${
+                  className={`h-full rounded-md px-2 py-1 text-sm text-white overflow-hidden transition-opacity text-left relative ${
                     isConflict ? 'ring-2 ring-red-500 ring-offset-1' : ''
-                  }`}
+                  } ${isPast ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}
                   style={{
                     backgroundColor: event.color || '#3b82f6',
                     backgroundImage: isConflict
@@ -1564,9 +1642,11 @@ function DayView({
                   }}
                   onPointerDown={(e) => handlePointerDown(e, event, 'move')}
                   title={
-                    isConflict
-                      ? `⚠ Conflit de salle : ${event.roomName}`
-                      : `${event.title} - ${event.roomName}`
+                    isPast
+                      ? `${event.title} - ${event.roomName} (séance passée)`
+                      : isConflict
+                        ? `⚠ Conflit de salle : ${event.roomName}`
+                        : `${event.title} - ${event.roomName}`
                   }
                 >
                   <div className="flex items-center gap-1">
@@ -1575,14 +1655,16 @@ function DayView({
                     {isConflict && <AlertTriangle size={12} className="flex-shrink-0 text-yellow-200" />}
                   </div>
                   <div className="opacity-80 truncate">{event.roomName}</div>
-                  {/* Resize handle */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20"
-                    onPointerDown={(e) => {
-                      e.stopPropagation()
-                      handlePointerDown(e, event, 'resize')
-                    }}
-                  />
+                  {/* Resize handle — masqué pour les séances passées */}
+                  {!isPast && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20"
+                      onPointerDown={(e) => {
+                        e.stopPropagation()
+                        handlePointerDown(e, event, 'resize')
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             )
