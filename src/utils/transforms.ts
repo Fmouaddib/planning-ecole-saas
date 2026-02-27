@@ -15,18 +15,9 @@ export function transformBooking(raw: Record<string, any>): Booking {
   // class_ = join classes (avec diploma)
   const class_ = raw.class_
 
-  // Mapper session_type → BookingType
-  const typeMap: Record<string, string> = {
-    course: 'course',
-    exam: 'exam',
-    meeting: 'meeting',
-    event: 'event',
-    maintenance: 'maintenance',
-    workshop: 'course',
-    conference: 'event',
-    seminar: 'meeting',
-  }
-  const bookingType = typeMap[raw.session_type] || raw.session_type || 'course'
+  // Le session_type réel (in_person/online/hybrid) est le mode de livraison
+  // On utilise 'course' par défaut car il n'y a pas de colonne booking_type dans le schéma
+  const bookingType: 'course' = 'course'
 
   // Extraire prénom/nom depuis full_name
   const trainerName = trainer?.full_name || ''
@@ -45,7 +36,7 @@ export function transformBooking(raw: Record<string, any>): Booking {
     roomId: raw.room_id,
     userId: raw.trainer_id,
     attendeeIds: [],
-    status: raw.status || 'confirmed',
+    status: raw.status || 'scheduled',
     type: bookingType,
     bookingType: bookingType,
     recurrence: undefined,

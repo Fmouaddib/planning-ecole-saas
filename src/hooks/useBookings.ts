@@ -92,7 +92,7 @@ export function useBookings(): UseBookingsReturn {
         .from('training_sessions')
         .select('id')
         .eq('room_id', roomId)
-        .in('status', ['confirmed', 'scheduled', 'in_progress'])
+        .in('status', ['scheduled', 'in_progress'])
         .lt('start_time', endDateTime)
         .gt('end_time', startDateTime)
 
@@ -147,8 +147,8 @@ export function useBookings(): UseBookingsReturn {
         room_id: data.roomId,
         trainer_id: user.id,
         center_id: user.establishmentId,
-        session_type: data.bookingType,
-        status: 'scheduled',
+        session_type: 'in_person' as const,  // enum: in_person, online, hybrid
+        status: 'scheduled' as const,
       }
 
       const { data: newSession, error: createError } = await supabase
@@ -208,7 +208,6 @@ export function useBookings(): UseBookingsReturn {
         start_time: data.startDateTime,
         end_time: data.endDateTime,
         room_id: data.roomId,
-        session_type: data.bookingType,
       }
 
       // Supprimer les propriétés undefined
@@ -402,7 +401,7 @@ export function useBookings(): UseBookingsReturn {
   const upcomingBookings = useMemo(() => {
     const now = new Date()
     return bookings
-      .filter(booking => new Date(booking.startDateTime) > now && booking.status === 'confirmed')
+      .filter(booking => new Date(booking.startDateTime) > now && booking.status === 'scheduled')
       .slice(0, 5)
   }, [bookings])
 

@@ -113,10 +113,12 @@ export interface Booking {
   updatedAt: string
 }
 
-export type BookingStatus = 
-  | 'confirmed' 
-  | 'pending' 
-  | 'cancelled' 
+export type BookingStatus =
+  | 'scheduled'
+  | 'in_progress'
+  | 'confirmed'
+  | 'pending'
+  | 'cancelled'
   | 'completed'
 
 export type BookingType = 
