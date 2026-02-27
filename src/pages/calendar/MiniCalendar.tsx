@@ -60,8 +60,8 @@ export function MiniCalendar({
   const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
   return (
-    <div className="hidden lg:block w-64 flex-shrink-0 no-print">
-      <div className="sticky top-4 bg-white rounded-xl border border-neutral-200 shadow-soft p-3">
+    <div className="no-print">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-3">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <button

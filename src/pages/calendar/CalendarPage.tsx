@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   format,
   startOfWeek,
@@ -593,61 +594,63 @@ function CalendarPage() {
       {/* F2 - Color Legend */}
       <ColorLegend activeTypes={activeTypes} onToggleType={handleToggleType} />
 
-      {/* Main layout: MiniCalendar + Calendar */}
-      <div className="flex gap-4">
-        {/* F6 - Mini Calendar (desktop only) */}
-        <MiniCalendar
-          selectedDate={currentDate}
-          onSelectDate={handleMiniCalendarSelect}
-          events={filteredEvents}
-          miniMonth={miniMonth}
-          onMiniMonthChange={setMiniMonth}
-        />
+      {/* F6 - Mini Calendar (portal into sidebar) */}
+      {document.getElementById('sidebar-mini-calendar') &&
+        createPortal(
+          <MiniCalendar
+            selectedDate={currentDate}
+            onSelectDate={handleMiniCalendarSelect}
+            events={filteredEvents}
+            miniMonth={miniMonth}
+            onMiniMonthChange={setMiniMonth}
+          />,
+          document.getElementById('sidebar-mini-calendar')!,
+        )
+      }
 
-        {/* Calendar Views */}
-        <div className="flex-1 bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden print-calendar">
-          {view === 'week' && (
-            <WeekView
-              currentDate={currentDate}
-              events={filteredEvents}
-              onEventClick={setSelectedEvent}
-              onSlotClick={handleSlotClick}
-              onEventUpdate={handleEventUpdate}
-            />
-          )}
-          {view === 'month' && (
-            <MonthView
-              currentDate={currentDate}
-              events={filteredEvents}
-              onEventClick={setSelectedEvent}
-              onDayClick={(day) => handleSlotClick(day, null)}
-              totalRooms={totalRooms}
-            />
-          )}
-          {view === 'day' && (
-            <DayView
-              currentDate={currentDate}
-              events={filteredEvents}
-              onEventClick={setSelectedEvent}
-              onSlotClick={handleSlotClick}
-              onEventUpdate={handleEventUpdate}
-            />
-          )}
-          {view === 'rooms' && (
-            <RoomsView
-              currentDate={currentDate}
-              events={filteredEvents}
-              onEventClick={setSelectedEvent}
-              buildings={isDemoMode
-                ? mockBuildingRooms.map(b => ({
-                    ...b,
-                    rooms: b.rooms.map(r => ({ id: r.name, name: r.name, capacity: r.capacity })),
-                  }))
-                : buildingsWithRooms
-              }
-            />
-          )}
-        </div>
+      {/* Calendar Views */}
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden print-calendar">
+        {view === 'week' && (
+          <WeekView
+            currentDate={currentDate}
+            events={filteredEvents}
+            onEventClick={setSelectedEvent}
+            onSlotClick={handleSlotClick}
+            onEventUpdate={handleEventUpdate}
+          />
+        )}
+        {view === 'month' && (
+          <MonthView
+            currentDate={currentDate}
+            events={filteredEvents}
+            onEventClick={setSelectedEvent}
+            onDayClick={(day) => handleSlotClick(day, null)}
+            totalRooms={totalRooms}
+          />
+        )}
+        {view === 'day' && (
+          <DayView
+            currentDate={currentDate}
+            events={filteredEvents}
+            onEventClick={setSelectedEvent}
+            onSlotClick={handleSlotClick}
+            onEventUpdate={handleEventUpdate}
+          />
+        )}
+        {view === 'rooms' && (
+          <RoomsView
+            currentDate={currentDate}
+            events={filteredEvents}
+            onEventClick={setSelectedEvent}
+            buildings={isDemoMode
+              ? mockBuildingRooms.map(b => ({
+                  ...b,
+                  rooms: b.rooms.map(r => ({ id: r.name, name: r.name, capacity: r.capacity })),
+                }))
+              : buildingsWithRooms
+            }
+          />
+        )}
       </div>
 
       {/* Event Detail Modal */}

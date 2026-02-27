@@ -232,6 +232,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </nav>
 
+        {/* Mini-calendar slot (filled by CalendarPage via portal) */}
+        <div id="sidebar-mini-calendar" className="px-4" />
+
         {/* Footer */}
         <div className="p-4 border-t border-neutral-200">
           <div className="text-xs text-neutral-500">
