@@ -75,35 +75,35 @@ export class SubscriptionLimitsService {
   /**
    * Compter les ressources actuelles d'un établissement
    */
-  static async countResources(establishmentId: string): Promise<{
+  static async countResources(centerId: string): Promise<{
     users: number
     rooms: number
     bookingsThisMonth: number
   }> {
     try {
-      // Compter les utilisateurs actifs
+      // Compter les utilisateurs actifs (table profiles, colonne center_id)
       const { count: usersCount } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id', { count: 'exact', head: true })
-        .eq('establishment_id', establishmentId)
+        .eq('center_id', centerId)
         .eq('is_active', true)
 
-      // Compter les salles actives
+      // Compter les salles actives (table rooms, colonne is_available)
       const { count: roomsCount } = await supabase
         .from('rooms')
         .select('id', { count: 'exact', head: true })
-        .eq('establishment_id', establishmentId)
-        .eq('is_active', true)
+        .eq('center_id', centerId)
+        .eq('is_available', true)
 
-      // Compter les réservations du mois en cours
+      // Compter les séances du mois en cours (table training_sessions)
       const now = new Date()
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
 
       const { count: bookingsCount } = await supabase
-        .from('bookings')
+        .from('training_sessions')
         .select('id', { count: 'exact', head: true })
-        .eq('establishment_id', establishmentId)
+        .eq('center_id', centerId)
         .gte('created_at', startOfMonth)
         .lte('created_at', endOfMonth)
 

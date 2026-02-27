@@ -90,6 +90,7 @@ export function useRooms(): UseRoomsReturn {
         center_id: user.establishmentId,
         location: data.buildingId || '',
         equipment: data.equipment || [],
+        is_available: true,
       }
 
       const { data: newRoom, error: createError } = await supabase
