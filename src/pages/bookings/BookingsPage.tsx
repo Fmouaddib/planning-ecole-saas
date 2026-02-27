@@ -266,9 +266,9 @@ function BookingsPage() {
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Titre</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Salle</th>
+                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Salle</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Date/Heure</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Type</th>
+                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Type</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Statut</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
@@ -278,8 +278,9 @@ function BookingsPage() {
                     <tr key={booking.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-4 py-3">
                         <span className="font-medium text-neutral-900">{booking.title}</span>
+                        <span className="block sm:hidden text-xs text-neutral-400 mt-0.5">{booking.room?.name || '-'}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">
+                      <td className="hidden sm:table-cell px-4 py-3 text-sm text-neutral-600">
                         {booking.room?.name || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600">
@@ -290,7 +291,7 @@ function BookingsPage() {
                             : ''}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="hidden md:table-cell px-4 py-3">
                         <Badge variant={typeBadgeVariant[booking.bookingType] || 'neutral'} size="sm">
                           {bookingTypeLabels[booking.bookingType] || booking.bookingType}
                         </Badge>
