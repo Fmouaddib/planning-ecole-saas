@@ -98,6 +98,41 @@ export const ERROR_MESSAGES = {
   SERVER_ERROR: 'Erreur serveur interne'
 }
 
+// Constantes académiques
+export const MATIERES = [
+  { value: 'mathematiques', label: 'Mathématiques' },
+  { value: 'francais', label: 'Français' },
+  { value: 'anglais', label: 'Anglais' },
+  { value: 'histoire_geo', label: 'Histoire-Géo' },
+  { value: 'physique_chimie', label: 'Physique-Chimie' },
+  { value: 'svt', label: 'SVT' },
+  { value: 'informatique', label: 'Informatique' },
+  { value: 'eps', label: 'EPS' },
+  { value: 'arts', label: 'Arts' },
+  { value: 'philosophie', label: 'Philosophie' },
+  { value: 'economie', label: 'Économie' },
+  { value: 'droit', label: 'Droit' },
+]
+
+export const DIPLOMES = [
+  { value: 'bac_general', label: 'Bac Général' },
+  { value: 'bac_techno', label: 'Bac Technologique' },
+  { value: 'bac_pro', label: 'Bac Professionnel' },
+  { value: 'bts', label: 'BTS' },
+  { value: 'licence', label: 'Licence' },
+  { value: 'master', label: 'Master' },
+  { value: 'doctorat', label: 'Doctorat' },
+  { value: 'cap', label: 'CAP' },
+]
+
+export const NIVEAUX = [
+  { value: '1ere_annee', label: '1ère année' },
+  { value: '2eme_annee', label: '2ème année' },
+  { value: '3eme_annee', label: '3ème année' },
+  { value: '4eme_annee', label: '4ème année' },
+  { value: '5eme_annee', label: '5ème année' },
+]
+
 // Messages de succès
 export const SUCCESS_MESSAGES = {
   LOGIN_SUCCESS: 'Connexion réussie',

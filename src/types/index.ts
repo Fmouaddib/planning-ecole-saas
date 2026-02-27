@@ -224,7 +224,12 @@ export interface CalendarEvent {
   type?: BookingType | string
   status?: BookingStatus | string
   description?: string
+  matiere?: string
+  diplome?: string
+  niveau?: string
 }
+
+export type ExportFormat = 'excel' | 'csv' | 'word' | 'pdf'
 
 // Type placeholder pour Supabase Database (généré par supabase gen types)
 export type Database = any

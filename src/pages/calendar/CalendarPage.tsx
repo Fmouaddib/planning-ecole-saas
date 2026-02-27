@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   format,
   startOfWeek,
@@ -23,10 +23,13 @@ import {
 import { fr } from 'date-fns/locale'
 import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
-import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner } from '@/components/ui'
+import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { formatTimeRange } from '@/utils/helpers'
-import type { CalendarEvent } from '@/types'
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { MATIERES, DIPLOMES, NIVEAUX } from '@/utils/constants'
+import { exportToExcel, exportToCSV, exportToPDF, exportToWord } from '@/utils/export'
+import { mockCalendarData } from '@/data/mock-calendar-data'
+import type { CalendarEvent, ExportFormat } from '@/types'
+import { ChevronLeft, ChevronRight, RefreshCw, Filter, Download, ChevronDown, X } from 'lucide-react'
 
 type ViewMode = 'week' | 'month' | 'day'
 
@@ -63,13 +66,53 @@ function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [roomFilter, setRoomFilter] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [selectedMatieres, setSelectedMatieres] = useState<string[]>([])
+  const [selectedDiplomes, setSelectedDiplomes] = useState<string[]>([])
+  const [selectedNiveaux, setSelectedNiveaux] = useState<string[]>([])
+  const [showFilters, setShowFilters] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const roomOptions = rooms.map(r => ({ value: r.id, label: r.name }))
 
+  const activeFilterCount = (roomFilter ? 1 : 0) + (selectedMatieres.length > 0 ? 1 : 0) + (selectedDiplomes.length > 0 ? 1 : 0) + (selectedNiveaux.length > 0 ? 1 : 0)
+
+  const resetFilters = () => {
+    setRoomFilter('')
+    setSelectedMatieres([])
+    setSelectedDiplomes([])
+    setSelectedNiveaux([])
+  }
+
   const filteredEvents = useMemo(() => {
-    if (!roomFilter) return calendarEvents
-    return calendarEvents.filter(e => e.roomId === roomFilter)
-  }, [calendarEvents, roomFilter])
+    let events = calendarEvents.length > 0 ? calendarEvents : mockCalendarData
+    if (roomFilter) events = events.filter(e => e.roomId === roomFilter)
+    if (selectedMatieres.length) events = events.filter(e => e.matiere && selectedMatieres.includes(e.matiere))
+    if (selectedDiplomes.length) events = events.filter(e => e.diplome && selectedDiplomes.includes(e.diplome))
+    if (selectedNiveaux.length) events = events.filter(e => e.niveau && selectedNiveaux.includes(e.niveau))
+    return events
+  }, [calendarEvents, roomFilter, selectedMatieres, selectedDiplomes, selectedNiveaux])
+
+  const handleExport = (fmt: ExportFormat) => {
+    const filename = `planning-${format(currentDate, 'yyyy-MM-dd')}`
+    switch (fmt) {
+      case 'excel': exportToExcel(filteredEvents, filename); break
+      case 'csv': exportToCSV(filteredEvents, filename); break
+      case 'pdf': exportToPDF(filteredEvents, filename); break
+      case 'word': exportToWord(filteredEvents, filename); break
+    }
+    setShowExportMenu(false)
+  }
 
   // Navigation
   const goToToday = () => setCurrentDate(new Date())
@@ -124,7 +167,7 @@ function CalendarPage() {
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={goPrev}>
             <ChevronLeft size={16} />
@@ -137,13 +180,6 @@ function CalendarPage() {
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-48">
-            <Select
-              options={[{ value: '', label: 'Toutes les salles' }, ...roomOptions]}
-              value={roomFilter}
-              onChange={e => setRoomFilter(e.target.value)}
-            />
-          </div>
           <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
             {(['day', 'week', 'month'] as ViewMode[]).map(v => (
               <button
@@ -157,8 +193,106 @@ function CalendarPage() {
               </button>
             ))}
           </div>
+
+          <button
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+              showFilters || activeFilterCount > 0
+                ? 'bg-primary-50 border-primary-300 text-primary-700'
+                : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+            }`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter size={16} />
+            Filtres
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-primary-600 rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+            <ChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Export dropdown */}
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 transition-colors"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+            >
+              <Download size={16} />
+              Export
+              <ChevronDown size={14} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 z-50 mt-1 w-44 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden">
+                {([
+                  { fmt: 'excel' as ExportFormat, label: 'Excel (.xlsx)', icon: '📊' },
+                  { fmt: 'csv' as ExportFormat, label: 'CSV (.csv)', icon: '📄' },
+                  { fmt: 'pdf' as ExportFormat, label: 'PDF (.pdf)', icon: '📕' },
+                  { fmt: 'word' as ExportFormat, label: 'Word (.doc)', icon: '📝' },
+                ]).map(({ fmt, label, icon }) => (
+                  <button
+                    key={fmt}
+                    className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors flex items-center gap-2"
+                    onClick={() => handleExport(fmt)}
+                  >
+                    <span>{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Filters Panel */}
+      {showFilters && (
+        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-neutral-700">Filtres avancés</h3>
+            {activeFilterCount > 0 && (
+              <button
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                onClick={resetFilters}
+              >
+                <X size={12} />
+                Réinitialiser
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Select
+                label="Salle"
+                options={[{ value: '', label: 'Toutes les salles' }, ...roomOptions]}
+                value={roomFilter}
+                onChange={e => setRoomFilter(e.target.value)}
+              />
+            </div>
+            <MultiSelect
+              label="Matière"
+              options={MATIERES}
+              value={selectedMatieres}
+              onChange={setSelectedMatieres}
+              placeholder="Toutes les matières"
+            />
+            <MultiSelect
+              label="Diplôme"
+              options={DIPLOMES}
+              value={selectedDiplomes}
+              onChange={setSelectedDiplomes}
+              placeholder="Tous les diplômes"
+            />
+            <MultiSelect
+              label="Niveau"
+              options={NIVEAUX}
+              value={selectedNiveaux}
+              onChange={setSelectedNiveaux}
+              placeholder="Tous les niveaux"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Calendar Views */}
       <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
@@ -234,6 +368,24 @@ function CalendarPage() {
                 <div>
                   <label className="text-sm font-medium text-neutral-500">Créé par</label>
                   <p className="text-neutral-900">{selectedEvent.userName}</p>
+                </div>
+              )}
+              {selectedEvent.matiere && (
+                <div>
+                  <label className="text-sm font-medium text-neutral-500">Matière</label>
+                  <p className="text-neutral-900">{MATIERES.find(m => m.value === selectedEvent.matiere)?.label || selectedEvent.matiere}</p>
+                </div>
+              )}
+              {selectedEvent.diplome && (
+                <div>
+                  <label className="text-sm font-medium text-neutral-500">Diplôme</label>
+                  <p className="text-neutral-900">{DIPLOMES.find(d => d.value === selectedEvent.diplome)?.label || selectedEvent.diplome}</p>
+                </div>
+              )}
+              {selectedEvent.niveau && (
+                <div>
+                  <label className="text-sm font-medium text-neutral-500">Niveau</label>
+                  <p className="text-neutral-900">{NIVEAUX.find(n => n.value === selectedEvent.niveau)?.label || selectedEvent.niveau}</p>
                 </div>
               )}
             </div>
