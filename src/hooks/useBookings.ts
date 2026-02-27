@@ -54,21 +54,16 @@ export function useBookings(): UseBookingsReturn {
       setError(null)
 
       const { data, error: fetchError } = await supabase
-        .from('bookings')
+        .from('training_sessions')
         .select(`
           *,
-          room:rooms(id, name, code, room_type, capacity),
-          user:users(id, first_name, last_name, email),
-          attendees:booking_attendees(
-            id,
-            user:users(id, first_name, last_name, email),
-            attendee_type,
-            is_required,
-            has_confirmed
-          )
+          room:rooms(id, name, room_type, capacity),
+          trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
+          subject:subjects(id, name),
+          class_:classes(id, name, diploma:diplomas(id, title))
         `)
-        .eq('establishment_id', user.establishmentId)
-        .order('start_date_time', { ascending: true })
+        .eq('center_id', user.establishmentId)
+        .order('start_time', { ascending: true })
 
       if (fetchError) throw fetchError
 
@@ -93,17 +88,22 @@ export function useBookings(): UseBookingsReturn {
     excludeBookingId?: UUID
   ): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .rpc('check_booking_conflict', {
-          p_room_id: roomId,
-          p_start_time: startDateTime,
-          p_end_time: endDateTime,
-          p_booking_id: excludeBookingId || null,
-        })
+      let query = supabase
+        .from('training_sessions')
+        .select('id')
+        .eq('room_id', roomId)
+        .in('status', ['confirmed', 'scheduled', 'in_progress'])
+        .lt('start_time', endDateTime)
+        .gt('end_time', startDateTime)
+
+      if (excludeBookingId) {
+        query = query.neq('id', excludeBookingId)
+      }
+
+      const { data, error } = await query.limit(1)
 
       if (error) throw error
-      
-      return data as boolean
+      return (data?.length ?? 0) > 0
     } catch (error) {
       console.error('Error checking booking conflict:', error)
       return false
@@ -139,53 +139,33 @@ export function useBookings(): UseBookingsReturn {
         throw new Error('Cette salle est déjà réservée pour cette période')
       }
 
-      const bookingData = {
+      const sessionData = {
         title: data.title,
         description: data.description,
-        start_date_time: data.startDateTime,
-        end_date_time: data.endDateTime,
+        start_time: data.startDateTime,
+        end_time: data.endDateTime,
         room_id: data.roomId,
-        user_id: user.id,
-        establishment_id: user.establishmentId,
-        booking_type: data.bookingType,
-        status: 'pending' as const,
-        matiere: data.matiere || null,
-        diplome: data.diplome || null,
-        niveau: data.niveau || null,
+        trainer_id: user.id,
+        center_id: user.establishmentId,
+        session_type: data.bookingType,
+        status: 'scheduled',
       }
 
-      const { data: newBooking, error: createError } = await supabase
-        .from('bookings')
-        .insert(bookingData)
+      const { data: newSession, error: createError } = await supabase
+        .from('training_sessions')
+        .insert(sessionData)
         .select(`
           *,
-          room:rooms(id, name, code, room_type),
-          user:users(id, first_name, last_name, email)
+          room:rooms(id, name, room_type, capacity),
+          trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
+          subject:subjects(id, name),
+          class_:classes(id, name, diploma:diplomas(id, title))
         `)
         .single()
 
       if (createError) throw createError
 
-      const transformed = transformBooking(newBooking)
-
-      // Créer les participants si fournis
-      if (data.attendees && data.attendees.length > 0) {
-        const attendeesData = data.attendees.map(attendee => ({
-          booking_id: transformed.id,
-          user_id: attendee.userId,
-          attendee_type: attendee.attendeeType,
-          is_required: attendee.isRequired,
-          has_confirmed: attendee.hasConfirmed,
-        }))
-
-        const { error: attendeesError } = await supabase
-          .from('booking_attendees')
-          .insert(attendeesData)
-
-        if (attendeesError) {
-          console.error('Error creating attendees:', attendeesError)
-        }
-      }
+      const transformed = transformBooking(newSession)
 
       setBookings(prev => [...prev, transformed])
       toast.success(`Réservation "${transformed.title}" créée avec succès`)
@@ -225,10 +205,10 @@ export function useBookings(): UseBookingsReturn {
       const updateData = {
         title: data.title,
         description: data.description,
-        start_date_time: data.startDateTime,
-        end_date_time: data.endDateTime,
+        start_time: data.startDateTime,
+        end_time: data.endDateTime,
         room_id: data.roomId,
-        booking_type: data.bookingType,
+        session_type: data.bookingType,
       }
 
       // Supprimer les propriétés undefined
@@ -239,13 +219,15 @@ export function useBookings(): UseBookingsReturn {
       })
 
       const { data: updatedBooking, error: updateError } = await supabase
-        .from('bookings')
+        .from('training_sessions')
         .update(updateData)
         .eq('id', data.id)
         .select(`
           *,
-          room:rooms(id, name, code, room_type),
-          user:users(id, first_name, last_name, email)
+          room:rooms(id, name, room_type, capacity),
+          trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
+          subject:subjects(id, name),
+          class_:classes(id, name, diploma:diplomas(id, title))
         `)
         .single()
 
@@ -277,7 +259,7 @@ export function useBookings(): UseBookingsReturn {
       setError(null)
 
       const { error: deleteError } = await supabase
-        .from('bookings')
+        .from('training_sessions')
         .delete()
         .eq('id', id)
 
@@ -297,23 +279,22 @@ export function useBookings(): UseBookingsReturn {
     }
   }, [user, handleError])
 
-  const cancelBooking = useCallback(async (id: UUID, reason?: string): Promise<Booking> => {
+  const cancelBooking = useCallback(async (id: UUID, _reason?: string): Promise<Booking> => {
     try {
       setError(null)
 
       const { data: cancelledBooking, error: cancelError } = await supabase
-        .from('bookings')
+        .from('training_sessions')
         .update({
           status: 'cancelled',
-          cancelled_at: new Date().toISOString(),
-          cancelled_by: user?.id,
-          cancellation_reason: reason,
         })
         .eq('id', id)
         .select(`
           *,
-          room:rooms(id, name, code, room_type),
-          user:users(id, first_name, last_name, email)
+          room:rooms(id, name, room_type, capacity),
+          trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
+          subject:subjects(id, name),
+          class_:classes(id, name, diploma:diplomas(id, title))
         `)
         .single()
 
@@ -472,8 +453,8 @@ export function useBookings(): UseBookingsReturn {
         {
           event: '*',
           schema: 'public',
-          table: 'bookings',
-          filter: `establishment_id=eq.${user.establishmentId}`,
+          table: 'training_sessions',
+          filter: `center_id=eq.${user.establishmentId}`,
         },
         (payload) => {
           console.log('Booking change detected:', payload)

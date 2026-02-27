@@ -46,12 +46,9 @@ export function useRooms(): UseRoomsReturn {
 
       const { data, error: fetchError } = await supabase
         .from('rooms')
-        .select(`
-          *,
-          building:buildings(id, name)
-        `)
-        .eq('establishment_id', user.establishmentId)
-        .eq('is_active', true)
+        .select('*')
+        .eq('center_id', user.establishmentId)
+        .eq('is_available', true)
         .order('name')
 
       if (fetchError) throw fetchError
@@ -88,23 +85,17 @@ export function useRooms(): UseRoomsReturn {
 
       const roomData = {
         name: data.name,
-        code: data.code,
-        description: data.description,
         capacity: data.capacity,
         room_type: data.roomType,
-        establishment_id: user.establishmentId,
-        building_id: data.buildingId,
-        floor: data.floor,
+        center_id: user.establishmentId,
+        location: data.buildingId || '',
         equipment: data.equipment || [],
       }
 
       const { data: newRoom, error: createError } = await supabase
         .from('rooms')
         .insert(roomData)
-        .select(`
-          *,
-          building:buildings(id, name)
-        `)
+        .select('*')
         .single()
 
       if (createError) throw createError
@@ -131,12 +122,9 @@ export function useRooms(): UseRoomsReturn {
 
       const updateData = {
         name: data.name,
-        code: data.code,
-        description: data.description,
         capacity: data.capacity,
         room_type: data.roomType,
-        building_id: data.buildingId,
-        floor: data.floor,
+        location: data.buildingId,
         equipment: data.equipment,
       }
 
@@ -151,10 +139,7 @@ export function useRooms(): UseRoomsReturn {
         .from('rooms')
         .update(updateData)
         .eq('id', data.id)
-        .select(`
-          *,
-          building:buildings(id, name)
-        `)
+        .select('*')
         .single()
 
       if (updateError) throw updateError
@@ -184,10 +169,10 @@ export function useRooms(): UseRoomsReturn {
     try {
       setError(null)
 
-      // Soft delete - marquer comme inactif
+      // Soft delete - marquer comme non disponible
       const { error: deleteError } = await supabase
         .from('rooms')
-        .update({ is_active: false })
+        .update({ is_available: false })
         .eq('id', id)
 
       if (deleteError) throw deleteError
@@ -275,20 +260,32 @@ export function useRooms(): UseRoomsReturn {
     return rooms.reduce((total, room) => total + room.capacity, 0)
   }, [rooms])
 
+  // Grouper par type de salle (pas de buildings dans ce schéma)
+  const roomTypeLabels: Record<string, string> = {
+    classroom: 'Salles de cours',
+    lab: 'Laboratoires',
+    amphitheater: 'Amphithéâtres',
+    meeting_room: 'Salles de réunion',
+    computer_lab: 'Salles informatiques',
+    gym: 'Équipements sportifs',
+    library: 'Bibliothèques',
+    other: 'Autres',
+  }
+
   const buildingsWithRooms = useMemo(() => {
-    const buildingMap = new Map<string, { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }>()
+    const groupMap = new Map<string, { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }>()
 
     for (const room of rooms) {
-      const bid = room.buildingId || 'no-building'
-      const bname = room.building?.name || 'Sans bâtiment'
+      const groupId = room.roomType || 'other'
+      const groupName = roomTypeLabels[groupId] || groupId
 
-      if (!buildingMap.has(bid)) {
-        buildingMap.set(bid, { id: bid, name: bname, rooms: [] })
+      if (!groupMap.has(groupId)) {
+        groupMap.set(groupId, { id: groupId, name: groupName, rooms: [] })
       }
-      buildingMap.get(bid)!.rooms.push({ id: room.id, name: room.name, capacity: room.capacity })
+      groupMap.get(groupId)!.rooms.push({ id: room.id, name: room.name, capacity: room.capacity })
     }
 
-    return Array.from(buildingMap.values())
+    return Array.from(groupMap.values())
   }, [rooms])
 
   // ==================== EFFECTS ====================
@@ -313,7 +310,7 @@ export function useRooms(): UseRoomsReturn {
           event: '*',
           schema: 'public',
           table: 'rooms',
-          filter: `establishment_id=eq.${user.establishmentId}`,
+          filter: `center_id=eq.${user.establishmentId}`,
         },
         (payload) => {
           console.log('Room change detected:', payload)

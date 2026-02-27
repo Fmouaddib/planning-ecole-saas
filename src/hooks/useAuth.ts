@@ -35,10 +35,10 @@ export function useAuth(): UseAuthReturn {
     if (!supabaseUser?.id || !supabaseUser?.email) return null
 
     try {
-      // Récupérer les informations complètes de l'utilisateur depuis la table users
+      // Récupérer les informations complètes de l'utilisateur depuis la table profiles
       const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, email, role, establishment_id')
+        .from('profiles')
+        .select('id, email, role, center_id')
         .eq('id', supabaseUser.id)
         .single()
 
@@ -51,7 +51,7 @@ export function useAuth(): UseAuthReturn {
         id: userData.id,
         email: userData.email,
         role: userData.role,
-        establishmentId: userData.establishment_id,
+        establishmentId: userData.center_id,
       }
     } catch (error) {
       console.error('Error transforming user:', error)
@@ -106,9 +106,8 @@ export function useAuth(): UseAuthReturn {
         password: data.password,
         options: {
           data: {
-            first_name: data.firstName,
-            last_name: data.lastName,
-            establishment_id: data.establishmentId,
+            full_name: `${data.firstName} ${data.lastName}`,
+            center_id: data.establishmentId,
             role: data.role || 'student',
           },
         },
@@ -117,15 +116,14 @@ export function useAuth(): UseAuthReturn {
       if (authError) throw authError
       if (!authData.user) throw new Error('Échec de la création du compte')
 
-      // Créer l'entrée dans la table users
+      // Créer l'entrée dans la table profiles
       const { error: userError } = await supabase
-        .from('users')
+        .from('profiles')
         .insert({
           id: authData.user.id,
           email: data.email,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          establishment_id: data.establishmentId,
+          full_name: `${data.firstName} ${data.lastName}`,
+          center_id: data.establishmentId,
           role: data.role || 'student',
         })
 

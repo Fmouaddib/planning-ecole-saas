@@ -1,99 +1,127 @@
 /**
  * Transformations snake_case (Supabase) → camelCase (TypeScript)
- * Centralise la conversion pour tous les hooks
+ * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
 import type { Booking, Room, User } from '@/types'
 
-// ==================== BOOKING ====================
+// ==================== BOOKING (from training_sessions) ====================
 
 export function transformBooking(raw: Record<string, any>): Booking {
+  // trainer = join profile
+  const trainer = raw.trainer
+  // subject = join subjects
+  const subject = raw.subject
+  // class_ = join classes (avec diploma)
+  const class_ = raw.class_
+
+  // Mapper session_type → BookingType
+  const typeMap: Record<string, string> = {
+    course: 'course',
+    exam: 'exam',
+    meeting: 'meeting',
+    event: 'event',
+    maintenance: 'maintenance',
+    workshop: 'course',
+    conference: 'event',
+    seminar: 'meeting',
+  }
+  const bookingType = typeMap[raw.session_type] || raw.session_type || 'course'
+
+  // Extraire prénom/nom depuis full_name
+  const trainerName = trainer?.full_name || ''
+  const nameParts = trainerName.split(' ')
+  const firstName = nameParts[0] || ''
+  const lastName = nameParts.slice(1).join(' ') || ''
+
   return {
     id: raw.id,
     title: raw.title,
     description: raw.description ?? undefined,
-    startTime: raw.start_date_time,
-    endTime: raw.end_date_time,
-    startDateTime: raw.start_date_time,
-    endDateTime: raw.end_date_time,
+    startTime: raw.start_time,
+    endTime: raw.end_time,
+    startDateTime: raw.start_time,
+    endDateTime: raw.end_time,
     roomId: raw.room_id,
-    userId: raw.user_id,
-    attendeeIds: raw.attendees?.map((a: any) => a.user_id ?? a.user?.id) ?? [],
-    status: raw.status,
-    type: raw.booking_type,
-    bookingType: raw.booking_type,
-    recurrence: raw.recurring_booking_id ? { frequency: 'weekly', interval: 1 } : undefined,
-    schoolId: raw.establishment_id,
-    establishmentId: raw.establishment_id,
+    userId: raw.trainer_id,
+    attendeeIds: [],
+    status: raw.status || 'confirmed',
+    type: bookingType,
+    bookingType: bookingType,
+    recurrence: undefined,
+    schoolId: raw.center_id,
+    establishmentId: raw.center_id,
     room: raw.room
       ? {
           id: raw.room.id,
           name: raw.room.name,
-          code: raw.room.code,
           room_type: raw.room.room_type,
           capacity: raw.room.capacity,
         }
       : undefined,
-    user: raw.user
+    user: trainer
       ? {
-          id: raw.user.id,
-          firstName: raw.user.first_name,
-          lastName: raw.user.last_name,
-          email: raw.user.email,
+          id: trainer.id,
+          firstName,
+          lastName,
+          email: trainer.email || '',
         }
       : undefined,
-    attendees: raw.attendees ?? [],
-    cancelledAt: raw.cancelled_at ?? undefined,
-    cancelledBy: raw.cancelled_by ?? undefined,
-    cancellationReason: raw.cancellation_reason ?? undefined,
-    matiere: raw.matiere ?? undefined,
-    diplome: raw.diplome ?? undefined,
-    niveau: raw.niveau ?? undefined,
+    attendees: [],
+    cancelledAt: undefined,
+    cancelledBy: undefined,
+    cancellationReason: undefined,
+    matiere: subject?.name ?? undefined,
+    diplome: class_?.diploma?.title ?? undefined,
+    niveau: class_?.name ?? undefined,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }
 }
 
-// ==================== ROOM ====================
+// ==================== ROOM (from rooms) ====================
 
 export function transformRoom(raw: Record<string, any>): Room {
   return {
     id: raw.id,
     name: raw.name,
-    code: raw.code,
-    capacity: raw.capacity,
-    type: raw.room_type,
-    roomType: raw.room_type,
+    code: raw.name, // pas de colonne code, on utilise name
+    capacity: raw.capacity || 0,
+    type: raw.room_type || 'classroom',
+    roomType: raw.room_type || 'classroom',
     equipment: raw.equipment ?? [],
-    location: raw.building?.name ?? '',
-    description: raw.description ?? undefined,
-    isActive: raw.is_active,
-    schoolId: raw.establishment_id,
-    establishmentId: raw.establishment_id,
-    buildingId: raw.building_id ?? undefined,
-    building: raw.building
-      ? { id: raw.building.id, name: raw.building.name }
-      : undefined,
-    floor: raw.floor ?? undefined,
+    location: raw.location || '',
+    description: undefined,
+    isActive: raw.is_available ?? true,
+    schoolId: raw.center_id,
+    establishmentId: raw.center_id,
+    buildingId: undefined, // pas de buildings dans ce schéma
+    building: undefined,
+    floor: undefined,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }
 }
 
-// ==================== USER ====================
+// ==================== USER (from profiles) ====================
 
 export function transformUser(raw: Record<string, any>): User {
+  const fullName = raw.full_name || ''
+  const nameParts = fullName.split(' ')
+  const firstName = nameParts[0] || ''
+  const lastName = nameParts.slice(1).join(' ') || ''
+
   return {
     id: raw.id,
-    email: raw.email,
-    firstName: raw.first_name,
-    lastName: raw.last_name,
-    role: raw.role,
-    schoolId: raw.establishment_id,
-    establishmentId: raw.establishment_id,
-    avatar: raw.profile_picture ?? undefined,
-    profilePicture: raw.profile_picture ?? undefined,
-    isActive: raw.is_active,
+    email: raw.email || '',
+    firstName,
+    lastName,
+    role: raw.role || 'student',
+    schoolId: raw.center_id,
+    establishmentId: raw.center_id,
+    avatar: raw.avatar_url ?? undefined,
+    profilePicture: raw.avatar_url ?? undefined,
+    isActive: raw.is_active ?? true,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }

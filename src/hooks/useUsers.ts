@@ -45,12 +45,11 @@ export function useUsers(): UseUsersReturn {
       setError(null)
 
       const { data, error: fetchError } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
-        .eq('establishment_id', currentUser.establishmentId)
+        .eq('center_id', currentUser.establishmentId)
         .eq('is_active', true)
-        .order('last_name')
-        .order('first_name')
+        .order('full_name')
 
       if (fetchError) throw fetchError
 
@@ -105,15 +104,14 @@ export function useUsers(): UseUsersReturn {
       if (authError) throw authError
       if (!authData.user) throw new Error('Échec de la création du compte')
 
-      // Créer l'entrée dans la table users
+      // Créer l'entrée dans la table profiles
       const { data: newUser, error: userError } = await supabase
-        .from('users')
+        .from('profiles')
         .insert({
           id: authData.user.id,
           email: data.email,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          establishment_id: data.establishmentId,
+          full_name: `${data.firstName} ${data.lastName}`,
+          center_id: data.establishmentId,
           role: data.role || 'student',
         })
         .select()
@@ -154,30 +152,22 @@ export function useUsers(): UseUsersReturn {
     try {
       setError(null)
 
-      const userData = {
-        first_name: updateData.firstName,
-        last_name: updateData.lastName,
-        email: updateData.email,
-        role: updateData.role,
-        is_active: updateData.isActive,
-        profile_picture: updateData.profilePicture,
+      const userData: Record<string, any> = {}
+      if (updateData.firstName || updateData.lastName) {
+        const fn = updateData.firstName || ''
+        const ln = updateData.lastName || ''
+        userData.full_name = `${fn} ${ln}`.trim()
       }
+      if (updateData.email) userData.email = updateData.email
+      if (updateData.profilePicture) userData.avatar_url = updateData.profilePicture
 
-      // Si ce n'est pas un admin, ne permettre que la modification de certains champs
-      if (!isAdmin) {
-        delete userData.role
-        delete userData.is_active
+      if (isAdmin) {
+        if (updateData.role) userData.role = updateData.role
+        if (updateData.isActive !== undefined) userData.is_active = updateData.isActive
       }
-
-      // Supprimer les propriétés undefined
-      Object.keys(userData).forEach(key => {
-        if (userData[key as keyof typeof userData] === undefined) {
-          delete userData[key as keyof typeof userData]
-        }
-      })
 
       const { data: updatedUser, error: updateError } = await supabase
-        .from('users')
+        .from('profiles')
         .update(userData)
         .eq('id', id)
         .select()
@@ -233,7 +223,7 @@ export function useUsers(): UseUsersReturn {
 
       // Soft delete - marquer comme inactif
       const { error: deleteError } = await supabase
-        .from('users')
+        .from('profiles')
         .update({ is_active: false })
         .eq('id', id)
 
@@ -341,8 +331,8 @@ export function useUsers(): UseUsersReturn {
         {
           event: '*',
           schema: 'public',
-          table: 'users',
-          filter: `establishment_id=eq.${currentUser.establishmentId}`,
+          table: 'profiles',
+          filter: `center_id=eq.${currentUser.establishmentId}`,
         },
         (payload) => {
           console.log('User change detected:', payload)
