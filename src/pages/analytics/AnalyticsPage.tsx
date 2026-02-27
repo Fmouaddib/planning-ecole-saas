@@ -101,7 +101,7 @@ function AnalyticsPage() {
         <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-neutral-500">Total réservations</p>
+              <p className="text-sm font-medium text-neutral-500">Total séances</p>
               <p className="text-3xl font-bold text-neutral-900 mt-1">{stats.totalBookings}</p>
             </div>
             <div className="p-3 bg-primary-100 rounded-xl">
@@ -147,7 +147,7 @@ function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* By Type */}
         <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Réservations par type</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Séances par type</h3>
           <div className="space-y-3">
             {Object.entries(stats.byType).map(([type, count]) => (
               <div key={type}>
@@ -171,7 +171,7 @@ function AnalyticsPage() {
 
         {/* By Status */}
         <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Réservations par statut</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Séances par statut</h3>
           <div className="space-y-3">
             {Object.entries(stats.byStatus).map(([status, count]) => (
               <div key={status}>
@@ -206,7 +206,7 @@ function AnalyticsPage() {
                 <div key={room}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-neutral-600">{room}</span>
-                    <span className="font-medium text-neutral-900">{count} réservation{count > 1 ? 's' : ''}</span>
+                    <span className="font-medium text-neutral-900">{count} séance{count > 1 ? 's' : ''}</span>
                   </div>
                   <div className="w-full bg-neutral-100 rounded-full h-2.5">
                     <div

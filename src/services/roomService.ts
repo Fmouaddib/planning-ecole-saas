@@ -152,7 +152,7 @@ export class RoomService {
       // Vérifier s'il y a des réservations actives
       const hasActiveBookings = await this.hasActiveBookings(roomId)
       if (hasActiveBookings) {
-        throw new Error('Impossible de supprimer une salle avec des réservations actives')
+        throw new Error('Impossible de supprimer une salle avec des séances actives')
       }
 
       const { error } = await supabase

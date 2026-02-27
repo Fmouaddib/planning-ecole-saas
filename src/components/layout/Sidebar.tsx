@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       icon: Clock,
-      label: 'Réservations',
+      label: 'Séances',
       href: '/bookings',
       active: currentPath === '/bookings'
     },

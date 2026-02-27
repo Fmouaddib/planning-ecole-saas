@@ -27,7 +27,7 @@ const mockStats = [
     iconColor: 'text-primary-600',
   },
   {
-    label: 'Réservations',
+    label: 'Séances',
     value: '156',
     change: '+12%',
     changeType: 'success' as const,
@@ -64,15 +64,15 @@ const mockBookings = [
 ]
 
 const mockActivity = [
-  { text: 'Jean Martin a réservé Salle A101', time: 'Il y a 2h', color: 'bg-primary-500' },
+  { text: 'Jean Martin a planifié Salle A101', time: 'Il y a 2h', color: 'bg-primary-500' },
   { text: 'Nouvelle salle B203 ajoutée', time: 'Il y a 4h', color: 'bg-success-500' },
   { text: 'Conflit détecté : Amphi B, 14h-16h', time: 'Il y a 5h', color: 'bg-error-500' },
-  { text: 'Marie Dupont a annulé sa réservation', time: 'Hier, 18h', color: 'bg-warning-500' },
+  { text: 'Marie Dupont a annulé sa séance', time: 'Hier, 18h', color: 'bg-warning-500' },
   { text: 'Mise à jour du planning semaine 12', time: 'Hier, 14h', color: 'bg-primary-500' },
 ]
 
 const quickActions = [
-  { label: 'Nouvelle réservation', icon: Plus, href: '/bookings' },
+  { label: 'Nouvelle séance', icon: Plus, href: '/bookings' },
   { label: 'Gérer les salles', icon: Building2, href: '/rooms' },
   { label: 'Voir le planning', icon: Calendar, href: '/planning' },
 ]
@@ -97,7 +97,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           onClick={() => onNavigate?.('/bookings')}
         >
           <Plus size={18} />
-          Nouvelle réservation
+          Nouvelle séance
         </button>
       </div>
 
@@ -139,7 +139,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         {/* Upcoming bookings */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-neutral-900">Prochaines réservations</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">Prochaines séances</h2>
             <button
               className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
               onClick={() => onNavigate?.('/bookings')}

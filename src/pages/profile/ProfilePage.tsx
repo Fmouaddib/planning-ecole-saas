@@ -185,7 +185,7 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
                 </h4>
                 <UsageBar label="Utilisateurs" usage={usage.users} />
                 <UsageBar label="Salles" usage={usage.rooms} />
-                <UsageBar label="Réservations (ce mois)" usage={usage.bookingsThisMonth} />
+                <UsageBar label="Séances (ce mois)" usage={usage.bookingsThisMonth} />
               </div>
             )}
 

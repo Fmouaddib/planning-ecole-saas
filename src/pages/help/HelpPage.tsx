@@ -4,16 +4,16 @@ import { Button } from '@/components/ui'
 
 const faqItems = [
   {
-    question: 'Comment créer une réservation ?',
-    answer: 'Rendez-vous sur la page "Réservations" via la barre latérale, puis cliquez sur le bouton "Nouvelle réservation". Remplissez le formulaire avec le titre, la salle, les horaires et le type de réservation.',
+    question: 'Comment créer une séance ?',
+    answer: 'Rendez-vous sur la page "Séances" via la barre latérale, puis cliquez sur le bouton "Nouvelle séance". Remplissez le formulaire avec le titre, la salle, les horaires et le type de séance.',
   },
   {
-    question: 'Comment modifier une réservation existante ?',
-    answer: 'Dans la liste des réservations, cliquez sur l\'icône de crayon à droite de la réservation que vous souhaitez modifier. Vous pouvez modifier tous les champs sauf le statut.',
+    question: 'Comment modifier une séance existante ?',
+    answer: 'Dans la liste des séances, cliquez sur l\'icône de crayon à droite de la séance que vous souhaitez modifier. Vous pouvez modifier tous les champs sauf le statut.',
   },
   {
-    question: 'Comment annuler une réservation ?',
-    answer: 'Cliquez sur l\'icône d\'annulation (cercle avec X) à côté de la réservation. Vous pouvez optionnellement fournir une raison d\'annulation.',
+    question: 'Comment annuler une séance ?',
+    answer: 'Cliquez sur l\'icône d\'annulation (cercle avec X) à côté de la séance. Vous pouvez optionnellement fournir une raison d\'annulation.',
   },
   {
     question: 'Comment ajouter un utilisateur ?',
@@ -29,7 +29,7 @@ const faqItems = [
   },
   {
     question: 'Les données sont-elles synchronisées en temps réel ?',
-    answer: 'Oui, les modifications de réservations, salles et utilisateurs sont synchronisées en temps réel grâce à Supabase Realtime. Les changements faits par d\'autres utilisateurs apparaissent automatiquement.',
+    answer: 'Oui, les modifications de séances, salles et utilisateurs sont synchronisées en temps réel grâce à Supabase Realtime. Les changements faits par d\'autres utilisateurs apparaissent automatiquement.',
   },
   {
     question: 'Comment contacter le support ?',

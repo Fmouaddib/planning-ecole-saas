@@ -147,7 +147,7 @@ function SettingsPage() {
             onChange={v => updateSetting('pushNotifications', v)}
           />
           <Toggle
-            label="Rappels de réservation"
+            label="Rappels de séance"
             checked={settings.bookingReminders}
             onChange={v => updateSetting('bookingReminders', v)}
           />

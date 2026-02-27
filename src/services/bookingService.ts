@@ -85,7 +85,7 @@ export class BookingService {
       )
 
       if (hasConflict) {
-        throw new Error('Cette salle est déjà réservée pour cette période')
+        throw new Error('Cette salle est déjà occupée pour cette période')
       }
 
       const bookingData = {
@@ -132,7 +132,7 @@ export class BookingService {
       if (data.roomId || data.startDateTime || data.endDateTime) {
         const existingBooking = await this.getBookingById(data.id)
         if (!existingBooking) {
-          throw new Error('Réservation introuvable')
+          throw new Error('Séance introuvable')
         }
 
         const hasConflict = await this.checkConflict(
@@ -143,7 +143,7 @@ export class BookingService {
         )
 
         if (hasConflict) {
-          throw new Error('Cette salle est déjà réservée pour cette période')
+          throw new Error('Cette salle est déjà occupée pour cette période')
         }
       }
 

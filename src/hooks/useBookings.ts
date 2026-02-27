@@ -1,6 +1,6 @@
 /**
- * Hook personnalisé pour la gestion des réservations
- * Gère toutes les opérations CRUD sur les réservations
+ * Hook personnalisé pour la gestion des séances
+ * Gère toutes les opérations CRUD sur les séances
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -69,7 +69,7 @@ export function useBookings(): UseBookingsReturn {
 
       setBookings((data || []).map(transformBooking))
     } catch (error) {
-      handleError(error, 'Erreur lors du chargement des réservations')
+      handleError(error, 'Erreur lors du chargement des séances')
     } finally {
       setIsLoading(false)
     }
@@ -123,7 +123,7 @@ export function useBookings(): UseBookingsReturn {
       // Vérifier les limites d'abonnement
       const limitCheck = await SubscriptionLimitsService.checkLimit(user.establishmentId, 'bookings')
       if (!limitCheck.allowed) {
-        const message = `Limite du plan atteinte (${limitCheck.current}/${limitCheck.max} réservations ce mois). Contactez votre administrateur pour upgrader.`
+        const message = `Limite du plan atteinte (${limitCheck.current}/${limitCheck.max} séances ce mois). Contactez votre administrateur pour upgrader.`
         toast.error(message)
         throw new Error(message)
       }
@@ -136,7 +136,7 @@ export function useBookings(): UseBookingsReturn {
       )
 
       if (hasConflict) {
-        throw new Error('Cette salle est déjà réservée pour cette période')
+        throw new Error('Cette salle est déjà occupée pour cette période')
       }
 
       const sessionData = {
@@ -168,14 +168,14 @@ export function useBookings(): UseBookingsReturn {
       const transformed = transformBooking(newSession)
 
       setBookings(prev => [...prev, transformed])
-      toast.success(`Réservation "${transformed.title}" créée avec succès`)
+      toast.success(`Séance "${transformed.title}" créée avec succès`)
 
       // Audit logging
       AuditService.logCrud('created', 'booking', transformed.id, user.id, user.establishmentId, { title: transformed.title })
 
       return transformed
     } catch (error) {
-      const message = handleError(error, 'Erreur lors de la création de la réservation')
+      const message = handleError(error, 'Erreur lors de la création de la séance')
       toast.error(message)
       throw error
     }
@@ -188,7 +188,7 @@ export function useBookings(): UseBookingsReturn {
       // Vérifier les conflits si les dates ou la salle changent
       if (data.roomId || data.startDateTime || data.endDateTime) {
         const booking = bookings.find(b => b.id === data.id)
-        if (!booking) throw new Error('Réservation introuvable')
+        if (!booking) throw new Error('Séance introuvable')
 
         const hasConflict = await checkBookingConflict(
           data.roomId || booking.roomId,
@@ -198,7 +198,7 @@ export function useBookings(): UseBookingsReturn {
         )
 
         if (hasConflict) {
-          throw new Error('Cette salle est déjà réservée pour cette période')
+          throw new Error('Cette salle est déjà occupée pour cette période')
         }
       }
 
@@ -238,7 +238,7 @@ export function useBookings(): UseBookingsReturn {
         prev.map(booking => booking.id === data.id ? transformed : booking)
       )
 
-      toast.success(`Réservation "${transformed.title}" mise à jour avec succès`)
+      toast.success(`Séance "${transformed.title}" mise à jour avec succès`)
 
       // Audit logging
       if (user) {
@@ -247,7 +247,7 @@ export function useBookings(): UseBookingsReturn {
 
       return transformed
     } catch (error) {
-      const message = handleError(error, 'Erreur lors de la mise à jour de la réservation')
+      const message = handleError(error, 'Erreur lors de la mise à jour de la séance')
       toast.error(message)
       throw error
     }
@@ -265,14 +265,14 @@ export function useBookings(): UseBookingsReturn {
       if (deleteError) throw deleteError
 
       setBookings(prev => prev.filter(booking => booking.id !== id))
-      toast.success('Réservation supprimée avec succès')
+      toast.success('Séance supprimée avec succès')
 
       // Audit logging
       if (user) {
         AuditService.logCrud('deleted', 'booking', id, user.id, user.establishmentId)
       }
     } catch (error) {
-      const message = handleError(error, 'Erreur lors de la suppression de la réservation')
+      const message = handleError(error, 'Erreur lors de la suppression de la séance')
       toast.error(message)
       throw error
     }
@@ -305,10 +305,10 @@ export function useBookings(): UseBookingsReturn {
         prev.map(booking => booking.id === id ? transformed : booking)
       )
 
-      toast.success('Réservation annulée avec succès')
+      toast.success('Séance annulée avec succès')
       return transformed
     } catch (error) {
-      const message = handleError(error, 'Erreur lors de l\'annulation de la réservation')
+      const message = handleError(error, 'Erreur lors de l\'annulation de la séance')
       toast.error(message)
       throw error
     }

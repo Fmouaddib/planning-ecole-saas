@@ -195,7 +195,7 @@ function BookingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <LoadingSpinner size="lg" text="Chargement des réservations..." />
+        <LoadingSpinner size="lg" text="Chargement des séances..." />
       </div>
     )
   }
@@ -216,11 +216,11 @@ function BookingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Gestion des réservations</h1>
-          <p className="text-neutral-500 mt-1">{bookings.length} réservation{bookings.length > 1 ? 's' : ''} au total</p>
+          <h1 className="text-2xl font-bold text-neutral-900">Gestion des séances</h1>
+          <p className="text-neutral-500 mt-1">{bookings.length} séance{bookings.length > 1 ? 's' : ''} au total</p>
         </div>
         <Button leftIcon={Plus} onClick={openCreate} className="mt-4 sm:mt-0">
-          Nouvelle réservation
+          Nouvelle séance
         </Button>
       </div>
 
@@ -254,9 +254,9 @@ function BookingsPage() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={CalendarCheck}
-          title="Aucune réservation trouvée"
-          description={search || typeFilter || statusFilter ? 'Aucune réservation ne correspond à vos critères.' : 'Commencez par créer votre première réservation.'}
-          action={!search && !typeFilter && !statusFilter ? { label: 'Nouvelle réservation', onClick: openCreate, icon: Plus } : undefined}
+          title="Aucune séance trouvée"
+          description={search || typeFilter || statusFilter ? 'Aucune séance ne correspond à vos critères.' : 'Commencez par créer votre première séance.'}
+          action={!search && !typeFilter && !statusFilter ? { label: 'Nouvelle séance', onClick: openCreate, icon: Plus } : undefined}
         />
       ) : (
         <>
@@ -346,7 +346,7 @@ function BookingsPage() {
       <Modal
         isOpen={modalMode === 'create' || modalMode === 'edit'}
         onClose={closeModal}
-        title={modalMode === 'create' ? 'Nouvelle réservation' : 'Modifier la réservation'}
+        title={modalMode === 'create' ? 'Nouvelle séance' : 'Modifier la séance'}
         size="md"
       >
         <div className="space-y-4">
@@ -410,11 +410,11 @@ function BookingsPage() {
       <Modal
         isOpen={modalMode === 'delete'}
         onClose={closeModal}
-        title="Supprimer la réservation"
+        title="Supprimer la séance"
         size="sm"
       >
         <p className="text-neutral-600">
-          Êtes-vous sûr de vouloir supprimer la réservation <strong>{selectedBooking?.title}</strong> ?
+          Êtes-vous sûr de vouloir supprimer la séance <strong>{selectedBooking?.title}</strong> ?
           Cette action est irréversible.
         </p>
         <ModalFooter>
@@ -429,12 +429,12 @@ function BookingsPage() {
       <Modal
         isOpen={modalMode === 'cancel'}
         onClose={closeModal}
-        title="Annuler la réservation"
+        title="Annuler la séance"
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-neutral-600">
-            Voulez-vous annuler la réservation <strong>{selectedBooking?.title}</strong> ?
+            Voulez-vous annuler la séance <strong>{selectedBooking?.title}</strong> ?
           </p>
           <Textarea
             label="Raison (optionnel)"
@@ -446,7 +446,7 @@ function BookingsPage() {
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Retour</Button>
           <Button variant="danger" onClick={handleCancel} isLoading={submitting}>
-            Annuler la réservation
+            Annuler la séance
           </Button>
         </ModalFooter>
       </Modal>

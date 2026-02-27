@@ -70,11 +70,11 @@ const translations: Record<string, Record<Lang, string>> = {
   // Plan features
   'plan.free.f1': { fr: 'Jusqu\'à 5 utilisateurs', en: 'Up to 5 users' },
   'plan.free.f2': { fr: '3 salles maximum', en: '3 rooms maximum' },
-  'plan.free.f3': { fr: '50 réservations/mois', en: '50 bookings/month' },
+  'plan.free.f3': { fr: '50 séances/mois', en: '50 bookings/month' },
   'plan.free.f4': { fr: 'Calendrier de base', en: 'Basic calendar' },
   'plan.pro.f1': { fr: 'Jusqu\'à 50 utilisateurs', en: 'Up to 50 users' },
   'plan.pro.f2': { fr: 'Salles illimitées', en: 'Unlimited rooms' },
-  'plan.pro.f3': { fr: 'Réservations illimitées', en: 'Unlimited bookings' },
+  'plan.pro.f3': { fr: 'Séances illimitées', en: 'Unlimited bookings' },
   'plan.pro.f4': { fr: 'Détection de conflits', en: 'Conflict detection' },
   'plan.pro.f5': { fr: 'Intégration Zoom', en: 'Zoom integration' },
   'plan.pro.f6': { fr: 'Support prioritaire', en: 'Priority support' },

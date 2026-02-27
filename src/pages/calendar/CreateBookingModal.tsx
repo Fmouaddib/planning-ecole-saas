@@ -85,7 +85,7 @@ export function CreateBookingModal({
     : ''
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Nouvelle réservation" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Nouvelle séance" size="md">
       {displayDate && (
         <p className="text-sm text-primary-600 font-medium mb-4 capitalize">{displayDate}</p>
       )}
@@ -152,7 +152,7 @@ export function CreateBookingModal({
           Annuler
         </Button>
         <Button variant="primary" onClick={handleSubmit}>
-          Créer la réservation
+          Créer la séance
         </Button>
       </ModalFooter>
     </Modal>

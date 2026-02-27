@@ -654,7 +654,7 @@ function CalendarPage() {
       <Modal
         isOpen={!!selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        title="Détail de la réservation"
+        title="Détail de la séance"
         size="sm"
       >
         {selectedEvent && (
@@ -1234,7 +1234,7 @@ function MonthView({
             <Clock size={16} className="text-amber-500" />
             <div>
               <div className="text-lg font-bold text-amber-700">{monthStats.totalHours}h</div>
-              <div className="text-[10px] text-amber-500">Heures réservées</div>
+              <div className="text-[10px] text-amber-500">Heures de séances</div>
             </div>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50">
@@ -1277,7 +1277,7 @@ function MonthView({
                   !inCurrentMonth ? 'opacity-40' : ''
                 } ${isWeekend ? 'bg-neutral-50' : style.bg} ${isToday(day) ? 'ring-2 ring-inset ring-primary-400' : ''}`}
                 onClick={() => onDayClick(day)}
-                title={`${occ?.bookedHours ?? 0}h réservées / ${totalRooms * (HOUR_END - HOUR_START)}h possibles (${occ?.roomsUsed ?? 0} salle${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''} active${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''})`}
+                title={`${occ?.bookedHours ?? 0}h de séances / ${totalRooms * (HOUR_END - HOUR_START)}h possibles (${occ?.roomsUsed ?? 0} salle${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''} active${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''})`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className={`text-sm font-medium ${

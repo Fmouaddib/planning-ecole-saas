@@ -158,8 +158,8 @@ export const SUCCESS_MESSAGES = {
   ROOM_CREATED: 'Salle créée avec succès',
   ROOM_UPDATED: 'Salle mise à jour avec succès',
   ROOM_DELETED: 'Salle supprimée avec succès',
-  BOOKING_CREATED: 'Réservation créée avec succès',
-  BOOKING_UPDATED: 'Réservation mise à jour avec succès',
-  BOOKING_CANCELLED: 'Réservation annulée avec succès',
+  BOOKING_CREATED: 'Séance créée avec succès',
+  BOOKING_UPDATED: 'Séance mise à jour avec succès',
+  BOOKING_CANCELLED: 'Séance annulée avec succès',
   PROFILE_UPDATED: 'Profil mis à jour avec succès'
 }
