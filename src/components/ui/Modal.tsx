@@ -39,18 +39,18 @@ export const Modal: React.FC<ModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4">
       {/* Overlay */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div
         className={clsx(
-          'relative w-full mx-4 bg-white rounded-2xl shadow-strong',
-          'animate-scale-in max-h-[90vh] flex flex-col',
+          'relative w-full bg-white rounded-2xl shadow-strong',
+          'animate-scale-in max-h-full flex flex-col',
           sizeClasses[size]
         )}
         onClick={(e) => e.stopPropagation()}
