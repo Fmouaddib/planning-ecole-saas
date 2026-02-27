@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/ui'
 import { SuperAdminApp } from '@/components/super-admin/SuperAdminApp'
 import { ROUTES } from '@/utils/constants'
 import { supabase, isDemoMode } from '@/lib/supabase'
+import toast, { Toaster } from 'react-hot-toast'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
 
@@ -177,41 +178,62 @@ export default function App() {
         localStorage.setItem('isAuthenticated', 'true')
       } else {
         // Mode réel : connexion Supabase
+        console.log('[Login] Tentative signInWithPassword...')
         const { data, error } = await supabase.auth.signInWithPassword({
           email: credentials.email,
           password: credentials.password,
         })
 
-        if (error) throw error
-
-        // Mettre à jour l'état directement (ne pas dépendre uniquement de onAuthStateChange)
-        if (data.session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, email, full_name, role, center_id')
-            .eq('id', data.session.user.id)
-            .single()
-
-          if (profile) {
-            const nameParts = (profile.full_name || '').split(' ')
-            setUser({
-              id: profile.id,
-              email: profile.email,
-              firstName: nameParts[0] || '',
-              lastName: nameParts.slice(1).join(' ') || '',
-              role: profile.role || 'student',
-              schoolId: profile.center_id,
-              establishmentId: profile.center_id,
-              isActive: true,
-              createdAt: '',
-              updatedAt: '',
-            })
-            setAppState('authenticated')
-          }
+        if (error) {
+          console.error('[Login] signInWithPassword error:', error)
+          throw error
         }
+
+        console.log('[Login] signInWithPassword OK, session:', !!data.session, 'user:', !!data.session?.user)
+
+        if (!data.session?.user) {
+          throw new Error('Session invalide après connexion')
+        }
+
+        // Récupérer le profil
+        console.log('[Login] Query profiles pour', data.session.user.id)
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, role, center_id')
+          .eq('id', data.session.user.id)
+          .single()
+
+        if (profileError) {
+          console.error('[Login] Profile query error:', profileError)
+          throw new Error('Erreur chargement profil: ' + profileError.message)
+        }
+
+        if (!profile) {
+          throw new Error('Profil introuvable')
+        }
+
+        console.log('[Login] Profile OK:', profile.email, 'role:', profile.role, 'center:', profile.center_id)
+        const nameParts = (profile.full_name || '').split(' ')
+        setUser({
+          id: profile.id,
+          email: profile.email,
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          role: profile.role || 'student',
+          schoolId: profile.center_id,
+          establishmentId: profile.center_id,
+          isActive: true,
+          createdAt: '',
+          updatedAt: '',
+        })
+        setAppState('authenticated')
+        console.log('[Login] Authentification réussie')
       }
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Erreur de connexion')
+      const msg = error instanceof Error ? error.message : 'Erreur de connexion'
+      console.error('[Login] ERREUR:', msg, error)
+      setAuthError(msg)
+      toast.error(msg)
     } finally {
       setIsLoading(false)
     }
@@ -295,12 +317,15 @@ export default function App() {
   if (appState === 'unauthenticated') {
     if (hash === '#/login') {
       return (
-        <LoginPage
-          onLogin={handleLogin}
-          onSwitchToSignup={() => { window.location.hash = '#/signup' }}
-          isLoading={isLoading}
-          error={authError}
-        />
+        <>
+          <Toaster position="top-center" />
+          <LoginPage
+            onLogin={handleLogin}
+            onSwitchToSignup={() => { window.location.hash = '#/signup' }}
+            isLoading={isLoading}
+            error={authError}
+          />
+        </>
       )
     }
 
