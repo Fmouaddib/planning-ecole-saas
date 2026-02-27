@@ -5,6 +5,7 @@ import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
 import { SuperAdminApp } from '@/components/super-admin/SuperAdminApp'
 import { ROUTES } from '@/utils/constants'
+import { supabase, isDemoMode } from '@/lib/supabase'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
 
@@ -58,19 +59,51 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [hash, setHash] = useState(window.location.hash)
 
-  // Simulation de vérification d'authentification au démarrage
+  // Vérification d'authentification au démarrage
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Simuler une vérification de token/session
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        if (isDemoMode) {
+          // Mode démo : utiliser localStorage
+          const isAuth = localStorage.getItem('isAuthenticated') === 'true'
+          if (isAuth) {
+            setUser(mockUser)
+            setAppState('authenticated')
+          } else {
+            setAppState('unauthenticated')
+          }
+          return
+        }
 
-        // Pour le développement, on peut forcer l'authentification
-        const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
+        // Mode réel : vérifier la session Supabase
+        const { data: { session } } = await supabase.auth.getSession()
 
-        if (isAuthenticated) {
-          setUser(mockUser)
-          setAppState('authenticated')
+        if (session?.user) {
+          // Récupérer le profil depuis Supabase
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, role, center_id')
+            .eq('id', session.user.id)
+            .single()
+
+          if (profile) {
+            const nameParts = (profile.full_name || '').split(' ')
+            setUser({
+              id: profile.id,
+              email: profile.email,
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' ') || '',
+              role: profile.role || 'student',
+              schoolId: profile.center_id,
+              establishmentId: profile.center_id,
+              isActive: true,
+              createdAt: '',
+              updatedAt: '',
+            })
+            setAppState('authenticated')
+          } else {
+            setAppState('unauthenticated')
+          }
         } else {
           setAppState('unauthenticated')
         }
@@ -81,6 +114,43 @@ export default function App() {
     }
 
     checkAuth()
+
+    // Écouter les changements de session Supabase
+    if (!isDemoMode) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id, email, full_name, role, center_id')
+              .eq('id', session.user.id)
+              .single()
+
+            if (profile) {
+              const nameParts = (profile.full_name || '').split(' ')
+              setUser({
+                id: profile.id,
+                email: profile.email,
+                firstName: nameParts[0] || '',
+                lastName: nameParts.slice(1).join(' ') || '',
+                role: profile.role || 'student',
+                schoolId: profile.center_id,
+                establishmentId: profile.center_id,
+                isActive: true,
+                createdAt: '',
+                updatedAt: '',
+              })
+              setAppState('authenticated')
+            }
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null)
+            setAppState('unauthenticated')
+          }
+        }
+      )
+
+      return () => subscription.unsubscribe()
+    }
   }, [])
 
   // Listen to hash changes for landing/auth routing
@@ -95,23 +165,25 @@ export default function App() {
     setAuthError(null)
 
     try {
-      // Simulation d'une requête de connexion
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Mode démo : accepter tout identifiant non vide
       if (!credentials.email || !credentials.password) {
         throw new Error('Veuillez remplir tous les champs')
       }
 
-      setUser({
-        ...mockUser,
-        email: credentials.email,
-      })
-      setAppState('authenticated')
-      localStorage.setItem('isAuthenticated', 'true')
+      if (isDemoMode) {
+        // Mode démo : accepter tout identifiant
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        setUser({ ...mockUser, email: credentials.email })
+        setAppState('authenticated')
+        localStorage.setItem('isAuthenticated', 'true')
+      } else {
+        // Mode réel : connexion Supabase
+        const { error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        })
 
-      if (credentials.rememberMe) {
-        localStorage.setItem('rememberUser', 'true')
+        if (error) throw error
+        // Le onAuthStateChange va mettre à jour l'état automatiquement
       }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Erreur de connexion')
@@ -125,26 +197,38 @@ export default function App() {
     setAuthError(null)
 
     try {
-      // Simulation d'une requête d'inscription
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Pour le développement, on simule une inscription réussie
-      const newUser: User = {
-        id: Date.now().toString(),
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        role: userData.role,
-        schoolId: 'school-1',
-        establishmentId: 'school-1',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      if (isDemoMode) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        const newUser: User = {
+          id: Date.now().toString(),
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          role: userData.role,
+          schoolId: 'school-1',
+          establishmentId: 'school-1',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        setUser(newUser)
+        setAppState('authenticated')
+        localStorage.setItem('isAuthenticated', 'true')
+      } else {
+        // Mode réel : inscription Supabase
+        const { error } = await supabase.auth.signUp({
+          email: userData.email,
+          password: userData.password,
+          options: {
+            data: {
+              full_name: `${userData.firstName} ${userData.lastName}`,
+              role: userData.role || 'student',
+            },
+          },
+        })
+        if (error) throw error
+        // Le onAuthStateChange va mettre à jour l'état
       }
-
-      setUser(newUser)
-      setAppState('authenticated')
-      localStorage.setItem('isAuthenticated', 'true')
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Erreur d\'inscription')
     } finally {
@@ -152,7 +236,10 @@ export default function App() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (!isDemoMode) {
+      await supabase.auth.signOut()
+    }
     setUser(null)
     setAppState('unauthenticated')
     setCurrentPath('/')
