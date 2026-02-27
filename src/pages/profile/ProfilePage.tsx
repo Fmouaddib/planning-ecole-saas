@@ -101,15 +101,15 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
       </div>
 
       {/* Informations personnelles */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
+        <div className="flex items-start sm:items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary-100 rounded-lg">
+            <div className="p-2 bg-primary-100 rounded-lg shrink-0">
               <User size={20} className="text-primary-600" />
             </div>
             <h3 className="text-lg font-semibold text-neutral-900">Informations personnelles</h3>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setEditModalOpen(true)}>
+          <Button variant="secondary" size="sm" onClick={() => setEditModalOpen(true)} className="shrink-0">
             Modifier
           </Button>
         </div>
@@ -134,9 +134,9 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
       </div>
 
       {/* Section Abonnement */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6 mb-6">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-success-100 rounded-lg">
+          <div className="p-2 bg-success-100 rounded-lg shrink-0">
             <Mail size={20} className="text-success-600" />
           </div>
           <h3 className="text-lg font-semibold text-neutral-900">Mon abonnement</h3>
@@ -147,22 +147,20 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
           <p className="text-error-500 text-center py-4">{subError}</p>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-semibold text-neutral-900">
-                  {plan?.name || 'Aucun plan'}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className="text-lg font-semibold text-neutral-900">
+                {plan?.name || 'Aucun plan'}
+              </span>
+              {tierConfig && (
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tierConfig.bg} ${tierConfig.color}`}>
+                  {tierConfig.label}
                 </span>
-                {tierConfig && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tierConfig.bg} ${tierConfig.color}`}>
-                    {tierConfig.label}
-                  </span>
-                )}
-                {statusConfig && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.color}`}>
-                    {statusConfig.label}
-                  </span>
-                )}
-              </div>
+              )}
+              {statusConfig && (
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.color}`}>
+                  {statusConfig.label}
+                </span>
+              )}
             </div>
 
             {subscription?.renewalDate && (
@@ -202,9 +200,9 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
       </div>
 
       {/* Actions du compte */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-warning-100 rounded-lg">
+          <div className="p-2 bg-warning-100 rounded-lg shrink-0">
             <KeyRound size={20} className="text-warning-600" />
           </div>
           <h3 className="text-lg font-semibold text-neutral-900">Actions du compte</h3>

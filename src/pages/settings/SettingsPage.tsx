@@ -75,18 +75,18 @@ function SettingsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Paramètres</h1>
           <p className="text-neutral-500 mt-1">Configurez vos préférences</p>
         </div>
-        <Button leftIcon={Save} onClick={handleSave}>
+        <Button leftIcon={Save} onClick={handleSave} className="self-start sm:self-auto">
           {saved ? 'Enregistré !' : 'Enregistrer'}
         </Button>
       </div>
 
       {/* General */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6 mb-6">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-primary-100 rounded-lg">
             <Settings size={20} className="text-primary-600" />
@@ -128,7 +128,7 @@ function SettingsPage() {
       </div>
 
       {/* Notifications */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6 mb-6">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-warning-100 rounded-lg">
             <Bell size={20} className="text-warning-600" />
@@ -160,7 +160,7 @@ function SettingsPage() {
       </div>
 
       {/* Display */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-success-100 rounded-lg">
             <Monitor size={20} className="text-success-600" />
