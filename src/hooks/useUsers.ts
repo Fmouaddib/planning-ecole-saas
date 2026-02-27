@@ -72,8 +72,8 @@ export function useUsers(): UseUsersReturn {
       throw new Error('Utilisateur non connecté')
     }
 
-    // Vérifier que seuls les admins peuvent créer des utilisateurs
-    if (currentUser.role !== 'admin') {
+    // Vérifier que seuls les admins/super_admins peuvent créer des utilisateurs
+    if (currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
       throw new Error('Seuls les administrateurs peuvent créer des utilisateurs')
     }
 
@@ -88,31 +88,45 @@ export function useUsers(): UseUsersReturn {
         throw new Error(message)
       }
 
-      // Créer le compte avec Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Sauvegarder la session admin avant de créer le compte
+      const { data: { session: adminSession } } = await supabase.auth.getSession()
+
+      // Créer le compte avec signUp (admin.createUser nécessite service_role key)
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        email_confirm: true, // Auto-confirmer l'email
-        user_metadata: {
-          first_name: data.firstName,
-          last_name: data.lastName,
-          establishment_id: data.establishmentId,
-          role: data.role || 'student',
+        options: {
+          data: {
+            full_name: `${data.firstName} ${data.lastName}`,
+            role: data.role || 'student',
+          },
         },
       })
 
-      if (authError) throw authError
-      if (!authData.user) throw new Error('Échec de la création du compte')
+      if (signUpError) throw signUpError
+      if (!signUpData.user) throw new Error('Échec de la création du compte')
+
+      // Restaurer la session admin si signUp a changé la session
+      if (adminSession && signUpData.session) {
+        await supabase.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        })
+      }
+
+      // Toujours utiliser le center_id de l'admin (pas celui du formulaire)
+      const centerId = currentUser.establishmentId
 
       // Créer l'entrée dans la table profiles
       const { data: newUser, error: userError } = await supabase
         .from('profiles')
         .insert({
-          id: authData.user.id,
+          id: signUpData.user.id,
           email: data.email,
           full_name: `${data.firstName} ${data.lastName}`,
-          center_id: data.establishmentId,
+          center_id: centerId,
           role: data.role || 'student',
+          is_active: true,
         })
         .select()
         .single()
@@ -125,12 +139,10 @@ export function useUsers(): UseUsersReturn {
       toast.success(`Utilisateur "${transformed.firstName} ${transformed.lastName}" créé avec succès`)
 
       // Audit logging
-      if (currentUser) {
-        AuditService.logCrud('created', 'user', transformed.id, currentUser.id, currentUser.establishmentId, {
-          email: transformed.email,
-          role: transformed.role,
-        })
-      }
+      AuditService.logCrud('created', 'user', transformed.id, currentUser.id, currentUser.establishmentId, {
+        email: transformed.email,
+        role: transformed.role,
+      })
 
       return transformed
     } catch (error) {
@@ -143,8 +155,8 @@ export function useUsers(): UseUsersReturn {
   const updateUser = useCallback(async (id: UUID, updateData: Partial<User>): Promise<User> => {
     // Vérifier les permissions
     const isOwnProfile = id === currentUser?.id
-    const isAdmin = currentUser?.role === 'admin'
-    
+    const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin'
+
     if (!isOwnProfile && !isAdmin) {
       throw new Error('Permission refusée')
     }
@@ -210,7 +222,7 @@ export function useUsers(): UseUsersReturn {
   }, [currentUser?.id, currentUser?.role, handleError])
 
   const deleteUser = useCallback(async (id: UUID): Promise<void> => {
-    if (currentUser?.role !== 'admin') {
+    if (currentUser?.role !== 'admin' && currentUser?.role !== 'super_admin') {
       throw new Error('Seuls les administrateurs peuvent supprimer des utilisateurs')
     }
 
@@ -298,16 +310,17 @@ export function useUsers(): UseUsersReturn {
 
   // ==================== PERMISSIONS ====================
 
-  const canCreateUsers = currentUser?.role === 'admin'
-  const canDeleteUsers = currentUser?.role === 'admin'
-  const canUpdateAllUsers = currentUser?.role === 'admin'
+  const isAdminOrSuperAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin'
+  const canCreateUsers = isAdminOrSuperAdmin
+  const canDeleteUsers = isAdminOrSuperAdmin
+  const canUpdateAllUsers = isAdminOrSuperAdmin
 
   const canUpdateUser = useCallback((userId: UUID): boolean => {
-    return userId === currentUser?.id || currentUser?.role === 'admin'
+    return userId === currentUser?.id || currentUser?.role === 'admin' || currentUser?.role === 'super_admin'
   }, [currentUser?.id, currentUser?.role])
 
   const canDeleteUser = useCallback((userId: UUID): boolean => {
-    return currentUser?.role === 'admin' && userId !== currentUser?.id
+    return (currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && userId !== currentUser?.id
   }, [currentUser?.role, currentUser?.id])
 
   // ==================== EFFECTS ====================

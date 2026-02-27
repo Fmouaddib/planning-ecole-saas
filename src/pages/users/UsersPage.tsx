@@ -105,7 +105,7 @@ function UsersPage() {
           email: form.email,
           password: form.password,
           role: form.role,
-          establishmentId: 'school-1',
+          establishmentId: '',  // Le hook utilise le center_id de l'admin connecté
         })
       } else if (modalMode === 'edit' && selectedUser) {
         await updateUser(selectedUser.id, {
