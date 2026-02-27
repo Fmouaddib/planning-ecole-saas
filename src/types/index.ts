@@ -15,7 +15,7 @@ export interface User {
   updatedAt: string
 }
 
-export type UserRole = 'admin' | 'teacher' | 'student' | 'staff'
+export type UserRole = 'admin' | 'teacher' | 'student' | 'staff' | 'super_admin'
 
 export interface School {
   id: string

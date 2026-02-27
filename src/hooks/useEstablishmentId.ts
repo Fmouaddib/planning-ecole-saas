@@ -11,7 +11,7 @@ export function useEstablishmentId(): string | null {
   if (!user) return null
 
   // Les super_admins ont accès global, pas d'establishment_id
-  if (user.role === 'super_admin' as any) return null
+  if (user.role === 'super_admin') return null
 
   return user.establishmentId || null
 }

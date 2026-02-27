@@ -204,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
 
               {/* Super Admin - avant Déconnexion */}
-              {(userRole === 'admin') && (
+              {(userRole === 'admin' || userRole === 'super_admin') && (
                 <button
                   onClick={() => { window.location.hash = '#/super-admin'; }}
                   className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
