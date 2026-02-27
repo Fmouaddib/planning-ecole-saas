@@ -205,10 +205,10 @@ function UsersPage() {
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Email</th>
+                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Email</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Rôle</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Statut</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Créé le</th>
+                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Créé le</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -217,8 +217,9 @@ function UsersPage() {
                     <tr key={u.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-4 py-3">
                         <span className="font-medium text-neutral-900">{u.firstName} {u.lastName}</span>
+                        <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{u.email}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">{u.email}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">{u.email}</td>
                       <td className="px-4 py-3">
                         <Badge variant={roleBadgeVariant[u.role] || 'neutral'} size="sm">
                           {roleLabels[u.role] || u.role}
@@ -229,7 +230,7 @@ function UsersPage() {
                           {u.isActive ? 'Actif' : 'Inactif'}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">
                         {u.createdAt ? formatDate(u.createdAt) : '-'}
                       </td>
                       <td className="px-4 py-3 text-right">

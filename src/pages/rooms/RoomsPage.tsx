@@ -192,11 +192,11 @@ function RoomsPage() {
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
+                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Type</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Capacité</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Étage</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Équipements</th>
+                    <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Étage</th>
+                    <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Équipements</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -205,16 +205,17 @@ function RoomsPage() {
                     <tr key={room.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-4 py-3">
                         <span className="font-medium text-neutral-900">{room.name}</span>
+                        <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{room.code}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">{room.code}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">{room.code}</td>
                       <td className="px-4 py-3">
                         <Badge variant={roomTypeBadgeVariant[room.roomType || room.type] || 'neutral'} size="sm">
                           {roomTypeLabels[room.roomType || room.type] || room.roomType || room.type}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600">{room.capacity} places</td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">{room.floor ?? '-'}</td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600">{room.floor ?? '-'}</td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600">
                         {room.equipment && room.equipment.length > 0
                           ? room.equipment.map(e => e.name).join(', ')
                           : '-'}

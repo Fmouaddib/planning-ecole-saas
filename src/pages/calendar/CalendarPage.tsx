@@ -1042,7 +1042,7 @@ function WeekView({
   return (
     <div className="overflow-auto" ref={gridRef}>
       {/* Header */}
-      <div className="grid grid-cols-[60px_repeat(5,1fr)] border-b border-neutral-200 sticky top-0 bg-white z-10">
+      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)] border-b border-neutral-200 sticky top-0 bg-white z-10">
         <div className="p-2" />
         {days.map(day => (
           <div
@@ -1064,7 +1064,7 @@ function WeekView({
       </div>
 
       {/* Time grid */}
-      <div className="grid grid-cols-[60px_repeat(5,1fr)]">
+      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)]">
         {/* Hours column */}
         <div>
           {hours.map(hour => (
@@ -1354,7 +1354,7 @@ function MonthView({
 
       {/* Month stats (occupation mode only) */}
       {showOccupation && (
-        <div className="grid grid-cols-4 gap-3 p-4 border-b border-neutral-200 bg-white">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 border-b border-neutral-200 bg-white">
           <div className="flex items-center gap-2 p-2 rounded-lg bg-primary-50">
             <TrendingUp size={16} className="text-primary-500" />
             <div>
@@ -1386,8 +1386,9 @@ function MonthView({
         </div>
       )}
 
-      {/* Day names header */}
-      <div className="grid grid-cols-7 border-b border-neutral-200">
+      {/* Day names header + Day cells (scrollable on mobile) */}
+      <div className="overflow-x-auto">
+      <div className="min-w-[500px] grid grid-cols-7 border-b border-neutral-200">
         {dayNames.map(name => (
           <div key={name} className="p-2 text-center text-xs font-semibold text-neutral-500 uppercase">
             {name}
@@ -1396,7 +1397,7 @@ function MonthView({
       </div>
 
       {/* Day cells */}
-      <div className="grid grid-cols-7">
+      <div className="min-w-[500px] grid grid-cols-7">
         {allDays.map(day => {
           const dayEvents = getEventsForDay(day)
           const inCurrentMonth = isSameMonth(day, currentDate)
@@ -1487,6 +1488,7 @@ function MonthView({
           )
         })}
       </div>
+      </div>{/* end overflow-x-auto */}
 
       {/* Occupation legend */}
       {showOccupation && (
