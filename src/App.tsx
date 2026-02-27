@@ -1,12 +1,24 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { LoginPage, SignupPage } from '@/pages/auth'
-import { DashboardPage } from '@/pages/dashboard'
 import { Layout } from '@/components/layout'
 import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
 import { SuperAdminApp } from '@/components/super-admin/SuperAdminApp'
+import { ROUTES } from '@/utils/constants'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
+
+// Lazy-loaded pages
+const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'))
+const RoomsPage = lazy(() => import('@/pages/rooms/RoomsPage'))
+const BookingsPage = lazy(() => import('@/pages/bookings/BookingsPage'))
+const UsersPage = lazy(() => import('@/pages/users/UsersPage'))
+const CalendarPage = lazy(() => import('@/pages/calendar/CalendarPage'))
+const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage'))
+const CoursesPage = lazy(() => import('@/pages/courses/CoursesPage'))
+const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'))
+const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'))
+const HelpPage = lazy(() => import('@/pages/help/HelpPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -25,6 +37,19 @@ const mockUser: User = {
   updatedAt: '2024-01-01T00:00:00Z'
 }
 
+// Route mapping
+const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Element> | React.LazyExoticComponent<React.ComponentType<any>>> = {
+  [ROUTES.ROOMS]: RoomsPage,
+  [ROUTES.BOOKINGS]: BookingsPage,
+  [ROUTES.USERS]: UsersPage,
+  [ROUTES.PLANNING]: CalendarPage,
+  [ROUTES.COURSES]: CoursesPage,
+  [ROUTES.ANALYTICS]: AnalyticsPage,
+  [ROUTES.SETTINGS]: SettingsPage,
+  [ROUTES.PROFILE]: ProfilePage,
+  [ROUTES.HELP]: HelpPage,
+}
+
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading')
   const [currentPath, setCurrentPath] = useState('/')
@@ -39,10 +64,10 @@ export default function App() {
       try {
         // Simuler une vérification de token/session
         await new Promise(resolve => setTimeout(resolve, 1000))
-        
+
         // Pour le développement, on peut forcer l'authentification
         const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
-        
+
         if (isAuthenticated) {
           setUser(mockUser)
           setAppState('authenticated')
@@ -137,13 +162,10 @@ export default function App() {
 
   const handleNavigate = (path: string) => {
     setCurrentPath(path)
-    // Dans une vraie application, on utiliserait un routeur comme React Router
-    console.log(`Navigation vers: ${path}`)
   }
 
   const _handleForgotPassword = (_email: string) => {
     console.log(`Mot de passe oublié pour: ${_email}`)
-    // Implémenter la logique de récupération de mot de passe
   }
 
   void _handleForgotPassword
@@ -205,6 +227,42 @@ export default function App() {
     )
   }
 
+  // Render the current page based on path
+  const renderPage = () => {
+    if (currentPath === '/' || currentPath === ROUTES.HOME) {
+      return <DashboardPage onNavigate={handleNavigate} />
+    }
+
+    if (currentPath === ROUTES.PROFILE) {
+      return <ProfilePage onLogout={handleLogout} />
+    }
+
+    const PageComponent = routeComponents[currentPath]
+    if (PageComponent) {
+      return <PageComponent />
+    }
+
+    // Fallback for unknown routes
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-neutral-900 mb-4">
+            Page introuvable
+          </h1>
+          <p className="text-neutral-600 mb-6">
+            La page &quot;{currentPath}&quot; n'existe pas.
+          </p>
+          <button
+            onClick={() => handleNavigate('/')}
+            className="btn-primary"
+          >
+            Retour au dashboard
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // Application principale
   return (
     <Layout
@@ -213,26 +271,15 @@ export default function App() {
       onNavigate={handleNavigate}
       onLogout={handleLogout}
     >
-      {currentPath === '/' && <DashboardPage />}
-
-      {currentPath !== '/' && (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-neutral-900 mb-4">
-              Page en cours de développement
-            </h1>
-            <p className="text-neutral-600 mb-6">
-              La page &quot;{currentPath}&quot; sera bientôt disponible.
-            </p>
-            <button
-              onClick={() => handleNavigate('/')}
-              className="btn-primary"
-            >
-              Retour au dashboard
-            </button>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center py-20">
+            <LoadingState size="lg" text="Chargement de la page..." />
           </div>
-        </div>
-      )}
+        }
+      >
+        {renderPage()}
+      </Suspense>
     </Layout>
   )
 }

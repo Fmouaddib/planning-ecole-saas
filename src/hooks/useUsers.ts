@@ -317,6 +317,8 @@ export function useUsers(): UseUsersReturn {
   useEffect(() => {
     if (currentUser?.establishmentId) {
       fetchUsers()
+    } else {
+      setIsLoading(false)
     }
   }, [currentUser?.establishmentId, fetchUsers])
 

@@ -438,6 +438,8 @@ export function useBookings(): UseBookingsReturn {
   useEffect(() => {
     if (user?.establishmentId) {
       fetchBookings()
+    } else {
+      setIsLoading(false)
     }
   }, [user?.establishmentId, fetchBookings])
 

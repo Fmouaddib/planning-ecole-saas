@@ -12,6 +12,10 @@ import {
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 
+interface DashboardPageProps {
+  onNavigate?: (path: string) => void
+}
+
 const mockStats = [
   {
     label: 'Salles',
@@ -73,7 +77,7 @@ const quickActions = [
   { label: 'Voir le planning', icon: Calendar, href: '/planning' },
 ]
 
-function DashboardPage() {
+function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { user } = useAuthContext()
   const today = format(new Date(), "EEEE d MMMM yyyy", { locale: fr })
   const displayName = user?.email?.split('@')[0] || 'utilisateur'
@@ -88,7 +92,10 @@ function DashboardPage() {
           </h1>
           <p className="text-neutral-500 mt-1 capitalize">{today}</p>
         </div>
-        <button className="btn-primary mt-4 sm:mt-0 flex items-center gap-2">
+        <button
+          className="btn-primary mt-4 sm:mt-0 flex items-center gap-2"
+          onClick={() => onNavigate?.('/bookings')}
+        >
           <Plus size={18} />
           Nouvelle réservation
         </button>
@@ -133,7 +140,10 @@ function DashboardPage() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-neutral-900">Prochaines réservations</h2>
-            <button className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
+            <button
+              className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+              onClick={() => onNavigate?.('/bookings')}
+            >
               Voir tout <ChevronRight size={14} />
             </button>
           </div>
@@ -194,6 +204,7 @@ function DashboardPage() {
             <button
               key={action.label}
               className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
+              onClick={() => onNavigate?.(action.href)}
             >
               <div className="p-3 bg-primary-50 rounded-xl">
                 <action.icon size={20} className="text-primary-600" />

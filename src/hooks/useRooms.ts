@@ -272,6 +272,8 @@ export function useRooms(): UseRoomsReturn {
   useEffect(() => {
     if (user?.establishmentId) {
       fetchRooms()
+    } else {
+      setIsLoading(false)
     }
   }, [user?.establishmentId, fetchRooms])
 
