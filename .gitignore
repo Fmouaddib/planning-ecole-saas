@@ -39,6 +39,7 @@ coverage
 # Temporary files
 *.tmp
 *.temp
+vite.config.ts.timestamp-*
 
 # Claude Code
 .claude/
