@@ -108,7 +108,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-neutral-500">{stat.label}</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{stat.value}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 mt-1">{stat.value}</p>
               </div>
               <div className={`p-3 rounded-xl ${stat.iconBg}`}>
                 <stat.icon size={22} className={stat.iconColor} />
