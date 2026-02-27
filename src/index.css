@@ -307,8 +307,34 @@
 /* ==================== PRINT STYLES ==================== */
 
 @media print {
-  .no-print {
+  .no-print,
+  nav,
+  aside,
+  header,
+  .sidebar,
+  [data-sidebar] {
     display: none !important;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .print-calendar {
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Force colors on event blocks */
+  .print-calendar button,
+  .print-calendar [style*="background-color"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   .print-break-inside-avoid {
@@ -317,5 +343,20 @@
 
   .print-break-before {
     break-before: page;
+  }
+
+  /* Show print header */
+  .print\\:block {
+    display: block !important;
+  }
+
+  /* Full width layout */
+  main,
+  .main-content,
+  [role="main"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }

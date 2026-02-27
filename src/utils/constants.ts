@@ -133,6 +133,23 @@ export const NIVEAUX = [
   { value: '5eme_annee', label: '5ème année' },
 ]
 
+// Couleurs par type de réservation
+export const BOOKING_TYPE_COLORS: Record<string, string> = {
+  course: '#3b82f6',
+  exam: '#dc2626',
+  meeting: '#059669',
+  event: '#7c3aed',
+  maintenance: '#6b7280',
+}
+
+// Couleurs par statut
+export const BOOKING_STATUS_COLORS: Record<string, string> = {
+  confirmed: '#22c55e',
+  pending: '#f59e0b',
+  cancelled: '#ef4444',
+  completed: '#6b7280',
+}
+
 // Messages de succès
 export const SUCCESS_MESSAGES = {
   LOGIN_SUCCESS: 'Connexion réussie',

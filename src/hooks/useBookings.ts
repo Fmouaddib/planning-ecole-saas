@@ -393,10 +393,12 @@ export function useBookings(): UseBookingsReturn {
       roomName: booking.room?.name || 'Salle inconnue',
       userId: booking.userId,
       userName: booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : 'Utilisateur inconnu',
+      teacher: booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : undefined,
       status: booking.status,
       type: booking.bookingType,
       description: booking.description,
       color: getBookingColor(booking.status, booking.bookingType),
+      recurrence: booking.recurrence,
     }))
   }, [bookings])
 

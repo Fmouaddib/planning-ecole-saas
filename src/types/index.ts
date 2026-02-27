@@ -227,6 +227,8 @@ export interface CalendarEvent {
   matiere?: string
   diplome?: string
   niveau?: string
+  recurrence?: RecurrenceRule
+  teacher?: string
 }
 
 export type ExportFormat = 'excel' | 'csv' | 'word' | 'pdf'
