@@ -19,6 +19,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    // Désactive navigator.locks qui cause un deadlock quand on query
+    // immédiatement après signInWithPassword (lock re-entrancy)
+    lock: (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn(),
   },
   db: {
     schema: 'public',
