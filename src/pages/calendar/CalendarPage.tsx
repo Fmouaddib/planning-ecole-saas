@@ -804,7 +804,7 @@ function CalendarPage() {
         isOpen={!!pendingMove}
         onClose={() => setPendingMove(null)}
         title="Déplacer la séance"
-        size="md"
+        size="sm"
       >
         {pendingMove && (() => {
           const oldStart = typeof pendingMove.event.start === 'string' ? parseISO(pendingMove.event.start) : pendingMove.event.start
@@ -815,8 +815,9 @@ function CalendarPage() {
 
               {/* Ancien créneau (lecture seule) */}
               <div className="bg-neutral-50 rounded-md px-3 py-2 text-sm text-neutral-500 mb-4">
-                <span className="font-medium">Séance d'origine :</span>{' '}
-                {format(oldStart, 'EEEE d MMM', { locale: fr })} · {formatTimeRange(pendingMove.event.start as string, pendingMove.event.end as string)} · {oldRoomName}
+                <p className="font-medium mb-0.5">Séance d'origine :</p>
+                <p>{format(oldStart, 'EEEE d MMM', { locale: fr })}</p>
+                <p>{formatTimeRange(pendingMove.event.start as string, pendingMove.event.end as string)} · {oldRoomName}</p>
               </div>
 
               {/* Formulaire éditable */}

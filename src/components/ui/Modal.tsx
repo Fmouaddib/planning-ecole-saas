@@ -47,17 +47,17 @@ export const Modal: React.FC<ModalProps> = ({
       />
       
       {/* Modal */}
-      <div 
+      <div
         className={clsx(
           'relative w-full mx-4 bg-white rounded-2xl shadow-strong',
-          'animate-scale-in',
+          'animate-scale-in max-h-[90vh] flex flex-col',
           sizeClasses[size]
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-200">
-          <h2 className="text-xl font-semibold text-neutral-900">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-neutral-200 shrink-0">
+          <h2 className="text-lg sm:text-xl font-semibold text-neutral-900">
             {title}
           </h2>
           <button
@@ -67,9 +67,9 @@ export const Modal: React.FC<ModalProps> = ({
             <X size={20} className="text-neutral-500" />
           </button>
         </div>
-        
+
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0">
           {children}
         </div>
       </div>
@@ -85,7 +85,7 @@ interface ModalFooterProps {
 export const ModalFooter: React.FC<ModalFooterProps> = ({ children, className }) => {
   return (
     <div className={clsx(
-      'flex items-center justify-end gap-3 p-6 border-t border-neutral-200 bg-neutral-50 rounded-b-2xl',
+      'flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-neutral-200 bg-neutral-50 rounded-b-2xl shrink-0',
       className
     )}>
       {children}
