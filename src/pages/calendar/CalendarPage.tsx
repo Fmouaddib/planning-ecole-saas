@@ -27,7 +27,9 @@ import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect 
 import { formatTimeRange } from '@/utils/helpers'
 import { MATIERES, DIPLOMES, NIVEAUX } from '@/utils/constants'
 import { exportToExcel, exportToCSV, exportToPDF, exportToWord, exportToExcelCalendar, exportToCSVCalendar, exportToPDFCalendar, exportToWordCalendar } from '@/utils/export'
+import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
+import { mockBuildingRooms } from '@/data/mock-room-buildings'
 import { ColorLegend } from './ColorLegend'
 import { MiniCalendar } from './MiniCalendar'
 import { CreateBookingModal } from './CreateBookingModal'
@@ -192,7 +194,7 @@ interface DragState {
 
 function CalendarPage() {
   const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking } = useBookings()
-  const { rooms } = useRooms()
+  const { rooms, buildingsWithRooms } = useRooms()
   const [view, setView] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [roomFilter, setRoomFilter] = useState('')
@@ -228,7 +230,7 @@ function CalendarPage() {
 
   // F1 - Extract unique teachers
   const allEvents = useMemo(
-    () => (calendarEvents.length > 0 ? calendarEvents : mockCalendarData),
+    () => (isDemoMode ? mockCalendarData : calendarEvents),
     [calendarEvents],
   )
 
@@ -623,6 +625,13 @@ function CalendarPage() {
               currentDate={currentDate}
               events={filteredEvents}
               onEventClick={setSelectedEvent}
+              buildings={isDemoMode
+                ? mockBuildingRooms.map(b => ({
+                    ...b,
+                    rooms: b.rooms.map(r => ({ id: r.name, name: r.name, capacity: r.capacity })),
+                  }))
+                : buildingsWithRooms
+              }
             />
           )}
         </div>

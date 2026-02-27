@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react'
 import { startOfWeek, addDays, isSameDay, parseISO, format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Building2 } from 'lucide-react'
-import { mockBuildingRooms } from '@/data/mock-room-buildings'
 import type { CalendarEvent } from '@/types'
 
 const HOUR_START = 8
@@ -21,10 +20,12 @@ export function RoomsView({
   currentDate,
   events,
   onEventClick,
+  buildings,
 }: {
   currentDate: Date
   events: CalendarEvent[]
   onEventClick: (e: CalendarEvent) => void
+  buildings: { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }[]
 }) {
   const weekStart = useMemo(
     () => startOfWeek(currentDate, { weekStartsOn: 1 }),
@@ -59,20 +60,27 @@ export function RoomsView({
   const visibleBuildings = useMemo(
     () =>
       selectedBuilding === 'all'
-        ? mockBuildingRooms
-        : mockBuildingRooms.filter(b => b.id === selectedBuilding),
-    [selectedBuilding],
+        ? buildings
+        : buildings.filter(b => b.id === selectedBuilding),
+    [selectedBuilding, buildings],
   )
 
-  // Map roomName -> events for quick lookup
+  // Map room (by id and name) -> events for quick lookup
   const eventsByRoom = useMemo(() => {
-    const map: Record<string, CalendarEvent[]> = {}
+    const byId: Record<string, CalendarEvent[]> = {}
+    const byName: Record<string, CalendarEvent[]> = {}
     for (const ev of dayEvents) {
-      const key = ev.roomName ?? ''
-      if (!map[key]) map[key] = []
-      map[key].push(ev)
+      if (ev.roomId) {
+        if (!byId[ev.roomId]) byId[ev.roomId] = []
+        byId[ev.roomId].push(ev)
+      }
+      const name = ev.roomName ?? ''
+      if (name) {
+        if (!byName[name]) byName[name] = []
+        byName[name].push(ev)
+      }
     }
-    return map
+    return { byId, byName }
   }, [dayEvents])
 
   return (
@@ -103,7 +111,7 @@ export function RoomsView({
           className="text-sm border border-neutral-200 rounded-lg px-3 py-1.5 bg-white text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">Tous les bâtiments</option>
-          {mockBuildingRooms.map(b => (
+          {buildings.map(b => (
             <option key={b.id} value={b.id}>
               {b.name} ({b.rooms.length} salles)
             </option>
@@ -146,7 +154,7 @@ export function RoomsView({
 
             {/* Room rows */}
             {building.rooms.map(room => {
-              const roomEvents = eventsByRoom[room.name] || []
+              const roomEvents = eventsByRoom.byId[room.id] || eventsByRoom.byName[room.name] || []
               return (
                 <div
                   key={room.name}

@@ -14,9 +14,10 @@ import type {
   DateString,
   CalendarEvent
 } from '@/types'
-import { supabase } from '@/lib/supabase'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { getErrorMessage } from '@/utils'
+import { transformBooking } from '@/utils/transforms'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
@@ -43,7 +44,10 @@ export function useBookings(): UseBookingsReturn {
   // ==================== FETCH FUNCTIONS ====================
 
   const fetchBookings = useCallback(async () => {
-    if (!user?.establishmentId) return
+    if (isDemoMode || !user?.establishmentId) {
+      setIsLoading(false)
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -53,7 +57,7 @@ export function useBookings(): UseBookingsReturn {
         .from('bookings')
         .select(`
           *,
-          room:rooms(id, name, code, room_type),
+          room:rooms(id, name, code, room_type, capacity),
           user:users(id, first_name, last_name, email),
           attendees:booking_attendees(
             id,
@@ -68,7 +72,7 @@ export function useBookings(): UseBookingsReturn {
 
       if (fetchError) throw fetchError
 
-      setBookings(data || [])
+      setBookings((data || []).map(transformBooking))
     } catch (error) {
       handleError(error, 'Erreur lors du chargement des réservations')
     } finally {
@@ -145,6 +149,9 @@ export function useBookings(): UseBookingsReturn {
         establishment_id: user.establishmentId,
         booking_type: data.bookingType,
         status: 'pending' as const,
+        matiere: data.matiere || null,
+        diplome: data.diplome || null,
+        niveau: data.niveau || null,
       }
 
       const { data: newBooking, error: createError } = await supabase
@@ -159,10 +166,12 @@ export function useBookings(): UseBookingsReturn {
 
       if (createError) throw createError
 
+      const transformed = transformBooking(newBooking)
+
       // Créer les participants si fournis
       if (data.attendees && data.attendees.length > 0) {
         const attendeesData = data.attendees.map(attendee => ({
-          booking_id: newBooking.id,
+          booking_id: transformed.id,
           user_id: attendee.userId,
           attendee_type: attendee.attendeeType,
           is_required: attendee.isRequired,
@@ -178,13 +187,13 @@ export function useBookings(): UseBookingsReturn {
         }
       }
 
-      setBookings(prev => [...prev, newBooking])
-      toast.success(`Réservation "${newBooking.title}" créée avec succès`)
+      setBookings(prev => [...prev, transformed])
+      toast.success(`Réservation "${transformed.title}" créée avec succès`)
 
       // Audit logging
-      AuditService.logCrud('created', 'booking', newBooking.id, user.id, user.establishmentId, { title: newBooking.title })
+      AuditService.logCrud('created', 'booking', transformed.id, user.id, user.establishmentId, { title: transformed.title })
 
-      return newBooking
+      return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la création de la réservation')
       toast.error(message)
@@ -242,18 +251,20 @@ export function useBookings(): UseBookingsReturn {
 
       if (updateError) throw updateError
 
-      setBookings(prev => 
-        prev.map(booking => booking.id === data.id ? updatedBooking : booking)
+      const transformed = transformBooking(updatedBooking)
+
+      setBookings(prev =>
+        prev.map(booking => booking.id === data.id ? transformed : booking)
       )
-      
-      toast.success(`Réservation "${updatedBooking.title}" mise à jour avec succès`)
+
+      toast.success(`Réservation "${transformed.title}" mise à jour avec succès`)
 
       // Audit logging
       if (user) {
-        AuditService.logCrud('updated', 'booking', data.id, user.id, user.establishmentId, { title: updatedBooking.title })
+        AuditService.logCrud('updated', 'booking', data.id, user.id, user.establishmentId, { title: transformed.title })
       }
 
-      return updatedBooking
+      return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la mise à jour de la réservation')
       toast.error(message)
@@ -308,12 +319,14 @@ export function useBookings(): UseBookingsReturn {
 
       if (cancelError) throw cancelError
 
-      setBookings(prev => 
-        prev.map(booking => booking.id === id ? cancelledBooking : booking)
+      const transformed = transformBooking(cancelledBooking)
+
+      setBookings(prev =>
+        prev.map(booking => booking.id === id ? transformed : booking)
       )
-      
+
       toast.success('Réservation annulée avec succès')
-      return cancelledBooking
+      return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de l\'annulation de la réservation')
       toast.error(message)
@@ -399,6 +412,9 @@ export function useBookings(): UseBookingsReturn {
       description: booking.description,
       color: getBookingColor(booking.status, booking.bookingType),
       recurrence: booking.recurrence,
+      matiere: booking.matiere,
+      diplome: booking.diplome,
+      niveau: booking.niveau,
     }))
   }, [bookings])
 
@@ -447,7 +463,7 @@ export function useBookings(): UseBookingsReturn {
 
   // Écouter les changements en temps réel
   useEffect(() => {
-    if (!user?.establishmentId) return
+    if (isDemoMode || !user?.establishmentId) return
 
     const channel = supabase
       .channel('bookings-changes')
@@ -461,16 +477,16 @@ export function useBookings(): UseBookingsReturn {
         },
         (payload) => {
           console.log('Booking change detected:', payload)
-          
+
           switch (payload.eventType) {
             case 'INSERT':
               fetchBookings() // Refetch to get joined data
               break
-            
+
             case 'UPDATE':
               fetchBookings() // Refetch to get joined data
               break
-            
+
             case 'DELETE':
               setBookings(prev => prev.filter(booking => booking.id !== payload.old.id))
               break

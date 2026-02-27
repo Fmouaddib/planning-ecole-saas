@@ -5,9 +5,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { User, RegisterData, UseUsersReturn, UUID, UserRole } from '@/types'
-import { supabase } from '@/lib/supabase'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { getErrorMessage } from '@/utils'
+import { transformUser } from '@/utils/transforms'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
@@ -34,7 +35,10 @@ export function useUsers(): UseUsersReturn {
   // ==================== FETCH FUNCTIONS ====================
 
   const fetchUsers = useCallback(async () => {
-    if (!currentUser?.establishmentId) return
+    if (isDemoMode || !currentUser?.establishmentId) {
+      setIsLoading(false)
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -50,7 +54,7 @@ export function useUsers(): UseUsersReturn {
 
       if (fetchError) throw fetchError
 
-      setUsers(data || [])
+      setUsers((data || []).map(transformUser))
     } catch (error) {
       handleError(error, 'Erreur lors du chargement des utilisateurs')
     } finally {
@@ -117,18 +121,20 @@ export function useUsers(): UseUsersReturn {
 
       if (userError) throw userError
 
-      setUsers(prev => [...prev, newUser])
-      toast.success(`Utilisateur "${newUser.firstName} ${newUser.lastName}" créé avec succès`)
+      const transformed = transformUser(newUser)
+
+      setUsers(prev => [...prev, transformed])
+      toast.success(`Utilisateur "${transformed.firstName} ${transformed.lastName}" créé avec succès`)
 
       // Audit logging
       if (currentUser) {
-        AuditService.logCrud('created', 'user', newUser.id, currentUser.id, currentUser.establishmentId, {
-          email: newUser.email,
-          role: newUser.role,
+        AuditService.logCrud('created', 'user', transformed.id, currentUser.id, currentUser.establishmentId, {
+          email: transformed.email,
+          role: transformed.role,
         })
       }
 
-      return newUser
+      return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la création de l\'utilisateur')
       toast.error(message)
@@ -179,31 +185,33 @@ export function useUsers(): UseUsersReturn {
 
       if (updateError) throw updateError
 
+      const transformed = transformUser(updatedUser)
+
       // Mettre à jour l'email dans Supabase Auth si nécessaire et si c'est un admin
       if (isAdmin && updateData.email) {
         const { error: emailError } = await supabase.auth.admin.updateUserById(id, {
           email: updateData.email,
         })
-        
+
         if (emailError) {
           console.warn('Could not update email in Auth:', emailError)
         }
       }
 
-      setUsers(prev => 
-        prev.map(user => user.id === id ? updatedUser : user)
+      setUsers(prev =>
+        prev.map(user => user.id === id ? transformed : user)
       )
-      
-      toast.success(`Utilisateur "${updatedUser.firstName} ${updatedUser.lastName}" mis à jour avec succès`)
+
+      toast.success(`Utilisateur "${transformed.firstName} ${transformed.lastName}" mis à jour avec succès`)
 
       // Audit logging
       if (currentUser) {
         AuditService.logCrud('updated', 'user', id, currentUser.id, currentUser.establishmentId, {
-          email: updatedUser.email,
+          email: transformed.email,
         })
       }
 
-      return updatedUser
+      return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la mise à jour de l\'utilisateur')
       toast.error(message)
@@ -324,7 +332,7 @@ export function useUsers(): UseUsersReturn {
 
   // Écouter les changements en temps réel
   useEffect(() => {
-    if (!currentUser?.establishmentId) return
+    if (isDemoMode || !currentUser?.establishmentId) return
 
     const channel = supabase
       .channel('users-changes')
@@ -338,20 +346,13 @@ export function useUsers(): UseUsersReturn {
         },
         (payload) => {
           console.log('User change detected:', payload)
-          
+
           switch (payload.eventType) {
             case 'INSERT':
-              setUsers(prev => [...prev, payload.new as User])
-              break
-            
             case 'UPDATE':
-              setUsers(prev =>
-                prev.map(user =>
-                  user.id === payload.new.id ? { ...user, ...payload.new } : user
-                )
-              )
+              fetchUsers() // Refetch to get transformed data
               break
-            
+
             case 'DELETE':
               setUsers(prev => prev.filter(user => user.id !== payload.old.id))
               break
@@ -363,7 +364,7 @@ export function useUsers(): UseUsersReturn {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [currentUser?.establishmentId])
+  }, [currentUser?.establishmentId, fetchUsers])
 
   return {
     users,

@@ -106,6 +106,9 @@ export interface Booking {
   cancelledAt?: string
   cancelledBy?: string
   cancellationReason?: string
+  matiere?: string
+  diplome?: string
+  niveau?: string
   createdAt: string
   updatedAt: string
 }
@@ -353,6 +356,7 @@ export interface UseRoomsReturn {
   roomsByType: Record<string, Room[]>
   roomsByBuilding: Record<string, Room[]>
   totalCapacity: number
+  buildingsWithRooms: { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }[]
 }
 
 // ==================== TYPES BOOKINGS ÉTENDUS ====================
@@ -364,6 +368,9 @@ export interface CreateBookingData {
   endDateTime: DateString
   roomId: string
   bookingType: BookingType
+  matiere?: string
+  diplome?: string
+  niveau?: string
   attendees?: {
     userId: string
     attendeeType: string

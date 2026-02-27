@@ -5,9 +5,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Room, CreateRoomData, UpdateRoomData, RoomFilters, UseRoomsReturn, UUID } from '@/types'
-import { supabase } from '@/lib/supabase'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { getErrorMessage } from '@/utils'
+import { transformRoom } from '@/utils/transforms'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
@@ -34,7 +35,10 @@ export function useRooms(): UseRoomsReturn {
   // ==================== FETCH FUNCTIONS ====================
 
   const fetchRooms = useCallback(async () => {
-    if (!user?.establishmentId) return
+    if (isDemoMode || !user?.establishmentId) {
+      setIsLoading(false)
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -52,7 +56,7 @@ export function useRooms(): UseRoomsReturn {
 
       if (fetchError) throw fetchError
 
-      setRooms(data || [])
+      setRooms((data || []).map(transformRoom))
     } catch (error) {
       handleError(error, 'Erreur lors du chargement des salles')
     } finally {
@@ -105,13 +109,15 @@ export function useRooms(): UseRoomsReturn {
 
       if (createError) throw createError
 
-      setRooms(prev => [...prev, newRoom])
-      toast.success(`Salle "${newRoom.name}" créée avec succès`)
+      const transformed = transformRoom(newRoom)
+
+      setRooms(prev => [...prev, transformed])
+      toast.success(`Salle "${transformed.name}" créée avec succès`)
 
       // Audit logging
-      AuditService.logCrud('created', 'room', newRoom.id, user.id, user.establishmentId, { name: newRoom.name })
+      AuditService.logCrud('created', 'room', transformed.id, user.id, user.establishmentId, { name: transformed.name })
 
-      return newRoom
+      return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la création de la salle')
       toast.error(message)
@@ -153,18 +159,20 @@ export function useRooms(): UseRoomsReturn {
 
       if (updateError) throw updateError
 
-      setRooms(prev => 
-        prev.map(room => room.id === data.id ? updatedRoom : room)
+      const transformed = transformRoom(updatedRoom)
+
+      setRooms(prev =>
+        prev.map(room => room.id === data.id ? transformed : room)
       )
-      
-      toast.success(`Salle "${updatedRoom.name}" mise à jour avec succès`)
+
+      toast.success(`Salle "${transformed.name}" mise à jour avec succès`)
 
       // Audit logging
       if (user) {
-        AuditService.logCrud('updated', 'room', data.id, user.id, user.establishmentId, { name: updatedRoom.name })
+        AuditService.logCrud('updated', 'room', data.id, user.id, user.establishmentId, { name: transformed.name })
       }
 
-      return updatedRoom
+      return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la mise à jour de la salle')
       toast.error(message)
@@ -267,6 +275,22 @@ export function useRooms(): UseRoomsReturn {
     return rooms.reduce((total, room) => total + room.capacity, 0)
   }, [rooms])
 
+  const buildingsWithRooms = useMemo(() => {
+    const buildingMap = new Map<string, { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }>()
+
+    for (const room of rooms) {
+      const bid = room.buildingId || 'no-building'
+      const bname = room.building?.name || 'Sans bâtiment'
+
+      if (!buildingMap.has(bid)) {
+        buildingMap.set(bid, { id: bid, name: bname, rooms: [] })
+      }
+      buildingMap.get(bid)!.rooms.push({ id: room.id, name: room.name, capacity: room.capacity })
+    }
+
+    return Array.from(buildingMap.values())
+  }, [rooms])
+
   // ==================== EFFECTS ====================
 
   useEffect(() => {
@@ -279,7 +303,7 @@ export function useRooms(): UseRoomsReturn {
 
   // Écouter les changements en temps réel
   useEffect(() => {
-    if (!user?.establishmentId) return
+    if (isDemoMode || !user?.establishmentId) return
 
     const channel = supabase
       .channel('rooms-changes')
@@ -293,20 +317,13 @@ export function useRooms(): UseRoomsReturn {
         },
         (payload) => {
           console.log('Room change detected:', payload)
-          
+
           switch (payload.eventType) {
             case 'INSERT':
-              setRooms(prev => [...prev, payload.new as Room])
-              break
-            
             case 'UPDATE':
-              setRooms(prev =>
-                prev.map(room =>
-                  room.id === payload.new.id ? { ...room, ...payload.new } : room
-                )
-              )
+              fetchRooms() // Refetch to get joined data (building)
               break
-            
+
             case 'DELETE':
               setRooms(prev => prev.filter(room => room.id !== payload.old.id))
               break
@@ -318,7 +335,7 @@ export function useRooms(): UseRoomsReturn {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user?.establishmentId])
+  }, [user?.establishmentId, fetchRooms])
 
   return {
     rooms,
@@ -335,5 +352,6 @@ export function useRooms(): UseRoomsReturn {
     roomsByType,
     roomsByBuilding,
     totalCapacity,
+    buildingsWithRooms,
   }
 }
