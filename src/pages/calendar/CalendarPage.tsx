@@ -232,6 +232,24 @@ function CalendarPage() {
     newEnd: string
   } | null>(null)
 
+  // Editable move form state
+  const [moveDate, setMoveDate] = useState('')
+  const [moveStartTime, setMoveStartTime] = useState('')
+  const [moveEndTime, setMoveEndTime] = useState('')
+  const [moveRoomId, setMoveRoomId] = useState('')
+
+  // Initialize editable fields when pendingMove changes
+  useEffect(() => {
+    if (pendingMove) {
+      const newStart = parseISO(pendingMove.newStart)
+      setMoveDate(format(newStart, 'yyyy-MM-dd'))
+      setMoveStartTime(format(newStart, 'HH:mm'))
+      const newEnd = parseISO(pendingMove.newEnd)
+      setMoveEndTime(format(newEnd, 'HH:mm'))
+      setMoveRoomId(pendingMove.event.roomId || '')
+    }
+  }, [pendingMove])
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
@@ -386,15 +404,26 @@ function CalendarPage() {
     setPendingMove({ eventId, event, newStart, newEnd })
   }
 
+  // Validation : fin > début
+  const moveTimeError = moveStartTime && moveEndTime && moveEndTime <= moveStartTime
+    ? 'L\'heure de fin doit être après l\'heure de début'
+    : ''
+
   // Confirmation du déplacement après validation modale
   const confirmMove = async () => {
-    if (!pendingMove) return
+    if (!pendingMove || !moveDate || !moveStartTime || !moveEndTime || moveTimeError) return
+    const startDateTime = `${moveDate}T${moveStartTime}:00`
+    const endDateTime = `${moveDate}T${moveEndTime}:00`
+    const updateData: { id: string; startDateTime: string; endDateTime: string; roomId?: string } = {
+      id: pendingMove.eventId,
+      startDateTime,
+      endDateTime,
+    }
+    if (moveRoomId && moveRoomId !== pendingMove.event.roomId) {
+      updateData.roomId = moveRoomId
+    }
     try {
-      await updateBooking({
-        id: pendingMove.eventId,
-        startDateTime: pendingMove.newStart,
-        endDateTime: pendingMove.newEnd,
-      })
+      await updateBooking(updateData)
     } catch {
       // Erreur gérée par le toast du hook (conflit inclus)
     }
@@ -775,41 +804,76 @@ function CalendarPage() {
         isOpen={!!pendingMove}
         onClose={() => setPendingMove(null)}
         title="Déplacer la séance"
-        size="sm"
+        size="md"
       >
         {pendingMove && (() => {
           const oldStart = typeof pendingMove.event.start === 'string' ? parseISO(pendingMove.event.start) : pendingMove.event.start
-          const newStart = parseISO(pendingMove.newStart)
-          const dayChanged = !isSameDay(oldStart, newStart)
+          const oldRoomName = pendingMove.event.roomName || roomOptions.find(r => r.value === pendingMove.event.roomId)?.label || '—'
           return (
             <div>
-              <p className="font-medium text-neutral-900">{pendingMove.event.title}</p>
-              <div className="mt-3 space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-neutral-500 w-12">Avant :</span>
-                  <span className="text-neutral-700">
-                    {format(oldStart, 'EEEE d MMM', { locale: fr })} · {formatTimeRange(pendingMove.event.start as string, pendingMove.event.end as string)}
-                  </span>
+              <p className="font-medium text-neutral-900 mb-3">{pendingMove.event.title}</p>
+
+              {/* Ancien créneau (lecture seule) */}
+              <div className="bg-neutral-50 rounded-md px-3 py-2 text-sm text-neutral-500 mb-4">
+                <span className="font-medium">Séance d'origine :</span>{' '}
+                {format(oldStart, 'EEEE d MMM', { locale: fr })} · {formatTimeRange(pendingMove.event.start as string, pendingMove.event.end as string)} · {oldRoomName}
+              </div>
+
+              {/* Formulaire éditable */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={moveDate}
+                    onChange={e => setMoveDate(e.target.value)}
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-neutral-500 w-12">Après :</span>
-                  <span className="text-primary-600 font-medium">
-                    {format(newStart, 'EEEE d MMM', { locale: fr })} · {formatTimeRange(pendingMove.newStart, pendingMove.newEnd)}
-                  </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Début</label>
+                    <input
+                      type="time"
+                      value={moveStartTime}
+                      onChange={e => setMoveStartTime(e.target.value)}
+                      className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Fin</label>
+                    <input
+                      type="time"
+                      value={moveEndTime}
+                      onChange={e => setMoveEndTime(e.target.value)}
+                      className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+                {moveTimeError && (
+                  <p className="text-sm text-error-600 flex items-center gap-1">
+                    <AlertTriangle size={14} />
+                    {moveTimeError}
+                  </p>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Salle</label>
+                  <Select
+                    value={moveRoomId}
+                    onChange={e => setMoveRoomId(e.target.value)}
+                    options={roomOptions}
+                    placeholder="Sélectionner une salle"
+                  />
                 </div>
               </div>
-              {dayChanged && (
-                <div className="mt-3 flex items-center gap-2 text-amber-600 bg-amber-50 rounded-md px-3 py-2 text-sm">
-                  <AlertTriangle size={14} />
-                  <span>Changement de jour</span>
-                </div>
-              )}
             </div>
           )
         })()}
         <ModalFooter>
           <Button variant="secondary" onClick={() => setPendingMove(null)}>Annuler</Button>
-          <Button onClick={confirmMove}>Confirmer le déplacement</Button>
+          <Button onClick={confirmMove} disabled={!moveDate || !moveStartTime || !moveEndTime || !!moveTimeError}>
+            Confirmer le déplacement
+          </Button>
         </ModalFooter>
       </Modal>
     </div>
