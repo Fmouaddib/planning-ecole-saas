@@ -58,7 +58,7 @@ function HelpPage() {
       </div>
 
       {/* FAQ */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6 mb-6">
+      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-primary-100 rounded-lg">
             <HelpCircle size={20} className="text-primary-600" />
@@ -92,7 +92,7 @@ function HelpPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contact Support */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6">
+        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-success-100 rounded-lg">
               <Mail size={20} className="text-success-600" />
@@ -112,7 +112,7 @@ function HelpPage() {
         </div>
 
         {/* Keyboard Shortcuts */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-6">
+        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-warning-100 rounded-lg">
               <Keyboard size={20} className="text-warning-600" />
