@@ -64,10 +64,18 @@ export function useAcademicData() {
           .order('full_name'),
       ])
 
-      if (diplomasRes.error) throw diplomasRes.error
-      if (classesRes.error) throw classesRes.error
-      if (subjectsRes.error) throw subjectsRes.error
-      if (teachersRes.error) throw teachersRes.error
+      // Afficher les erreurs RLS/query individuellement
+      if (diplomasRes.error) { toast.error('Erreur diplômes: ' + diplomasRes.error.message); console.error('diplomas:', diplomasRes.error) }
+      if (classesRes.error) { toast.error('Erreur classes: ' + classesRes.error.message); console.error('classes:', classesRes.error) }
+      if (subjectsRes.error) { toast.error('Erreur matières: ' + subjectsRes.error.message); console.error('subjects:', subjectsRes.error) }
+      if (teachersRes.error) { toast.error('Erreur professeurs: ' + teachersRes.error.message); console.error('teachers:', teachersRes.error) }
+
+      console.log('[academic] Résultats fetch:', {
+        diplomas: diplomasRes.data?.length ?? 'ERR',
+        classes: classesRes.data?.length ?? 'ERR',
+        subjects: subjectsRes.data?.length ?? 'ERR',
+        teachers: teachersRes.data?.length ?? 'ERR',
+      })
 
       const transformedDiplomas: Diploma[] = (diplomasRes.data || []).map((d: any) => ({
         id: d.id,
@@ -123,8 +131,9 @@ export function useAcademicData() {
       } else {
         setClassSubjects([])
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement données académiques:', error)
+      toast.error('Erreur chargement référentiel: ' + (error?.message || 'Erreur inconnue'))
     } finally {
       setIsLoading(false)
     }

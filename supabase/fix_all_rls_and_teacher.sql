@@ -27,25 +27,6 @@ AS $$
   SELECT center_id FROM public.profiles WHERE id = auth.uid()
 $$;
 
--- Version auth.* (alias vers public.*)
-CREATE OR REPLACE FUNCTION auth.get_my_role()
-RETURNS text
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-  SELECT public.get_caller_role()
-$$;
-
-CREATE OR REPLACE FUNCTION auth.get_my_center_id()
-RETURNS uuid
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-  SELECT public.get_caller_center_id()
-$$;
-
 -- ============================================================
 -- ETAPE 2 : Supprimer TOUTES les policies existantes
 -- ============================================================
