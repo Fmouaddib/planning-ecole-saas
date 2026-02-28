@@ -26,6 +26,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-export': ['xlsx', 'exceljs', 'jspdf', 'jspdf-autotable', 'file-saver'],
+        },
+      },
+    },
   },
   test: {
     globals: true,

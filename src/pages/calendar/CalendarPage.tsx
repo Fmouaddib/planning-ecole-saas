@@ -1,27 +1,16 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import {
   format,
   startOfWeek,
   endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
   addWeeks,
   subWeeks,
   addMonths,
   subMonths,
   addDays,
   subDays,
-  isSameDay,
-  isSameMonth,
   parseISO,
-  getHours,
-  getMinutes,
-  differenceInMinutes,
-  isToday,
-  isBefore,
-  getDay,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useBookings } from '@/hooks/useBookings'
@@ -29,7 +18,7 @@ import { useRooms } from '@/hooks/useRooms'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { formatTimeRange } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
-import { exportToExcel, exportToCSV, exportToPDF, exportToWord, exportToExcelCalendar, exportToCSVCalendar, exportToPDFCalendar, exportToWordCalendar } from '@/utils/export'
+import type { CalendarEvent, ExportFormat, BookingType } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
 import { mockBuildingRooms } from '@/data/mock-room-buildings'
@@ -37,7 +26,6 @@ import { ColorLegend } from './ColorLegend'
 import { MiniCalendar } from './MiniCalendar'
 import { CreateBookingModal } from './CreateBookingModal'
 import { RoomsView } from './RoomsView'
-import type { CalendarEvent, ExportFormat, BookingType } from '@/types'
 import {
   ChevronLeft,
   ChevronRight,
@@ -49,18 +37,14 @@ import {
   Printer,
   Repeat,
   AlertTriangle,
-  BarChart3,
-  Clock,
-  Building2,
-  TrendingUp,
-  Calendar,
 } from 'lucide-react'
 
-type ViewMode = 'week' | 'month' | 'day' | 'rooms'
+// Lazy-loaded views
+const WeekView = lazy(() => import('./WeekView'))
+const MonthView = lazy(() => import('./MonthView'))
+const DayView = lazy(() => import('./DayView'))
 
-const HOUR_START = 8
-const HOUR_END = 20
-const HOUR_HEIGHT = 60 // px per hour
+type ViewMode = 'week' | 'month' | 'day' | 'rooms'
 
 const bookingTypeLabels: Record<string, string> = {
   course: 'Cours',
@@ -88,114 +72,6 @@ const recurrenceLabels: Record<string, string> = {
   daily: 'Quotidien',
   weekly: 'Hebdomadaire',
   monthly: 'Mensuel',
-}
-
-// ==================== OVERLAP ALGORITHM ====================
-
-interface OverlapColumn {
-  event: CalendarEvent
-  column: number
-  totalColumns: number
-}
-
-function computeOverlapLayout(events: CalendarEvent[]): Map<string, OverlapColumn> {
-  const result = new Map<string, OverlapColumn>()
-  if (events.length === 0) return result
-
-  const sorted = [...events].sort((a, b) => {
-    const aStart = typeof a.start === 'string' ? parseISO(a.start) : a.start
-    const bStart = typeof b.start === 'string' ? parseISO(b.start) : b.start
-    return aStart.getTime() - bStart.getTime()
-  })
-
-  // Group overlapping events
-  const groups: CalendarEvent[][] = []
-  let currentGroup: CalendarEvent[] = []
-  let groupEnd = 0
-
-  for (const event of sorted) {
-    const start = typeof event.start === 'string' ? parseISO(event.start) : event.start
-    const end = typeof event.end === 'string' ? parseISO(event.end) : event.end
-
-    if (currentGroup.length === 0 || start.getTime() < groupEnd) {
-      currentGroup.push(event)
-      groupEnd = Math.max(groupEnd, end.getTime())
-    } else {
-      groups.push(currentGroup)
-      currentGroup = [event]
-      groupEnd = end.getTime()
-    }
-  }
-  if (currentGroup.length > 0) groups.push(currentGroup)
-
-  // Assign columns within each group
-  for (const group of groups) {
-    const columns: { end: number }[] = []
-
-    for (const event of group) {
-      const eStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
-      const eEnd = typeof event.end === 'string' ? parseISO(event.end) : event.end
-
-      let placed = false
-      for (let c = 0; c < columns.length; c++) {
-        if (eStart.getTime() >= columns[c].end) {
-          columns[c].end = eEnd.getTime()
-          result.set(event.id, { event, column: c, totalColumns: 0 })
-          placed = true
-          break
-        }
-      }
-      if (!placed) {
-        result.set(event.id, { event, column: columns.length, totalColumns: 0 })
-        columns.push({ end: eEnd.getTime() })
-      }
-    }
-
-    const totalCols = columns.length
-    for (const event of group) {
-      const entry = result.get(event.id)
-      if (entry) entry.totalColumns = totalCols
-    }
-  }
-
-  return result
-}
-
-// Detect room conflicts (same room, overlapping time)
-function detectRoomConflicts(events: CalendarEvent[]): Set<string> {
-  const conflicts = new Set<string>()
-  for (let i = 0; i < events.length; i++) {
-    for (let j = i + 1; j < events.length; j++) {
-      const a = events[i]
-      const b = events[j]
-      if (!a.roomId || !b.roomId || a.roomId !== b.roomId) continue
-      const aStart = (typeof a.start === 'string' ? parseISO(a.start) : a.start).getTime()
-      const aEnd = (typeof a.end === 'string' ? parseISO(a.end) : a.end).getTime()
-      const bStart = (typeof b.start === 'string' ? parseISO(b.start) : b.start).getTime()
-      const bEnd = (typeof b.end === 'string' ? parseISO(b.end) : b.end).getTime()
-      if (aStart < bEnd && bStart < aEnd) {
-        conflicts.add(a.id)
-        conflicts.add(b.id)
-      }
-    }
-  }
-  return conflicts
-}
-
-// ==================== DRAG & DROP STATE ====================
-
-interface DragState {
-  eventId: string
-  mode: 'move' | 'resize'
-  startX: number
-  startY: number
-  originTop: number
-  originHeight: number
-  originDayIndex: number
-  currentTop: number
-  currentHeight: number
-  currentDayIndex: number
-  active: boolean
 }
 
 // ==================== MAIN COMPONENT ====================
@@ -333,21 +209,22 @@ function CalendarPage() {
   }
 
   const handleExport = async (fmt: ExportFormat, mode: 'list' | 'calendar' = 'list') => {
+    const exportModule = await import('@/utils/export')
     const filename = `planning-${format(currentDate, 'yyyy-MM-dd')}`
     if (mode === 'calendar') {
       const calFilename = `${filename}-calendrier`
       switch (fmt) {
-        case 'excel': await exportToExcelCalendar(filteredEvents, currentDate, calFilename); break
-        case 'csv': exportToCSVCalendar(filteredEvents, currentDate, calFilename); break
-        case 'pdf': exportToPDFCalendar(filteredEvents, currentDate, calFilename); break
-        case 'word': exportToWordCalendar(filteredEvents, currentDate, calFilename); break
+        case 'excel': await exportModule.exportToExcelCalendar(filteredEvents, currentDate, calFilename); break
+        case 'csv': exportModule.exportToCSVCalendar(filteredEvents, currentDate, calFilename); break
+        case 'pdf': exportModule.exportToPDFCalendar(filteredEvents, currentDate, calFilename); break
+        case 'word': exportModule.exportToWordCalendar(filteredEvents, currentDate, calFilename); break
       }
     } else {
       switch (fmt) {
-        case 'excel': await exportToExcel(filteredEvents, filename); break
-        case 'csv': exportToCSV(filteredEvents, filename); break
-        case 'pdf': exportToPDF(filteredEvents, filename); break
-        case 'word': exportToWord(filteredEvents, filename); break
+        case 'excel': await exportModule.exportToExcel(filteredEvents, filename); break
+        case 'csv': exportModule.exportToCSV(filteredEvents, filename); break
+        case 'pdf': exportModule.exportToPDF(filteredEvents, filename); break
+        case 'word': exportModule.exportToWord(filteredEvents, filename); break
       }
     }
     setShowExportMenu(false)
@@ -669,33 +546,35 @@ function CalendarPage() {
 
       {/* Calendar Views */}
       <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden print-calendar">
-        {view === 'week' && (
-          <WeekView
-            currentDate={currentDate}
-            events={filteredEvents}
-            onEventClick={setSelectedEvent}
-            onSlotClick={handleSlotClick}
-            onEventUpdate={handleEventUpdate}
-          />
-        )}
-        {view === 'month' && (
-          <MonthView
-            currentDate={currentDate}
-            events={filteredEvents}
-            onEventClick={setSelectedEvent}
-            onDayClick={(day) => handleSlotClick(day, null)}
-            totalRooms={totalRooms}
-          />
-        )}
-        {view === 'day' && (
-          <DayView
-            currentDate={currentDate}
-            events={filteredEvents}
-            onEventClick={setSelectedEvent}
-            onSlotClick={handleSlotClick}
-            onEventUpdate={handleEventUpdate}
-          />
-        )}
+        <Suspense fallback={<div className="flex items-center justify-center py-20"><LoadingSpinner size="lg" /></div>}>
+          {view === 'week' && (
+            <WeekView
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={setSelectedEvent}
+              onSlotClick={handleSlotClick}
+              onEventUpdate={handleEventUpdate}
+            />
+          )}
+          {view === 'month' && (
+            <MonthView
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={setSelectedEvent}
+              onDayClick={(day) => handleSlotClick(day, null)}
+              totalRooms={totalRooms}
+            />
+          )}
+          {view === 'day' && (
+            <DayView
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={setSelectedEvent}
+              onSlotClick={handleSlotClick}
+              onEventUpdate={handleEventUpdate}
+            />
+          )}
+        </Suspense>
         {view === 'rooms' && (
           <RoomsView
             currentDate={currentDate}
@@ -892,867 +771,6 @@ function CalendarPage() {
           </Button>
         </ModalFooter>
       </Modal>
-    </div>
-  )
-}
-
-// ==================== WEEK VIEW ====================
-
-function WeekView({
-  currentDate,
-  events,
-  onEventClick,
-  onSlotClick,
-  onEventUpdate,
-}: {
-  currentDate: Date
-  events: CalendarEvent[]
-  onEventClick: (e: CalendarEvent) => void
-  onSlotClick: (date: Date, hour: number) => void
-  onEventUpdate: (eventId: string, newStart: string, newEnd: string) => void
-}) {
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
-  const days = eachDayOfInterval({
-    start: weekStart,
-    end: endOfWeek(currentDate, { weekStartsOn: 1 }),
-  }).slice(0, 5)
-
-  const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
-
-  const getEventsForDay = (day: Date) =>
-    events.filter(e => {
-      const eventDate = typeof e.start === 'string' ? parseISO(e.start) : e.start
-      return isSameDay(eventDate, day)
-    })
-
-  const roomConflicts = useMemo(() => detectRoomConflicts(events), [events])
-
-  // Drag & drop state
-  const [drag, setDrag] = useState<DragState | null>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
-  const dragThreshold = 5
-
-  const getEventPosition = (event: CalendarEvent) => {
-    const start = typeof event.start === 'string' ? parseISO(event.start) : event.start
-    const end = typeof event.end === 'string' ? parseISO(event.end) : event.end
-    const startH = getHours(start) + getMinutes(start) / 60
-    const duration = differenceInMinutes(end, start) / 60
-    const top = (startH - HOUR_START) * HOUR_HEIGHT
-    const height = Math.max(duration * HOUR_HEIGHT, 20)
-    return { top, height }
-  }
-
-  // Snap to 15 minutes
-  const snapToGrid = (px: number) => {
-    const quarterHourPx = HOUR_HEIGHT / 4
-    return Math.round(px / quarterHourPx) * quarterHourPx
-  }
-
-  const pxToTime = (px: number) => {
-    const totalMinutes = (px / HOUR_HEIGHT) * 60 + HOUR_START * 60
-    const h = Math.floor(totalMinutes / 60)
-    const m = Math.round(totalMinutes % 60)
-    return { h: Math.max(HOUR_START, Math.min(h, HOUR_END)), m: Math.min(m, 59) }
-  }
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent, event: CalendarEvent, mode: 'move' | 'resize', dayIndex: number) => {
-      // Check pointer: fine only (no touch)
-      if (window.matchMedia('(pointer: coarse)').matches) return
-
-      // Bloquer le drag des séances passées
-      const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
-      if (isBefore(eventStart, new Date())) return
-
-      e.preventDefault()
-      e.stopPropagation()
-
-      const { top, height } = getEventPosition(event)
-
-      setDrag({
-        eventId: event.id,
-        mode,
-        startX: e.clientX,
-        startY: e.clientY,
-        originTop: top,
-        originHeight: height,
-        originDayIndex: dayIndex,
-        currentTop: top,
-        currentHeight: height,
-        currentDayIndex: dayIndex,
-        active: false,
-      })
-    },
-    [],
-  )
-
-  useEffect(() => {
-    if (!drag) return
-
-    const handleMove = (e: PointerEvent) => {
-      setDrag(prev => {
-        if (!prev) return null
-        const dx = e.clientX - prev.startX
-        const dy = e.clientY - prev.startY
-
-        if (!prev.active && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) {
-          return prev
-        }
-
-        if (prev.mode === 'move') {
-          const newTop = snapToGrid(prev.originTop + dy)
-          // Determine day column from X position
-          let newDayIndex = prev.originDayIndex
-          if (gridRef.current) {
-            const rect = gridRef.current.getBoundingClientRect()
-            const hourColWidth = 60
-            const dayWidth = (rect.width - hourColWidth) / 5
-            const relX = e.clientX - rect.left - hourColWidth
-            newDayIndex = Math.max(0, Math.min(4, Math.floor(relX / dayWidth)))
-          }
-          return {
-            ...prev,
-            active: true,
-            currentTop: Math.max(0, Math.min(newTop, (HOUR_END - HOUR_START) * HOUR_HEIGHT - prev.originHeight)),
-            currentDayIndex: newDayIndex,
-          }
-        } else {
-          // resize
-          const newHeight = snapToGrid(Math.max(HOUR_HEIGHT / 4, prev.originHeight + dy))
-          return {
-            ...prev,
-            active: true,
-            currentHeight: newHeight,
-          }
-        }
-      })
-    }
-
-    const handleUp = () => {
-      if (drag?.active) {
-        const event = events.find(ev => ev.id === drag.eventId)
-        if (event) {
-          const day = days[drag.currentDayIndex]
-          const { h: startH, m: startM } = pxToTime(drag.currentTop)
-          const durationMin = (drag.currentHeight / HOUR_HEIGHT) * 60
-
-          const newStart = new Date(day)
-          newStart.setHours(startH, startM, 0, 0)
-          const newEnd = new Date(newStart.getTime() + durationMin * 60000)
-
-          onEventUpdate(event.id, newStart.toISOString(), newEnd.toISOString())
-        }
-      }
-      setDrag(null)
-    }
-
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-    return () => {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-    }
-  }, [drag, events, days, onEventUpdate])
-
-  return (
-    <div className="overflow-auto" ref={gridRef}>
-      {/* Header */}
-      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)] border-b border-neutral-200 sticky top-0 bg-white z-10">
-        <div className="p-2" />
-        {days.map(day => (
-          <div
-            key={day.toISOString()}
-            className={`p-2 text-center border-l border-neutral-200 ${
-              isToday(day) ? 'bg-primary-50' : ''
-            }`}
-          >
-            <div className="text-xs text-neutral-500 uppercase">
-              {format(day, 'EEE', { locale: fr })}
-            </div>
-            <div className={`text-lg font-semibold ${
-              isToday(day) ? 'text-primary-600' : 'text-neutral-900'
-            }`}>
-              {format(day, 'd')}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Time grid */}
-      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)]">
-        {/* Hours column */}
-        <div>
-          {hours.map(hour => (
-            <div key={hour} className="border-b border-neutral-100 text-right pr-2 text-xs text-neutral-400" style={{ height: `${HOUR_HEIGHT}px` }}>
-              <span className="relative -top-2">{`${hour}:00`}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Day columns */}
-        {days.map((day, dayIndex) => {
-          const dayEvents = getEventsForDay(day)
-          const overlapLayout = computeOverlapLayout(dayEvents)
-
-          return (
-            <div key={day.toISOString()} className="relative border-l border-neutral-200">
-              {hours.map(hour => (
-                <div
-                  key={hour}
-                  className="border-b border-neutral-100 hover:bg-primary-50/30 transition-colors cursor-pointer"
-                  style={{ height: `${HOUR_HEIGHT}px` }}
-                  onClick={() => onSlotClick(day, hour)}
-                />
-              ))}
-              {/* Events */}
-              {dayEvents.map(event => {
-                const { top, height } = getEventPosition(event)
-                const overlap = overlapLayout.get(event.id)
-                const col = overlap?.column || 0
-                const totalCols = overlap?.totalColumns || 1
-                const widthPct = 100 / totalCols
-                const leftPct = col * widthPct
-
-                const isDragging = drag?.active && drag.eventId === event.id
-                const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
-                const isPast = isBefore(eventStart, new Date())
-
-                const eventStyle: React.CSSProperties = isDragging
-                  ? {
-                      top: `${drag!.currentTop}px`,
-                      height: `${drag!.currentHeight}px`,
-                      left: `${leftPct}%`,
-                      width: `${widthPct}%`,
-                      opacity: 0.7,
-                      border: '2px dashed white',
-                      zIndex: 20,
-                      // If moved to different day, hide from original
-                      display: drag!.currentDayIndex !== dayIndex ? 'none' : undefined,
-                    }
-                  : {
-                      top: `${top}px`,
-                      height: `${height}px`,
-                      left: `calc(${leftPct}% + 2px)`,
-                      width: `calc(${widthPct}% - 4px)`,
-                    }
-
-                const isConflict = roomConflicts.has(event.id)
-
-                return (
-                  <div
-                    key={event.id}
-                    className="absolute"
-                    style={eventStyle}
-                  >
-                    <div
-                      className={`h-full rounded-md px-1.5 py-0.5 text-xs text-white overflow-hidden transition-opacity text-left relative ${
-                        isConflict ? 'ring-2 ring-red-500 ring-offset-1' : ''
-                      } ${isPast ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}
-                      style={{
-                        backgroundColor: event.color || '#3b82f6',
-                        backgroundImage: isConflict
-                          ? 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px)'
-                          : undefined,
-                      }}
-                      onClick={(e) => {
-                        if (!drag?.active) {
-                          e.stopPropagation()
-                          onEventClick(event)
-                        }
-                      }}
-                      onPointerDown={(e) => handlePointerDown(e, event, 'move', dayIndex)}
-                      title={
-                        isPast
-                          ? `${event.title} - ${event.roomName} (séance passée)`
-                          : isConflict
-                            ? `⚠ Conflit de salle : ${event.roomName}`
-                            : `${event.title} - ${event.roomName}`
-                      }
-                    >
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium truncate">{event.title}</span>
-                        {event.recurrence && <Repeat size={10} className="flex-shrink-0 opacity-80" />}
-                        {isConflict && <AlertTriangle size={10} className="flex-shrink-0 text-yellow-200" />}
-                      </div>
-                      <div className="opacity-80 truncate">{event.roomName}</div>
-                      {/* Resize handle — masqué pour les séances passées */}
-                      {!isPast && (
-                        <div
-                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20"
-                          onPointerDown={(e) => {
-                            e.stopPropagation()
-                            handlePointerDown(e, event, 'resize', dayIndex)
-                          }}
-                        />
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-              {/* Ghost element for drag to different day */}
-              {drag?.active && drag.currentDayIndex === dayIndex && !dayEvents.find(e => e.id === drag.eventId) && (
-                <div
-                  className="absolute left-0.5 right-0.5 rounded-md border-2 border-dashed border-primary-400 bg-primary-100/30 z-20 pointer-events-none"
-                  style={{
-                    top: `${drag.currentTop}px`,
-                    height: `${drag.currentHeight}px`,
-                  }}
-                />
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ==================== MONTH VIEW ====================
-
-function getOccupationStyle(rate: number) {
-  if (rate === 0) return { bg: 'bg-neutral-50', text: 'text-neutral-400', bar: 'bg-neutral-300' }
-  if (rate <= 25) return { bg: 'bg-emerald-50', text: 'text-emerald-700', bar: 'bg-emerald-500' }
-  if (rate <= 50) return { bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500' }
-  if (rate <= 75) return { bg: 'bg-orange-100', text: 'text-orange-800', bar: 'bg-orange-500' }
-  return { bg: 'bg-red-100', text: 'text-red-800', bar: 'bg-red-500' }
-}
-
-function MonthView({
-  currentDate,
-  events,
-  onEventClick,
-  onDayClick,
-  totalRooms,
-}: {
-  currentDate: Date
-  events: CalendarEvent[]
-  onEventClick: (e: CalendarEvent) => void
-  onDayClick: (day: Date) => void
-  totalRooms: number
-}) {
-  const [showOccupation, setShowOccupation] = useState(false)
-
-  const monthStart = startOfMonth(currentDate)
-  const monthEnd = endOfMonth(currentDate)
-  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const allDays = eachDayOfInterval({ start: calStart, end: calEnd })
-
-  const getEventsForDay = (day: Date) =>
-    events.filter(e => {
-      const eventDate = typeof e.start === 'string' ? parseISO(e.start) : e.start
-      return isSameDay(eventDate, day)
-    })
-
-  const occupationData = useMemo(() => {
-    const data = new Map<string, { rate: number; bookedHours: number; roomsUsed: number }>()
-    const slotStart = HOUR_START
-    const slotEnd = HOUR_END
-    const slotHours = slotEnd - slotStart // 12h
-    const maxHours = totalRooms * slotHours
-
-    for (const day of allDays) {
-      const dateKey = format(day, 'yyyy-MM-dd')
-      const dayEvents = getEventsForDay(day)
-
-      if (dayEvents.length === 0) {
-        data.set(dateKey, { rate: 0, bookedHours: 0, roomsUsed: 0 })
-        continue
-      }
-
-      // Group events by room
-      const roomMap = new Map<string, { start: number; end: number }[]>()
-      for (const ev of dayEvents) {
-        const evStart = typeof ev.start === 'string' ? parseISO(ev.start) : ev.start
-        const evEnd = typeof ev.end === 'string' ? parseISO(ev.end) : ev.end
-        const roomKey = ev.roomId || ev.roomName || '_noroom_'
-
-        // Clamp to 8h-20h slot
-        const startMins = Math.max(getHours(evStart) * 60 + getMinutes(evStart), slotStart * 60)
-        const endMins = Math.min(getHours(evEnd) * 60 + getMinutes(evEnd), slotEnd * 60)
-        if (endMins <= startMins) continue
-
-        if (!roomMap.has(roomKey)) roomMap.set(roomKey, [])
-        roomMap.get(roomKey)!.push({ start: startMins, end: endMins })
-      }
-
-      // Merge overlapping intervals per room and sum hours
-      let totalMinutes = 0
-      for (const [, intervals] of roomMap) {
-        intervals.sort((a, b) => a.start - b.start)
-        const merged: { start: number; end: number }[] = []
-        for (const iv of intervals) {
-          if (merged.length > 0 && iv.start < merged[merged.length - 1].end) {
-            merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, iv.end)
-          } else {
-            merged.push({ ...iv })
-          }
-        }
-        for (const m of merged) {
-          totalMinutes += m.end - m.start
-        }
-      }
-
-      const bookedHours = Math.round((totalMinutes / 60) * 10) / 10
-      const rate = maxHours > 0 ? Math.round((bookedHours / maxHours) * 100) : 0
-      data.set(dateKey, { rate: Math.min(rate, 100), bookedHours, roomsUsed: roomMap.size })
-    }
-
-    return data
-  }, [allDays, events, totalRooms])
-
-  const monthStats = useMemo(() => {
-    let totalRate = 0
-    let workdayCount = 0
-    let peakRate = 0
-    let peakDate = ''
-    let totalHours = 0
-
-    for (const day of allDays) {
-      if (!isSameMonth(day, currentDate)) continue
-      const wd = getDay(day) // 0=Sun, 6=Sat
-      if (wd === 0 || wd === 6) continue // skip weekends
-
-      const dateKey = format(day, 'yyyy-MM-dd')
-      const d = occupationData.get(dateKey)
-      if (!d) continue
-
-      totalRate += d.rate
-      totalHours += d.bookedHours
-      workdayCount++
-
-      if (d.rate > peakRate) {
-        peakRate = d.rate
-        peakDate = format(day, 'EEE d MMM', { locale: fr })
-      }
-    }
-
-    return {
-      avgRate: workdayCount > 0 ? Math.round(totalRate / workdayCount) : 0,
-      peakRate,
-      peakDate: peakDate || '-',
-      totalHours: Math.round(totalHours * 10) / 10,
-      totalRooms,
-    }
-  }, [allDays, currentDate, occupationData, totalRooms])
-
-  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-
-  return (
-    <div>
-      {/* Toggle bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200 bg-neutral-50/50">
-        <div className="flex items-center gap-1 bg-neutral-200/60 rounded-lg p-0.5">
-          <button
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-              !showOccupation ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
-            }`}
-            onClick={() => setShowOccupation(false)}
-          >
-            <Calendar size={12} className="inline mr-1" />
-            Événements
-          </button>
-          <button
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-              showOccupation ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
-            }`}
-            onClick={() => setShowOccupation(true)}
-          >
-            <BarChart3 size={12} className="inline mr-1" />
-            Occupation
-          </button>
-        </div>
-        <div className="text-xs text-neutral-400">
-          {totalRooms} salle{totalRooms > 1 ? 's' : ''} · {HOUR_START}h-{HOUR_END}h
-        </div>
-      </div>
-
-      {/* Month stats (occupation mode only) */}
-      {showOccupation && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 border-b border-neutral-200 bg-white">
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-primary-50">
-            <TrendingUp size={16} className="text-primary-500" />
-            <div>
-              <div className="text-lg font-bold text-primary-700">{monthStats.avgRate}%</div>
-              <div className="text-[10px] text-primary-500">Taux moyen</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50">
-            <BarChart3 size={16} className="text-red-500" />
-            <div>
-              <div className="text-sm font-bold text-red-700">{monthStats.peakRate}%</div>
-              <div className="text-[10px] text-red-500 truncate" title={monthStats.peakDate}>Pic : {monthStats.peakDate}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50">
-            <Clock size={16} className="text-amber-500" />
-            <div>
-              <div className="text-lg font-bold text-amber-700">{monthStats.totalHours}h</div>
-              <div className="text-[10px] text-amber-500">Heures de séances</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50">
-            <Building2 size={16} className="text-emerald-500" />
-            <div>
-              <div className="text-lg font-bold text-emerald-700">{monthStats.totalRooms}</div>
-              <div className="text-[10px] text-emerald-500">Salles</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Day names header + Day cells (scrollable on mobile) */}
-      <div className="overflow-x-auto">
-      <div className="min-w-[500px] grid grid-cols-7 border-b border-neutral-200">
-        {dayNames.map(name => (
-          <div key={name} className="p-2 text-center text-xs font-semibold text-neutral-500 uppercase">
-            {name}
-          </div>
-        ))}
-      </div>
-
-      {/* Day cells */}
-      <div className="min-w-[500px] grid grid-cols-7">
-        {allDays.map(day => {
-          const dayEvents = getEventsForDay(day)
-          const inCurrentMonth = isSameMonth(day, currentDate)
-          const dateKey = format(day, 'yyyy-MM-dd')
-          const occ = occupationData.get(dateKey)
-
-          if (showOccupation) {
-            // === OCCUPATION MODE ===
-            const rate = occ?.rate ?? 0
-            const style = getOccupationStyle(rate)
-            const isWeekend = getDay(day) === 0 || getDay(day) === 6
-
-            return (
-              <div
-                key={day.toISOString()}
-                className={`min-h-[100px] border-b border-r border-neutral-100 p-1.5 cursor-pointer transition-colors relative group ${
-                  !inCurrentMonth ? 'opacity-40' : ''
-                } ${isWeekend ? 'bg-neutral-50' : style.bg} ${isToday(day) ? 'ring-2 ring-inset ring-primary-400' : ''}`}
-                onClick={() => onDayClick(day)}
-                title={`${occ?.bookedHours ?? 0}h de séances / ${totalRooms * (HOUR_END - HOUR_START)}h possibles (${occ?.roomsUsed ?? 0} salle${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''} active${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''})`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-sm font-medium ${
-                    !inCurrentMonth ? 'text-neutral-300' : isToday(day) ? 'text-primary-600' : 'text-neutral-700'
-                  }`}>
-                    {format(day, 'd')}
-                  </span>
-                  {!isWeekend && inCurrentMonth && rate > 0 && (
-                    <span className={`text-xs font-bold ${style.text}`}>{rate}%</span>
-                  )}
-                </div>
-                {!isWeekend && inCurrentMonth && (
-                  <div className="mt-1">
-                    {/* Mini progress bar */}
-                    <div className="w-full h-1.5 bg-neutral-200/60 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${style.bar}`}
-                        style={{ width: `${rate}%` }}
-                      />
-                    </div>
-                    {rate > 0 && (
-                      <div className={`text-[10px] mt-1 ${style.text}`}>
-                        {occ?.bookedHours}h · {occ?.roomsUsed} salle{(occ?.roomsUsed ?? 0) > 1 ? 's' : ''}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          }
-
-          // === EVENTS MODE (original) ===
-          return (
-            <div
-              key={day.toISOString()}
-              className={`min-h-[100px] border-b border-r border-neutral-100 p-1 cursor-pointer hover:bg-primary-50/30 transition-colors ${
-                !inCurrentMonth ? 'bg-neutral-50' : ''
-              } ${isToday(day) ? 'bg-primary-50' : ''}`}
-              onClick={() => onDayClick(day)}
-            >
-              <div className={`text-sm font-medium mb-1 ${
-                !inCurrentMonth ? 'text-neutral-300' : isToday(day) ? 'text-primary-600' : 'text-neutral-700'
-              }`}>
-                {format(day, 'd')}
-              </div>
-              <div className="space-y-0.5">
-                {dayEvents.slice(0, 3).map(event => (
-                  <button
-                    key={event.id}
-                    className="w-full text-left text-xs rounded px-1 py-0.5 text-white truncate hover:opacity-90 transition-opacity flex items-center gap-0.5"
-                    style={{ backgroundColor: event.color || '#3b82f6' }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEventClick(event)
-                    }}
-                  >
-                    <span className="truncate">{event.title}</span>
-                    {event.recurrence && <Repeat size={8} className="flex-shrink-0 opacity-80" />}
-                  </button>
-                ))}
-                {dayEvents.length > 3 && (
-                  <div className="text-xs text-neutral-400 px-1">
-                    +{dayEvents.length - 3} autres
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      </div>{/* end overflow-x-auto */}
-
-      {/* Occupation legend */}
-      {showOccupation && (
-        <div className="flex items-center justify-center gap-4 px-4 py-2 border-t border-neutral-200 bg-neutral-50/50">
-          <span className="text-[10px] text-neutral-400 uppercase font-semibold mr-1">Légende :</span>
-          {[
-            { label: '0%', style: getOccupationStyle(0) },
-            { label: '1-25%', style: getOccupationStyle(10) },
-            { label: '26-50%', style: getOccupationStyle(30) },
-            { label: '51-75%', style: getOccupationStyle(60) },
-            { label: '76-100%', style: getOccupationStyle(90) },
-          ].map(({ label, style }) => (
-            <div key={label} className="flex items-center gap-1">
-              <div className={`w-4 h-3 rounded ${style.bg} border border-neutral-200`} />
-              <span className={`text-[10px] font-medium ${style.text}`}>{label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ==================== DAY VIEW ====================
-
-function DayView({
-  currentDate,
-  events,
-  onEventClick,
-  onSlotClick,
-  onEventUpdate,
-}: {
-  currentDate: Date
-  events: CalendarEvent[]
-  onEventClick: (e: CalendarEvent) => void
-  onSlotClick: (date: Date, hour: number) => void
-  onEventUpdate: (eventId: string, newStart: string, newEnd: string) => void
-}) {
-  const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
-
-  const dayEvents = events.filter(e => {
-    const eventDate = typeof e.start === 'string' ? parseISO(e.start) : e.start
-    return isSameDay(eventDate, currentDate)
-  })
-
-  const overlapLayout = useMemo(() => computeOverlapLayout(dayEvents), [dayEvents])
-  const roomConflicts = useMemo(() => detectRoomConflicts(dayEvents), [dayEvents])
-
-  // Drag state
-  const [drag, setDrag] = useState<DragState | null>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
-
-  const getEventPosition = (event: CalendarEvent) => {
-    const start = typeof event.start === 'string' ? parseISO(event.start) : event.start
-    const end = typeof event.end === 'string' ? parseISO(event.end) : event.end
-    const startH = getHours(start) + getMinutes(start) / 60
-    const duration = differenceInMinutes(end, start) / 60
-    const top = (startH - HOUR_START) * HOUR_HEIGHT
-    const height = Math.max(duration * HOUR_HEIGHT, 20)
-    return { top, height }
-  }
-
-  const snapToGrid = (px: number) => {
-    const quarterHourPx = HOUR_HEIGHT / 4
-    return Math.round(px / quarterHourPx) * quarterHourPx
-  }
-
-  const pxToTime = (px: number) => {
-    const totalMinutes = (px / HOUR_HEIGHT) * 60 + HOUR_START * 60
-    const h = Math.floor(totalMinutes / 60)
-    const m = Math.round(totalMinutes % 60)
-    return { h: Math.max(HOUR_START, Math.min(h, HOUR_END)), m: Math.min(m, 59) }
-  }
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent, event: CalendarEvent, mode: 'move' | 'resize') => {
-      if (window.matchMedia('(pointer: coarse)').matches) return
-
-      // Bloquer le drag des séances passées
-      const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
-      if (isBefore(eventStart, new Date())) return
-
-      e.preventDefault()
-      e.stopPropagation()
-      const { top, height } = getEventPosition(event)
-      setDrag({
-        eventId: event.id,
-        mode,
-        startX: e.clientX,
-        startY: e.clientY,
-        originTop: top,
-        originHeight: height,
-        originDayIndex: 0,
-        currentTop: top,
-        currentHeight: height,
-        currentDayIndex: 0,
-        active: false,
-      })
-    },
-    [],
-  )
-
-  useEffect(() => {
-    if (!drag) return
-
-    const handleMove = (e: PointerEvent) => {
-      setDrag(prev => {
-        if (!prev) return null
-        const dy = e.clientY - prev.startY
-        const dx = e.clientX - prev.startX
-        if (!prev.active && Math.abs(dx) < 5 && Math.abs(dy) < 5) return prev
-
-        if (prev.mode === 'move') {
-          const newTop = snapToGrid(prev.originTop + dy)
-          return {
-            ...prev,
-            active: true,
-            currentTop: Math.max(0, Math.min(newTop, (HOUR_END - HOUR_START) * HOUR_HEIGHT - prev.originHeight)),
-          }
-        } else {
-          const newHeight = snapToGrid(Math.max(HOUR_HEIGHT / 4, prev.originHeight + dy))
-          return { ...prev, active: true, currentHeight: newHeight }
-        }
-      })
-    }
-
-    const handleUp = () => {
-      if (drag?.active) {
-        const event = dayEvents.find(ev => ev.id === drag.eventId)
-        if (event) {
-          const { h: startH, m: startM } = pxToTime(drag.currentTop)
-          const durationMin = (drag.currentHeight / HOUR_HEIGHT) * 60
-          const newStart = new Date(currentDate)
-          newStart.setHours(startH, startM, 0, 0)
-          const newEnd = new Date(newStart.getTime() + durationMin * 60000)
-          onEventUpdate(event.id, newStart.toISOString(), newEnd.toISOString())
-        }
-      }
-      setDrag(null)
-    }
-
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-    return () => {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-    }
-  }, [drag, dayEvents, currentDate, onEventUpdate])
-
-  return (
-    <div className="overflow-auto" ref={gridRef}>
-      <div className="grid grid-cols-[60px_1fr]">
-        {/* Hours */}
-        <div>
-          {hours.map(hour => (
-            <div key={hour} className="border-b border-neutral-100 text-right pr-2 text-xs text-neutral-400" style={{ height: `${HOUR_HEIGHT}px` }}>
-              <span className="relative -top-2">{`${hour}:00`}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Events */}
-        <div className="relative border-l border-neutral-200">
-          {hours.map(hour => (
-            <div
-              key={hour}
-              className="border-b border-neutral-100 hover:bg-primary-50/30 transition-colors cursor-pointer"
-              style={{ height: `${HOUR_HEIGHT}px` }}
-              onClick={() => onSlotClick(currentDate, hour)}
-            />
-          ))}
-          {dayEvents.map(event => {
-            const { top, height } = getEventPosition(event)
-            const overlap = overlapLayout.get(event.id)
-            const col = overlap?.column || 0
-            const totalCols = overlap?.totalColumns || 1
-            const widthPct = 100 / totalCols
-            const leftPct = col * widthPct
-            const isConflict = roomConflicts.has(event.id)
-            const isDragging = drag?.active && drag.eventId === event.id
-            const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
-            const isPast = isBefore(eventStart, new Date())
-
-            const eventStyle: React.CSSProperties = isDragging
-              ? {
-                  top: `${drag!.currentTop}px`,
-                  height: `${drag!.currentHeight}px`,
-                  left: `calc(${leftPct}% + 4px)`,
-                  width: `calc(${widthPct}% - 8px)`,
-                  opacity: 0.7,
-                  border: '2px dashed white',
-                  zIndex: 20,
-                }
-              : {
-                  top: `${top}px`,
-                  height: `${height}px`,
-                  left: `calc(${leftPct}% + 4px)`,
-                  width: `calc(${widthPct}% - 8px)`,
-                }
-
-            return (
-              <div key={event.id} className="absolute" style={eventStyle}>
-                <div
-                  className={`h-full rounded-md px-2 py-1 text-sm text-white overflow-hidden transition-opacity text-left relative ${
-                    isConflict ? 'ring-2 ring-red-500 ring-offset-1' : ''
-                  } ${isPast ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}
-                  style={{
-                    backgroundColor: event.color || '#3b82f6',
-                    backgroundImage: isConflict
-                      ? 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px)'
-                      : undefined,
-                  }}
-                  onClick={(e) => {
-                    if (!drag?.active) {
-                      e.stopPropagation()
-                      onEventClick(event)
-                    }
-                  }}
-                  onPointerDown={(e) => handlePointerDown(e, event, 'move')}
-                  title={
-                    isPast
-                      ? `${event.title} - ${event.roomName} (séance passée)`
-                      : isConflict
-                        ? `⚠ Conflit de salle : ${event.roomName}`
-                        : `${event.title} - ${event.roomName}`
-                  }
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium truncate">{event.title}</span>
-                    {event.recurrence && <Repeat size={12} className="flex-shrink-0 opacity-80" />}
-                    {isConflict && <AlertTriangle size={12} className="flex-shrink-0 text-yellow-200" />}
-                  </div>
-                  <div className="opacity-80 truncate">{event.roomName}</div>
-                  {/* Resize handle — masqué pour les séances passées */}
-                  {!isPast && (
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20"
-                      onPointerDown={(e) => {
-                        e.stopPropagation()
-                        handlePointerDown(e, event, 'resize')
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
     </div>
   )
 }
