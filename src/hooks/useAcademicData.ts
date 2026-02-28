@@ -300,16 +300,14 @@ export function useAcademicData() {
   }, [])
 
   // ==================== CRUD Teachers ====================
-  // signUp via un client Supabase ISOLÉ (persistSession: false)
-  // pour ne pas perturber la session admin du client principal.
-  // Un mot de passe aléatoire est généré — le professeur utilisera
-  // « Mot de passe oublié » pour définir le sien.
+  // signUp via client Supabase ISOLÉ (persistSession:false → pas de disruption session)
+  // Le trigger handle_new_user crée le profil automatiquement → on fait un UPDATE ensuite.
 
   const createTeacher = useCallback(async (data: { firstName: string; lastName: string; email: string; role: 'teacher' | 'staff' }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const fullName = `${data.firstName} ${data.lastName}`.trim()
 
-    // Client isolé : le signUp ne touche PAS la session du client principal
+    // Client isolé pour ne pas perturber la session admin
     const tempClient = createClient(
       import.meta.env.VITE_SUPABASE_URL,
       import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -323,29 +321,34 @@ export function useAcademicData() {
       password: tempPassword,
       options: { data: { full_name: fullName, role: data.role } },
     })
-    if (signUpError) { toast.error('Erreur création compte: ' + signUpError.message); throw signUpError }
+    if (signUpError) {
+      toast.error('Erreur : ' + signUpError.message)
+      throw signUpError
+    }
     if (!signUpData.user) { toast.error('Échec création du compte'); throw new Error('signUp failed') }
 
-    // 2. Insérer le profil via le client principal (session admin intacte)
+    // 2. Le trigger a créé le profil → on le met à jour avec center_id et role
+    //    Petit délai pour laisser le trigger s'exécuter
+    await new Promise(r => setTimeout(r, 500))
+
     const { data: row, error } = await supabase
       .from('profiles')
-      .insert({
-        id: signUpData.user.id,
-        email: data.email,
+      .update({
         full_name: fullName,
         role: data.role,
         center_id: user.establishmentId,
         is_active: true,
       })
+      .eq('id', signUpData.user.id)
       .select('*')
       .single()
-    if (error) { toast.error('Erreur création profil: ' + error.message); throw error }
+    if (error) { toast.error('Erreur mise à jour profil: ' + error.message); throw error }
 
     const newTeacher = transformUser(row)
     setTeachers(prev => [...prev, newTeacher].sort((a, b) =>
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
     ))
-    toast.success(`Professeur ajouté — il pourra se connecter via "Mot de passe oublié"`)
+    toast.success(`Professeur ajouté — connexion via "Mot de passe oublié"`)
     return newTeacher
   }, [user?.establishmentId])
 
