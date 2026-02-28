@@ -12,7 +12,9 @@ import type {
   UseBookingsReturn,
   UUID,
   DateString,
-  CalendarEvent
+  CalendarEvent,
+  BatchCreateSessionInput,
+  BatchCreateResult,
 } from '@/types'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
@@ -110,6 +112,35 @@ export function useBookings(): UseBookingsReturn {
     }
   }, [])
 
+  const checkTrainerConflict = useCallback(async (
+    trainerId: UUID,
+    startDateTime: DateString,
+    endDateTime: DateString,
+    excludeBookingId?: UUID
+  ): Promise<boolean> => {
+    try {
+      let query = supabase
+        .from('training_sessions')
+        .select('id')
+        .eq('trainer_id', trainerId)
+        .in('status', ['scheduled', 'in_progress'])
+        .lt('start_time', endDateTime)
+        .gt('end_time', startDateTime)
+
+      if (excludeBookingId) {
+        query = query.neq('id', excludeBookingId)
+      }
+
+      const { data, error } = await query.limit(1)
+
+      if (error) throw error
+      return (data?.length ?? 0) > 0
+    } catch (error) {
+      console.error('Error checking trainer conflict:', error)
+      return false
+    }
+  }, [])
+
   // ==================== CRUD FUNCTIONS ====================
 
   const createBooking = useCallback(async (data: CreateBookingData): Promise<Booking> => {
@@ -173,7 +204,7 @@ export function useBookings(): UseBookingsReturn {
       toast.success(`Séance "${transformed.title}" créée avec succès`)
 
       // Audit logging
-      AuditService.logCrud('created', 'booking', transformed.id, user.id, user.establishmentId, { title: transformed.title })
+      AuditService.logCrud('created', 'session', transformed.id, user.id, user.establishmentId, { title: transformed.title })
 
       return transformed
     } catch (error) {
@@ -246,7 +277,7 @@ export function useBookings(): UseBookingsReturn {
 
       // Audit logging
       if (user) {
-        AuditService.logCrud('updated', 'booking', data.id, user.id, user.establishmentId, { title: transformed.title })
+        AuditService.logCrud('updated', 'session', data.id, user.id, user.establishmentId, { title: transformed.title })
       }
 
       return transformed
@@ -273,7 +304,7 @@ export function useBookings(): UseBookingsReturn {
 
       // Audit logging
       if (user) {
-        AuditService.logCrud('deleted', 'booking', id, user.id, user.establishmentId)
+        AuditService.logCrud('deleted', 'session', id, user.id, user.establishmentId)
       }
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la suppression de la séance')
@@ -317,6 +348,66 @@ export function useBookings(): UseBookingsReturn {
       throw error
     }
   }, [user?.id, handleError])
+
+  const createBatchBookings = useCallback(async (sessions: BatchCreateSessionInput[]): Promise<BatchCreateResult> => {
+    if (!user?.establishmentId) {
+      throw new Error('Utilisateur non connecté')
+    }
+    if (sessions.length === 0) {
+      return { created: 0, failed: [] }
+    }
+
+    try {
+      setError(null)
+
+      const limitCheck = await SubscriptionLimitsService.checkLimit(user.establishmentId, 'bookings')
+      if (!limitCheck.allowed) {
+        const message = `Limite du plan atteinte (${limitCheck.current}/${limitCheck.max} séances ce mois). Contactez votre administrateur pour upgrader.`
+        toast.error(message)
+        throw new Error(message)
+      }
+
+      const allData = sessions.map(s => ({
+        title: s.title,
+        description: s.description || null,
+        start_time: s.startDateTime,
+        end_time: s.endDateTime,
+        room_id: s.roomId,
+        trainer_id: s.trainerId,
+        center_id: user.establishmentId,
+        session_type: 'in_person' as const,
+        status: 'scheduled' as const,
+        subject_id: s.subjectId || null,
+        class_id: s.classId || null,
+      }))
+
+      const { data: newSessions, error: insertError } = await supabase
+        .from('training_sessions')
+        .insert(allData)
+        .select(`
+          *,
+          room:rooms(id, name, room_type, capacity),
+          trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
+          subject:subjects(id, name),
+          class_:classes(id, name, diploma:diplomas(id, title))
+        `)
+
+      if (insertError) throw insertError
+
+      const transformed = (newSessions || []).map(transformBooking)
+      setBookings(prev => [...prev, ...transformed])
+
+      toast.success(`${transformed.length} séance${transformed.length > 1 ? 's' : ''} créée${transformed.length > 1 ? 's' : ''} avec succès`)
+
+      AuditService.logCrud('created', 'session', 'batch', user.id, user.establishmentId, { count: transformed.length, batch: true })
+
+      return { created: transformed.length, failed: [] }
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors de la création en lot')
+      toast.error(message)
+      throw error
+    }
+  }, [user?.id, user?.establishmentId, handleError])
 
   // ==================== QUERY FUNCTIONS ====================
 
@@ -492,6 +583,9 @@ export function useBookings(): UseBookingsReturn {
     updateBooking,
     deleteBooking,
     cancelBooking,
+    createBatchBookings,
+    checkBookingConflict,
+    checkTrainerConflict,
     getBookingById,
     filterBookings,
     getBookingsByRoom,

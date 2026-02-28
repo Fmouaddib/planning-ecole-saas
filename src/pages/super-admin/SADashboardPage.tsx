@@ -146,6 +146,8 @@ function formatAction(action: string): string {
     'subscription.activated': 'a active un abonnement',
     'subscription.cancelled': 'a annule un abonnement',
     'session.created': 'a cree une session',
+    'session.updated': 'a modifie une session',
+    'session.deleted': 'a supprime une session',
     'plan.updated': 'a modifie un plan',
   };
   return map[action] || action;

@@ -64,6 +64,8 @@ export const SAAuditPage = () => {
     'subscription.activated': '✅',
     'subscription.cancelled': '❌',
     'session.created': '📅',
+    'session.updated': '✏️',
+    'session.deleted': '🗑️',
     'plan.updated': '💎',
   };
 
@@ -144,7 +146,7 @@ export const SAAuditPage = () => {
       {/* Filters (only for "all" tab) */}
       {activeTab === 'all' && (
         <div className="sa-search-bar" style={{ flexWrap: 'wrap' }}>
-          {['', 'user.login', 'user.created', 'user.updated', 'center.created', 'center.updated', 'subscription.activated', 'subscription.cancelled', 'session.created', 'plan.updated'].map(action => (
+          {['', 'user.login', 'user.created', 'user.updated', 'center.created', 'center.updated', 'subscription.activated', 'subscription.cancelled', 'session.created', 'session.updated', 'session.deleted', 'plan.updated'].map(action => (
             <button
               key={action}
               className={`sa-filter-btn ${actionFilter === action ? 'active' : ''}`}

@@ -438,6 +438,23 @@ export interface BookingFilters {
   bookingType?: BookingType[]
 }
 
+export interface BatchCreateSessionInput {
+  title: string
+  description?: string
+  startDateTime: string
+  endDateTime: string
+  roomId: string
+  trainerId: string
+  bookingType: BookingType
+  subjectId?: string
+  classId?: string
+}
+
+export interface BatchCreateResult {
+  created: number
+  failed: Array<{ index: number; error: string }>
+}
+
 export interface UseBookingsReturn {
   bookings: Booking[]
   isLoading: boolean
@@ -446,6 +463,9 @@ export interface UseBookingsReturn {
   updateBooking: (data: UpdateBookingData) => Promise<Booking>
   deleteBooking: (id: UUID) => Promise<void>
   cancelBooking: (id: UUID, reason?: string) => Promise<Booking>
+  createBatchBookings: (sessions: BatchCreateSessionInput[]) => Promise<BatchCreateResult>
+  checkBookingConflict: (roomId: UUID, start: DateString, end: DateString, excludeId?: UUID) => Promise<boolean>
+  checkTrainerConflict: (trainerId: UUID, start: DateString, end: DateString, excludeId?: UUID) => Promise<boolean>
   getBookingById: (id: UUID) => Booking | undefined
   filterBookings: (filters: BookingFilters) => Booking[]
   getBookingsByRoom: (roomId: UUID, date?: DateString) => Booking[]

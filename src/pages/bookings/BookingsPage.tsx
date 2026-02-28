@@ -1,13 +1,16 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useAcademicData } from '@/hooks/useAcademicData'
+import { useAuth } from '@/hooks/useAuth'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { BOOKING_TYPES, BOOKING_STATUS } from '@/utils/constants'
 import { filterBySearch, formatDate, formatTimeRange } from '@/utils/helpers'
 import type { Booking, CreateBookingData, BookingType } from '@/types'
-import { Plus, Search, Pencil, Trash2, XCircle, CalendarCheck, RefreshCw } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, XCircle, CalendarCheck, RefreshCw, Repeat, ArrowUp, ArrowDown, ArrowUpDown, SlidersHorizontal, ChevronDown, ChevronUp, X } from 'lucide-react'
+
+const BatchCreateModal = lazy(() => import('../calendar/BatchCreateModal'))
 
 const bookingTypeLabels: Record<string, string> = {
   course: 'Cours',
@@ -74,24 +77,42 @@ const emptyForm: BookingFormData = {
 }
 
 function BookingsPage() {
-  const { bookings, isLoading, error, createBooking, updateBooking, deleteBooking, cancelBooking, refreshBookings } = useBookings()
+  const { bookings, isLoading, error, createBooking, updateBooking, deleteBooking, cancelBooking, refreshBookings, createBatchBookings, checkBookingConflict, checkTrainerConflict } = useBookings()
   const { rooms } = useRooms()
+  const { user } = useAuth()
   const {
     diplomaOptions,
     classOptionsByDiploma,
     subjectOptionsByClass,
     getDiplomaIdByClass,
+    teachers,
+    getTeachersBySubject,
   } = useAcademicData()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [roomFilter, setRoomFilter] = useState('')
+  const [teacherFilter, setTeacherFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [filterDiplomaId, setFilterDiplomaId] = useState('')
+  const [filterClassId, setFilterClassId] = useState('')
+  const [filterSubjectId, setFilterSubjectId] = useState('')
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'cancel' | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [form, setForm] = useState<BookingFormData>(emptyForm)
   const [cancelReason, setCancelReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showBatchModal, setShowBatchModal] = useState(false)
+  const [sortKey, setSortKey] = useState<'title' | 'room' | 'date' | 'type' | 'status'>('date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   const roomOptions = rooms.map(r => ({ value: r.id, label: `${r.name} (${r.code})` }))
+  const teacherProfileOptions = useMemo(
+    () => teachers.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}`.trim() })),
+    [teachers],
+  )
 
   // Options cascade pour le formulaire
   const classOptions = useMemo(
@@ -106,6 +127,39 @@ function BookingsPage() {
 
   const hasDiplomaData = diplomaOptions.length > 0
 
+  // Options cascade pour les filtres
+  const filterClassOptions = useMemo(
+    () => (filterDiplomaId ? classOptionsByDiploma(filterDiplomaId) : []),
+    [filterDiplomaId, classOptionsByDiploma],
+  )
+
+  const filterSubjectOptions = useMemo(
+    () => (filterClassId ? subjectOptionsByClass(filterClassId) : []),
+    [filterClassId, subjectOptionsByClass],
+  )
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (roomFilter) count++
+    if (teacherFilter) count++
+    if (dateFrom) count++
+    if (dateTo) count++
+    if (filterDiplomaId) count++
+    if (filterClassId) count++
+    if (filterSubjectId) count++
+    return count
+  }, [roomFilter, teacherFilter, dateFrom, dateTo, filterDiplomaId, filterClassId, filterSubjectId])
+
+  const resetAdvancedFilters = () => {
+    setRoomFilter('')
+    setTeacherFilter('')
+    setDateFrom('')
+    setDateTo('')
+    setFilterDiplomaId('')
+    setFilterClassId('')
+    setFilterSubjectId('')
+  }
+
   const handleDiplomaChange = (diplomaId: string) => {
     setForm(f => ({ ...f, diplomaId, classId: '', subjectId: '' }))
   }
@@ -117,7 +171,6 @@ function BookingsPage() {
   const handleSubjectChange = (subjectId: string) => {
     setForm(f => {
       const newForm = { ...f, subjectId }
-      // Auto-remplir le titre si vide
       if (!f.title.trim()) {
         const subjectLabel = subjectOptions.find(s => s.value === subjectId)?.label
         const classLabel = classOptions.find(c => c.value === f.classId)?.label
@@ -142,10 +195,68 @@ function BookingsPage() {
     if (statusFilter) {
       result = result.filter(b => b.status === statusFilter)
     }
+    if (roomFilter) {
+      result = result.filter(b => b.roomId === roomFilter)
+    }
+    if (teacherFilter) {
+      result = result.filter(b => b.userId === teacherFilter)
+    }
+    if (dateFrom) {
+      result = result.filter(b => b.startDateTime && b.startDateTime.slice(0, 10) >= dateFrom)
+    }
+    if (dateTo) {
+      result = result.filter(b => b.startDateTime && b.startDateTime.slice(0, 10) <= dateTo)
+    }
+    if (filterSubjectId) {
+      result = result.filter(b => b.subjectId === filterSubjectId)
+    } else if (filterClassId) {
+      result = result.filter(b => b.classId === filterClassId)
+    } else if (filterDiplomaId) {
+      const classIds = new Set(filterClassOptions.map(c => c.value))
+      result = result.filter(b => b.classId && classIds.has(b.classId))
+    }
     return result
-  }, [bookings, search, typeFilter, statusFilter])
+  }, [bookings, search, typeFilter, statusFilter, roomFilter, teacherFilter, dateFrom, dateTo, filterDiplomaId, filterClassId, filterSubjectId, filterClassOptions])
 
-  const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
+  const sorted = useMemo(() => {
+    const list = [...filtered]
+    const dir = sortDir === 'asc' ? 1 : -1
+    list.sort((a, b) => {
+      switch (sortKey) {
+        case 'title':
+          return dir * (a.title || '').localeCompare(b.title || '')
+        case 'room':
+          return dir * (a.room?.name || '').localeCompare(b.room?.name || '')
+        case 'date':
+          return dir * ((a.startDateTime || '').localeCompare(b.startDateTime || ''))
+        case 'type':
+          return dir * (a.bookingType || '').localeCompare(b.bookingType || '')
+        case 'status':
+          return dir * (a.status || '').localeCompare(b.status || '')
+        default:
+          return 0
+      }
+    })
+    return list
+  }, [filtered, sortKey, sortDir])
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const SortIcon = ({ col }: { col: typeof sortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown size={12} className="text-neutral-300" />
+    return sortDir === 'asc'
+      ? <ArrowUp size={12} className="text-primary-600" />
+      : <ArrowDown size={12} className="text-primary-600" />
+  }
+
+  const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(sorted)
 
   const openCreate = () => {
     setForm(emptyForm)
@@ -278,13 +389,18 @@ function BookingsPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Gestion des séances</h1>
           <p className="text-neutral-500 mt-1">{bookings.length} séance{bookings.length > 1 ? 's' : ''} au total</p>
         </div>
-        <Button leftIcon={Plus} onClick={openCreate} className="mt-4 sm:mt-0">
-          Nouvelle séance
-        </Button>
+        <div className="flex items-center gap-2 mt-4 sm:mt-0">
+          <Button variant="secondary" leftIcon={Repeat} onClick={() => setShowBatchModal(true)}>
+            Saisie en lot
+          </Button>
+          <Button leftIcon={Plus} onClick={openCreate}>
+            Nouvelle séance
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-3">
         <div className="flex-1">
           <Input
             placeholder="Rechercher par titre..."
@@ -307,15 +423,98 @@ function BookingsPage() {
             onChange={e => setStatusFilter(e.target.value)}
           />
         </div>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
+          onClick={() => setShowAdvancedFilters(v => !v)}
+        >
+          <SlidersHorizontal size={14} />
+          Filtres
+          {activeFilterCount > 0 && (
+            <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-primary-600 rounded-full">
+              {activeFilterCount}
+            </span>
+          )}
+          {showAdvancedFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
       </div>
+
+      {/* Advanced Filters */}
+      {showAdvancedFilters && (
+        <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mb-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-neutral-700">Filtres avancés</span>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-neutral-500 hover:text-error-600 transition-colors"
+                onClick={resetAdvancedFilters}
+              >
+                <X size={12} /> Réinitialiser
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Select
+              label="Salle"
+              options={[{ value: '', label: 'Toutes les salles' }, ...roomOptions]}
+              value={roomFilter}
+              onChange={e => setRoomFilter(e.target.value)}
+            />
+            <Select
+              label="Professeur"
+              options={[{ value: '', label: 'Tous les professeurs' }, ...teacherProfileOptions]}
+              value={teacherFilter}
+              onChange={e => setTeacherFilter(e.target.value)}
+            />
+            <Input
+              label="Date début"
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+            />
+            <Input
+              label="Date fin"
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+            />
+          </div>
+          {hasDiplomaData && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Select
+                label="Diplôme"
+                options={[{ value: '', label: 'Tous les diplômes' }, ...diplomaOptions]}
+                value={filterDiplomaId}
+                onChange={e => { setFilterDiplomaId(e.target.value); setFilterClassId(''); setFilterSubjectId('') }}
+              />
+              <Select
+                label="Classe"
+                options={[{ value: '', label: filterDiplomaId ? 'Toutes les classes' : 'Choisir un diplôme' }, ...filterClassOptions]}
+                value={filterClassId}
+                onChange={e => { setFilterClassId(e.target.value); setFilterSubjectId('') }}
+                disabled={!filterDiplomaId}
+              />
+              <Select
+                label="Matière"
+                options={[{ value: '', label: filterClassId ? 'Toutes les matières' : 'Choisir une classe' }, ...filterSubjectOptions]}
+                value={filterSubjectId}
+                onChange={e => setFilterSubjectId(e.target.value)}
+                disabled={!filterClassId}
+              />
+            </div>
+          )}
+        </div>
+      )}
+      {!showAdvancedFilters && <div className="mb-3" />}
 
       {/* Table or Empty */}
       {filtered.length === 0 ? (
         <EmptyState
           icon={CalendarCheck}
           title="Aucune séance trouvée"
-          description={search || typeFilter || statusFilter ? 'Aucune séance ne correspond à vos critères.' : 'Commencez par créer votre première séance.'}
-          action={!search && !typeFilter && !statusFilter ? { label: 'Nouvelle séance', onClick: openCreate, icon: Plus } : undefined}
+          description={search || typeFilter || statusFilter || activeFilterCount > 0 ? 'Aucune séance ne correspond à vos critères.' : 'Commencez par créer votre première séance.'}
+          action={!search && !typeFilter && !statusFilter && activeFilterCount === 0 ? { label: 'Nouvelle séance', onClick: openCreate, icon: Plus } : undefined}
         />
       ) : (
         <>
@@ -324,11 +523,21 @@ function BookingsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-neutral-200 bg-neutral-50">
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Titre</th>
-                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Salle</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Date/Heure</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Type</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Statut</th>
+                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 transition-colors" onClick={() => toggleSort('title')}>
+                      <span className="inline-flex items-center gap-1">Titre <SortIcon col="title" /></span>
+                    </th>
+                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 transition-colors" onClick={() => toggleSort('room')}>
+                      <span className="inline-flex items-center gap-1">Salle <SortIcon col="room" /></span>
+                    </th>
+                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 transition-colors" onClick={() => toggleSort('date')}>
+                      <span className="inline-flex items-center gap-1">Date/Heure <SortIcon col="date" /></span>
+                    </th>
+                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 transition-colors" onClick={() => toggleSort('type')}>
+                      <span className="inline-flex items-center gap-1">Type <SortIcon col="type" /></span>
+                    </th>
+                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 transition-colors" onClick={() => toggleSort('status')}>
+                      <span className="inline-flex items-center gap-1">Statut <SortIcon col="status" /></span>
+                    </th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -410,7 +619,6 @@ function BookingsPage() {
         size="md"
       >
         <div className="space-y-4">
-          {/* Cascade académique */}
           {hasDiplomaData && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Select
@@ -435,7 +643,6 @@ function BookingsPage() {
               />
             </div>
           )}
-
           <Input
             label="Titre"
             placeholder="Ex: Cours de mathématiques"
@@ -536,6 +743,26 @@ function BookingsPage() {
           </Button>
         </ModalFooter>
       </Modal>
+
+      {/* Batch Create Modal */}
+      {showBatchModal && (
+        <Suspense fallback={null}>
+          <BatchCreateModal
+            isOpen={showBatchModal}
+            onClose={() => setShowBatchModal(false)}
+            onCreateBatch={async (sessions) => { await createBatchBookings(sessions) }}
+            checkRoomConflict={checkBookingConflict}
+            checkTrainerConflict={checkTrainerConflict}
+            rooms={roomOptions}
+            teachers={teacherProfileOptions}
+            currentUserId={user?.id || ''}
+            diplomaOptions={diplomaOptions}
+            classOptionsByDiploma={classOptionsByDiploma}
+            subjectOptionsByClass={subjectOptionsByClass}
+            getTeachersBySubject={getTeachersBySubject}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

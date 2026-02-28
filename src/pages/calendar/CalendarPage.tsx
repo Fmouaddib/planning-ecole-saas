@@ -15,6 +15,7 @@ import {
 import { fr } from 'date-fns/locale'
 import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
+import { useAuth } from '@/hooks/useAuth'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { formatTimeRange } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
@@ -43,6 +44,7 @@ import {
 const WeekView = lazy(() => import('./WeekView'))
 const MonthView = lazy(() => import('./MonthView'))
 const DayView = lazy(() => import('./DayView'))
+const BatchCreateModal = lazy(() => import('./BatchCreateModal'))
 
 type ViewMode = 'week' | 'month' | 'day' | 'rooms'
 
@@ -77,7 +79,7 @@ const recurrenceLabels: Record<string, string> = {
 // ==================== MAIN COMPONENT ====================
 
 function CalendarPage() {
-  const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking } = useBookings()
+  const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking, createBatchBookings, checkBookingConflict, checkTrainerConflict } = useBookings()
   const { rooms, buildingsWithRooms } = useRooms()
   const {
     diplomaOptions,
@@ -86,6 +88,8 @@ function CalendarPage() {
     allSubjectOptions,
     allDiplomaOptions,
     allClassOptions,
+    teachers,
+    getTeachersBySubject,
   } = useAcademicData()
   const [view, setView] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -107,6 +111,15 @@ function CalendarPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createDate, setCreateDate] = useState<Date | null>(null)
   const [createHour, setCreateHour] = useState<number | null>(null)
+
+  // Batch create modal state
+  const [showBatchModal, setShowBatchModal] = useState(false)
+  const { user } = useAuth()
+
+  const teacherProfileOptions = useMemo(
+    () => teachers.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}`.trim() })),
+    [teachers],
+  )
 
   // Pending move confirmation state (drag & drop)
   const [pendingMove, setPendingMove] = useState<{
@@ -420,6 +433,15 @@ function CalendarPage() {
             Imprimer
           </button>
 
+          {/* Batch create button */}
+          <button
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors"
+            onClick={() => setShowBatchModal(true)}
+          >
+            <Repeat size={16} />
+            Saisie en lot
+          </button>
+
           {/* Export dropdown */}
           <div className="relative" ref={exportMenuRef}>
             <button
@@ -692,6 +714,26 @@ function CalendarPage() {
         classOptionsByDiploma={classOptionsByDiploma}
         subjectOptionsByClass={subjectOptionsByClass}
       />
+
+      {/* Batch Create Modal */}
+      {showBatchModal && (
+        <Suspense fallback={null}>
+          <BatchCreateModal
+            isOpen={showBatchModal}
+            onClose={() => setShowBatchModal(false)}
+            onCreateBatch={async (sessions) => { await createBatchBookings(sessions) }}
+            checkRoomConflict={checkBookingConflict}
+            checkTrainerConflict={checkTrainerConflict}
+            rooms={roomOptions}
+            teachers={teacherProfileOptions}
+            currentUserId={user?.id || ''}
+            diplomaOptions={diplomaOptions}
+            classOptionsByDiploma={classOptionsByDiploma}
+            subjectOptionsByClass={subjectOptionsByClass}
+            getTeachersBySubject={getTeachersBySubject}
+          />
+        </Suspense>
+      )}
 
       {/* Move Confirmation Modal */}
       <Modal

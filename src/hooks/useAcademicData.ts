@@ -555,6 +555,11 @@ export function useAcademicData() {
     [classes],
   )
 
+  const getTeachersBySubject = useCallback((subjectId: string) => {
+    const teacherIds = teacherSubjects.filter(ts => ts.subject_id === subjectId).map(ts => ts.teacher_id)
+    return teachers.filter(t => teacherIds.includes(t.id))
+  }, [teacherSubjects, teachers])
+
   return {
     diplomas,
     classes,
@@ -572,6 +577,7 @@ export function useAcademicData() {
     allSubjectOptions,
     allDiplomaOptions,
     allClassOptions,
+    getTeachersBySubject,
     // CRUD Diplomas
     createDiploma,
     updateDiploma,

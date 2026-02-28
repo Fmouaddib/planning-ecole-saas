@@ -23,7 +23,7 @@ export class SACentersService {
         centers.map(async (center) => {
           const [usersRes, sessionsRes, roomsRes, programsRes, subRes] = await Promise.all([
             supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('center_id', center.id),
-            supabase.from('training_sessions').select('id', { count: 'exact', head: true }),
+            supabase.from('training_sessions').select('id', { count: 'exact', head: true }).eq('center_id', center.id),
             supabase.from('rooms').select('id', { count: 'exact', head: true }).eq('center_id', center.id),
             supabase.from('programs').select('id', { count: 'exact', head: true }).eq('center_id', center.id),
             supabase.from('center_subscriptions').select('*, plan:subscription_plans(*)').eq('center_id', center.id).maybeSingle(),
