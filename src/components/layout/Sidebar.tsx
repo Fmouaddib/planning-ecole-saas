@@ -9,7 +9,6 @@ import {
   HelpCircle,
   LogOut,
   Home,
-  BookOpen,
   Clock,
   Shield,
   GraduationCap
@@ -71,13 +70,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/users',
       active: currentPath === '/users',
       roles: ['admin']
-    },
-    {
-      icon: BookOpen,
-      label: 'Cours',
-      href: '/courses',
-      active: currentPath === '/courses',
-      roles: ['admin', 'teacher']
     },
     {
       icon: Clock,

@@ -17,7 +17,6 @@ const BookingsPage = lazy(() => import('@/pages/bookings/BookingsPage'))
 const UsersPage = lazy(() => import('@/pages/users/UsersPage'))
 const CalendarPage = lazy(() => import('@/pages/calendar/CalendarPage'))
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage'))
-const CoursesPage = lazy(() => import('@/pages/courses/CoursesPage'))
 const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'))
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'))
 const HelpPage = lazy(() => import('@/pages/help/HelpPage'))
@@ -46,7 +45,6 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.BOOKINGS]: BookingsPage,
   [ROUTES.USERS]: UsersPage,
   [ROUTES.PLANNING]: CalendarPage,
-  [ROUTES.COURSES]: CoursesPage,
   [ROUTES.ANALYTICS]: AnalyticsPage,
   [ROUTES.SETTINGS]: SettingsPage,
   [ROUTES.PROFILE]: ProfilePage,

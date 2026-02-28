@@ -20,7 +20,6 @@ export const ROUTES = {
   PLANNING: '/planning',
   ROOMS: '/rooms',
   USERS: '/users',
-  COURSES: '/courses',
   BOOKINGS: '/bookings',
   ACADEMIC: '/academic',
   ANALYTICS: '/analytics',
