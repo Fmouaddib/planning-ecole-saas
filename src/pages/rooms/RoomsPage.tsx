@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react'
 import { useRooms } from '@/hooks/useRooms'
 import { useBookings } from '@/hooks/useBookings'
 import { usePagination } from '@/hooks/usePagination'
-import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
-import { ROOM_TYPES } from '@/utils/constants'
+import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, MultiSelect } from '@/components/ui'
+import { ROOM_TYPES, EQUIPMENT_CATEGORY_LABELS } from '@/utils/constants'
+import { buildEquipmentCatalog, catalogToOptions, namesToEquipment } from '@/utils/equipmentCatalog'
 import { filterBySearch } from '@/utils/helpers'
-import type { Room, CreateRoomData, RoomType } from '@/types'
-import { Plus, Search, Pencil, Trash2, Building2, RefreshCw } from 'lucide-react'
+import type { Room, CreateRoomData, RoomType, EquipmentCategory } from '@/types'
+import { Plus, Search, Pencil, Trash2, Building2, RefreshCw, Tag, ChevronDown, ChevronRight } from 'lucide-react'
 import { startOfWeek, endOfWeek, differenceInMinutes } from 'date-fns'
 
 const roomTypeLabels: Record<string, string> = {
@@ -34,31 +35,78 @@ const roomTypeBadgeVariant: Record<string, 'success' | 'warning' | 'error' | 'in
   office: 'neutral',
 }
 
-const emptyForm: CreateRoomData = {
+const emptyForm: CreateRoomData & { equipmentNames: string[] } = {
   name: '',
   code: '',
   capacity: 30,
   roomType: 'classroom',
   description: '',
   floor: 0,
+  equipmentNames: [],
 }
 
 function RoomsPage() {
-  const { rooms, isLoading, error, createRoom, updateRoom, deleteRoom, refreshRooms } = useRooms()
+  const { rooms, isLoading, error, createRoom, updateRoom, deleteRoom, renameEquipment, deleteEquipment, updateEquipmentCategory, refreshRooms } = useRooms()
   const { bookings } = useBookings()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'rename' | 'deleteEquip' | 'changeCategory' | null>(null)
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
-  const [form, setForm] = useState<CreateRoomData>(emptyForm)
+  const [form, setForm] = useState<CreateRoomData & { equipmentNames: string[] }>(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+  const [customEquipment, setCustomEquipment] = useState('')
+  const [renameOld, setRenameOld] = useState('')
+  const [renameNew, setRenameNew] = useState('')
+  const [showCatalog, setShowCatalog] = useState(false)
+  const [equipToDelete, setEquipToDelete] = useState('')
+  const [equipToChangeCategory, setEquipToChangeCategory] = useState('')
+  const [newCategory, setNewCategory] = useState<EquipmentCategory>('technology')
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState('')
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set(Object.keys(EQUIPMENT_CATEGORY_LABELS)))
+
+  // Catalogue d'équipements (prédéfinis + existants)
+  const catalog = useMemo(() => buildEquipmentCatalog(rooms), [rooms])
+  const equipmentOptions = useMemo(() => catalogToOptions(catalog), [catalog])
+
+  // Comptage : nombre de salles par équipement
+  const equipmentCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const room of rooms) {
+      if (!Array.isArray(room.equipment)) continue
+      for (const eq of room.equipment) {
+        if (!eq?.name) continue
+        const key = eq.name.toLowerCase()
+        counts.set(key, (counts.get(key) || 0) + 1)
+      }
+    }
+    return counts
+  }, [rooms])
+
+  // Catalogue filtré puis groupé par catégorie
+  const filteredCatalog = useMemo(() => {
+    const source = catalogCategoryFilter ? catalog.filter(e => e.category === catalogCategoryFilter) : catalog
+    const groups: { category: string; label: string; items: typeof catalog }[] = []
+    const groupMap = new Map<string, typeof catalog>()
+    for (const entry of source) {
+      if (!groupMap.has(entry.category)) groupMap.set(entry.category, [])
+      groupMap.get(entry.category)!.push(entry)
+    }
+    for (const [cat, items] of groupMap) {
+      groups.push({ category: cat, label: EQUIPMENT_CATEGORY_LABELS[cat] || cat, items })
+    }
+    return groups
+  }, [catalog, catalogCategoryFilter])
+
+  const filteredCatalogCount = useMemo(() => {
+    return filteredCatalog.reduce((sum, g) => sum + g.items.length, 0)
+  }, [filteredCatalog])
 
   // Calcul du taux d'occupation par salle (semaine en cours)
   const occupationMap = useMemo(() => {
     const now = new Date()
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 }) // lundi
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 })     // dimanche
-    const TOTAL_MINUTES = 50 * 60 // 50h/semaine (10h/jour × 5 jours)
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
+    const TOTAL_MINUTES = 50 * 60
 
     const map = new Map<string, number>()
 
@@ -73,10 +121,8 @@ function RoomsPage() {
         const bStart = new Date(b.startDateTime)
         const bEnd = new Date(b.endDateTime)
 
-        // Ignorer si hors de la semaine
         if (bEnd <= weekStart || bStart >= weekEnd) continue
 
-        // Itérer sur chaque jour de la semaine (lun-ven)
         for (let d = 0; d < 5; d++) {
           const dayStart = new Date(weekStart)
           dayStart.setDate(dayStart.getDate() + d)
@@ -85,7 +131,6 @@ function RoomsPage() {
           const dayEnd = new Date(dayStart)
           dayEnd.setHours(18, 0, 0, 0)
 
-          // Clipper aux bornes du jour 8h–18h
           const clippedStart = new Date(Math.max(bStart.getTime(), dayStart.getTime()))
           const clippedEnd = new Date(Math.min(bEnd.getTime(), dayEnd.getTime()))
 
@@ -119,6 +164,7 @@ function RoomsPage() {
   // Handlers
   const openCreate = () => {
     setForm(emptyForm)
+    setCustomEquipment('')
     setSelectedRoom(null)
     setModalMode('create')
   }
@@ -132,7 +178,9 @@ function RoomsPage() {
       roomType: room.roomType || room.type,
       description: room.description || '',
       floor: room.floor || 0,
+      equipmentNames: room.equipment.map(e => e.name),
     })
+    setCustomEquipment('')
     setModalMode('edit')
   }
 
@@ -141,18 +189,44 @@ function RoomsPage() {
     setModalMode('delete')
   }
 
+  const openRename = (equipName: string) => {
+    setRenameOld(equipName)
+    setRenameNew(equipName)
+    setModalMode('rename')
+  }
+
+  const openDeleteEquip = (equipName: string) => {
+    setEquipToDelete(equipName)
+    setModalMode('deleteEquip')
+  }
+
+  const openChangeCategory = (equipName: string, currentCategory: string) => {
+    setEquipToChangeCategory(equipName)
+    setNewCategory(currentCategory as EquipmentCategory)
+    setModalMode('changeCategory')
+  }
+
   const closeModal = () => {
     setModalMode(null)
     setSelectedRoom(null)
   }
 
+  const addCustomEquipment = () => {
+    const trimmed = customEquipment.trim()
+    if (!trimmed) return
+    if (form.equipmentNames.some(n => n.toLowerCase() === trimmed.toLowerCase())) return
+    setForm(f => ({ ...f, equipmentNames: [...f.equipmentNames, trimmed] }))
+    setCustomEquipment('')
+  }
+
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
+      const equipment = namesToEquipment(form.equipmentNames, catalog)
       if (modalMode === 'create') {
-        await createRoom(form)
+        await createRoom({ ...form, equipment })
       } else if (modalMode === 'edit' && selectedRoom) {
-        await updateRoom({ id: selectedRoom.id, ...form })
+        await updateRoom({ id: selectedRoom.id, ...form, equipment })
       }
       closeModal()
     } catch {
@@ -174,6 +248,61 @@ function RoomsPage() {
       setSubmitting(false)
     }
   }
+
+  const handleRename = async () => {
+    const trimmedNew = renameNew.trim()
+    if (!trimmedNew || trimmedNew === renameOld) return
+    setSubmitting(true)
+    try {
+      await renameEquipment(renameOld, trimmedNew)
+      closeModal()
+    } catch {
+      // Error handled by hook toast
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
+
+  const handleDeleteEquip = async () => {
+    if (!equipToDelete) return
+    setSubmitting(true)
+    try {
+      await deleteEquipment(equipToDelete)
+      closeModal()
+    } catch {
+      // Error handled by hook toast
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleChangeCategory = async () => {
+    if (!equipToChangeCategory) return
+    setSubmitting(true)
+    try {
+      await updateEquipmentCategory(equipToChangeCategory, newCategory)
+      closeModal()
+    } catch {
+      // Error handled by hook toast
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Category options for select
+  const categoryOptions = Object.entries(EQUIPMENT_CATEGORY_LABELS).map(([value, label]) => ({
+    value,
+    label,
+  }))
 
   // Loading state
   if (isLoading) {
@@ -254,52 +383,65 @@ function RoomsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
-                  {paginatedData.map(room => (
-                    <tr key={room.id} className="hover:bg-neutral-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-neutral-900">{room.name}</span>
-                        <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{room.code}</span>
-                      </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">{room.code}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={roomTypeBadgeVariant[room.roomType || room.type] || 'neutral'} size="sm">
-                          {roomTypeLabels[room.roomType || room.type] || room.roomType || room.type}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">{room.capacity} places</td>
-                      <td className="hidden md:table-cell px-4 py-3">
-                        {(() => {
-                          const pct = occupationMap.get(room.id) ?? 0
-                          const color = pct === 0 ? 'bg-neutral-200' : pct < 50 ? 'bg-success-500' : pct <= 80 ? 'bg-warning-500' : 'bg-error-500'
-                          const textColor = pct === 0 ? 'text-neutral-400' : pct < 50 ? 'text-success-700' : pct <= 80 ? 'text-warning-700' : 'text-error-700'
-                          return (
-                            <div className="flex items-center gap-2">
-                              <div className="w-20 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                  {paginatedData.map(room => {
+                    const eqList = room.equipment || []
+                    const MAX_VISIBLE = 3
+                    return (
+                      <tr key={room.id} className="hover:bg-neutral-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-neutral-900">{room.name}</span>
+                          <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{room.code}</span>
+                        </td>
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">{room.code}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={roomTypeBadgeVariant[room.roomType || room.type] || 'neutral'} size="sm">
+                            {roomTypeLabels[room.roomType || room.type] || room.roomType || room.type}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-neutral-600">{room.capacity} places</td>
+                        <td className="hidden md:table-cell px-4 py-3">
+                          {(() => {
+                            const pct = occupationMap.get(room.id) ?? 0
+                            const color = pct === 0 ? 'bg-neutral-200' : pct < 50 ? 'bg-success-500' : pct <= 80 ? 'bg-warning-500' : 'bg-error-500'
+                            const textColor = pct === 0 ? 'text-neutral-400' : pct < 50 ? 'text-success-700' : pct <= 80 ? 'text-warning-700' : 'text-error-700'
+                            return (
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className={`text-xs font-medium ${textColor}`}>{pct}%</span>
                               </div>
-                              <span className={`text-xs font-medium ${textColor}`}>{pct}%</span>
+                            )
+                          })()}
+                        </td>
+                        <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600">{room.floor ?? '-'}</td>
+                        <td className="hidden lg:table-cell px-4 py-3">
+                          {eqList.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {eqList.slice(0, MAX_VISIBLE).map(eq => (
+                                <Badge key={eq.name} variant="neutral" size="sm">{eq.name}</Badge>
+                              ))}
+                              {eqList.length > MAX_VISIBLE && (
+                                <Badge variant="info" size="sm">+{eqList.length - MAX_VISIBLE}</Badge>
+                              )}
                             </div>
-                          )
-                        })()}
-                      </td>
-                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600">{room.floor ?? '-'}</td>
-                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600">
-                        {room.equipment && room.equipment.length > 0
-                          ? room.equipment.map(e => e.name).join(', ')
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(room)}>
-                            <Pencil size={14} />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => openDelete(room)}>
-                            <Trash2 size={14} className="text-error-600" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          ) : (
+                            <span className="text-sm text-neutral-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(room)}>
+                              <Pencil size={14} />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => openDelete(room)}>
+                              <Trash2 size={14} className="text-error-600" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -322,6 +464,90 @@ function RoomsPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Bouton catalogue d'équipements */}
+      <div className="mt-6 text-center">
+        <Button
+          variant="secondary"
+          leftIcon={Tag}
+          onClick={() => setShowCatalog(v => !v)}
+        >
+          {showCatalog ? 'Masquer le catalogue' : 'Gérer les équipements'}
+        </Button>
+      </div>
+
+      {showCatalog && (
+        <div className="mt-4 bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-neutral-200">
+            <h2 className="text-lg font-semibold text-neutral-900">Catalogue d'équipements</h2>
+            <span className="text-sm text-neutral-400">{filteredCatalogCount}/{catalog.length}</span>
+            <div className="ml-auto w-44">
+              <Select
+                options={[{ value: '', label: 'Toutes catégories' }, ...categoryOptions]}
+                value={catalogCategoryFilter}
+                onChange={e => setCatalogCategoryFilter(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Salles</th>
+                  <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              {filteredCatalog.map(group => {
+                const isCollapsed = collapsedCategories.has(group.category)
+                return (
+                  <tbody key={group.category} className="divide-y divide-neutral-100">
+                    <tr
+                      className="bg-neutral-50/70 cursor-pointer select-none hover:bg-neutral-100/70 transition-colors"
+                      onClick={() => toggleCategory(group.category)}
+                    >
+                      <td colSpan={3} className="px-4 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {isCollapsed ? <ChevronRight size={14} className="text-neutral-400" /> : <ChevronDown size={14} className="text-neutral-400" />}
+                          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">{group.label}</span>
+                          <span className="text-xs text-neutral-400">{group.items.length}</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {!isCollapsed && group.items.map(entry => {
+                      const count = equipmentCounts.get(entry.name.toLowerCase()) || 0
+                      return (
+                        <tr key={entry.name} className="hover:bg-neutral-50 transition-colors">
+                          <td className="px-4 py-2.5 pl-8">
+                            <span className="font-medium text-neutral-900 text-sm">{entry.name}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-neutral-600">
+                            {count > 0 ? count : <span className="text-neutral-400">—</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => openRename(entry.name)} title="Renommer">
+                                <Pencil size={14} />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openChangeCategory(entry.name, entry.category)} title="Changer la catégorie">
+                                <Tag size={14} />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openDeleteEquip(entry.name)} title="Supprimer">
+                                <Trash2 size={14} className="text-error-600" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                )
+              })}
+            </table>
+          </div>
+        </div>
       )}
 
       {/* Create/Edit Modal */}
@@ -369,6 +595,31 @@ function RoomsPage() {
             value={form.floor || 0}
             onChange={e => setForm(f => ({ ...f, floor: parseInt(e.target.value) || 0 }))}
           />
+
+          {/* Sélecteur d'équipements */}
+          <MultiSelect
+            label="Équipements"
+            placeholder="Sélectionner les équipements..."
+            options={equipmentOptions}
+            value={form.equipmentNames}
+            onChange={names => setForm(f => ({ ...f, equipmentNames: names }))}
+          />
+
+          {/* Ajout d'un équipement personnalisé */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                placeholder="Ajouter un équipement personnalisé..."
+                value={customEquipment}
+                onChange={e => setCustomEquipment(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomEquipment() } }}
+              />
+            </div>
+            <Button variant="secondary" onClick={addCustomEquipment} disabled={!customEquipment.trim()}>
+              <Plus size={16} />
+            </Button>
+          </div>
+
           <Textarea
             label="Description"
             placeholder="Description optionnelle..."
@@ -403,6 +654,101 @@ function RoomsPage() {
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={submitting}>
             Supprimer
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Rename Equipment Modal */}
+      <Modal
+        isOpen={modalMode === 'rename'}
+        onClose={closeModal}
+        title="Renommer un équipement"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Nom actuel"
+            value={renameOld}
+            disabled
+          />
+          <Input
+            label="Nouveau nom"
+            value={renameNew}
+            onChange={e => setRenameNew(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleRename() } }}
+            autoFocus
+          />
+          <p className="text-sm text-neutral-500">
+            Le renommage sera appliqué à toutes les salles qui possèdent cet équipement
+            ({equipmentCounts.get(renameOld.toLowerCase()) || 0} salle{(equipmentCounts.get(renameOld.toLowerCase()) || 0) > 1 ? 's' : ''}).
+          </p>
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+          <Button
+            onClick={handleRename}
+            isLoading={submitting}
+            disabled={!renameNew.trim() || renameNew.trim() === renameOld}
+          >
+            Renommer
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Equipment Modal */}
+      <Modal
+        isOpen={modalMode === 'deleteEquip'}
+        onClose={closeModal}
+        title="Supprimer un équipement"
+        size="sm"
+      >
+        <div className="space-y-3">
+          <p className="text-neutral-600">
+            Êtes-vous sûr de vouloir supprimer l'équipement <strong>{equipToDelete}</strong> du catalogue ?
+          </p>
+          {(equipmentCounts.get(equipToDelete.toLowerCase()) || 0) > 0 && (
+            <p className="text-sm text-warning-600 bg-warning-50 rounded-lg px-3 py-2">
+              Cet équipement sera retiré de {equipmentCounts.get(equipToDelete.toLowerCase())} salle{(equipmentCounts.get(equipToDelete.toLowerCase()) || 0) > 1 ? 's' : ''}.
+            </p>
+          )}
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+          <Button variant="danger" onClick={handleDeleteEquip} isLoading={submitting}>
+            Supprimer
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Change Category Modal */}
+      <Modal
+        isOpen={modalMode === 'changeCategory'}
+        onClose={closeModal}
+        title="Modifier la catégorie"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Équipement"
+            value={equipToChangeCategory}
+            disabled
+          />
+          <Select
+            label="Nouvelle catégorie"
+            options={categoryOptions}
+            value={newCategory}
+            onChange={e => setNewCategory(e.target.value as EquipmentCategory)}
+          />
+          {(equipmentCounts.get(equipToChangeCategory.toLowerCase()) || 0) > 0 && (
+            <p className="text-sm text-neutral-500">
+              Le changement sera appliqué dans {equipmentCounts.get(equipToChangeCategory.toLowerCase())} salle{(equipmentCounts.get(equipToChangeCategory.toLowerCase()) || 0) > 1 ? 's' : ''}.
+            </p>
+          )}
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+          <Button onClick={handleChangeCategory} isLoading={submitting}>
+            Enregistrer
           </Button>
         </ModalFooter>
       </Modal>

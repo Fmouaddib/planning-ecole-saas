@@ -390,6 +390,9 @@ export interface UseRoomsReturn {
   createRoom: (data: CreateRoomData) => Promise<Room>
   updateRoom: (data: UpdateRoomData) => Promise<Room>
   deleteRoom: (id: UUID) => Promise<void>
+  renameEquipment: (oldName: string, newName: string) => Promise<void>
+  deleteEquipment: (name: string) => Promise<void>
+  updateEquipmentCategory: (name: string, newCategory: EquipmentCategory) => Promise<void>
   getRoomById: (id: UUID) => Room | undefined
   filterRooms: (filters: RoomFilters) => Room[]
   refreshRooms: () => Promise<void>

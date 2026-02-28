@@ -116,6 +116,50 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
   completed: '#6b7280',
 }
 
+// Labels des catégories d'équipements
+export const EQUIPMENT_CATEGORY_LABELS: Record<string, string> = {
+  technology: 'Technologie',
+  multimedia: 'Multimédia',
+  furniture: 'Mobilier',
+  safety: 'Sécurité',
+  specialized: 'Spécialisé',
+}
+
+// Catalogue prédéfini d'équipements
+export const PREDEFINED_EQUIPMENT: { name: string; category: string }[] = [
+  // Technologie
+  { name: 'Ordinateur fixe', category: 'technology' },
+  { name: 'Ordinateur portable', category: 'technology' },
+  { name: 'Imprimante', category: 'technology' },
+  { name: 'Wi-Fi', category: 'technology' },
+  { name: 'Prises réseau', category: 'technology' },
+  // Multimédia
+  { name: 'Vidéoprojecteur', category: 'multimedia' },
+  { name: 'Écran / TV', category: 'multimedia' },
+  { name: 'Tableau blanc interactif', category: 'multimedia' },
+  { name: 'Webcam', category: 'multimedia' },
+  { name: 'Sono', category: 'multimedia' },
+  { name: 'Micro', category: 'multimedia' },
+  // Mobilier
+  { name: 'Tableau blanc', category: 'furniture' },
+  { name: 'Tableau noir', category: 'furniture' },
+  { name: 'Paperboard', category: 'furniture' },
+  { name: 'Tables modulables', category: 'furniture' },
+  { name: 'Chaises à roulettes', category: 'furniture' },
+  { name: 'Rangements', category: 'furniture' },
+  // Sécurité
+  { name: 'Extincteur', category: 'safety' },
+  { name: 'Défibrillateur', category: 'safety' },
+  { name: 'Trousse de secours', category: 'safety' },
+  { name: 'Caméra', category: 'safety' },
+  // Spécialisé
+  { name: 'Matériel de laboratoire', category: 'specialized' },
+  { name: 'Climatisation', category: 'specialized' },
+  { name: 'Stores occultants', category: 'specialized' },
+  { name: 'Accès PMR', category: 'specialized' },
+  { name: 'Prises électriques renforcées', category: 'specialized' },
+]
+
 // Messages de succès
 export const SUCCESS_MESSAGES = {
   LOGIN_SUCCESS: 'Connexion réussie',

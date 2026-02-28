@@ -4,11 +4,12 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { Room, CreateRoomData, UpdateRoomData, RoomFilters, UseRoomsReturn, UUID } from '@/types'
+import type { Room, CreateRoomData, UpdateRoomData, RoomFilters, UseRoomsReturn, UUID, EquipmentCategory } from '@/types'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { getErrorMessage } from '@/utils'
 import { transformRoom } from '@/utils/transforms'
+import { computeRenameUpdates, computeDeleteUpdates, computeCategoryUpdates } from '@/utils/equipmentCatalog'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
@@ -192,6 +193,91 @@ export function useRooms(): UseRoomsReturn {
     }
   }, [user, handleError])
 
+  const renameEquipment = useCallback(async (oldName: string, newName: string): Promise<void> => {
+    try {
+      setError(null)
+      const updates = computeRenameUpdates(rooms, oldName, newName)
+
+      if (updates.length === 0) {
+        toast('Aucune salle ne possède cet équipement')
+        return
+      }
+
+      // Batch update chaque salle affectée
+      for (const { roomId, newEquipment } of updates) {
+        const { error: updateError } = await supabase
+          .from('rooms')
+          .update({ equipment: newEquipment })
+          .eq('id', roomId)
+
+        if (updateError) throw updateError
+      }
+
+      await fetchRooms()
+      toast.success(`Équipement renommé "${oldName}" → "${newName}" dans ${updates.length} salle${updates.length > 1 ? 's' : ''}`)
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors du renommage de l\'équipement')
+      toast.error(message)
+      throw error
+    }
+  }, [rooms, fetchRooms, handleError])
+
+  const deleteEquipment = useCallback(async (name: string): Promise<void> => {
+    try {
+      setError(null)
+      const updates = computeDeleteUpdates(rooms, name)
+
+      if (updates.length === 0) {
+        toast('Aucune salle ne possède cet équipement')
+        return
+      }
+
+      for (const { roomId, newEquipment } of updates) {
+        const { error: updateError } = await supabase
+          .from('rooms')
+          .update({ equipment: newEquipment })
+          .eq('id', roomId)
+
+        if (updateError) throw updateError
+      }
+
+      await fetchRooms()
+      toast.success(`Équipement "${name}" supprimé de ${updates.length} salle${updates.length > 1 ? 's' : ''}`)
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors de la suppression de l\'équipement')
+      toast.error(message)
+      throw error
+    }
+  }, [rooms, fetchRooms, handleError])
+
+  const updateEquipmentCategory = useCallback(async (name: string, newCategory: EquipmentCategory): Promise<void> => {
+    try {
+      setError(null)
+      const updates = computeCategoryUpdates(rooms, name, newCategory)
+
+      if (updates.length === 0) {
+        toast('Aucune salle ne possède cet équipement')
+        return
+      }
+
+      for (const { roomId, newEquipment } of updates) {
+        const { error: updateError } = await supabase
+          .from('rooms')
+          .update({ equipment: newEquipment })
+          .eq('id', roomId)
+
+        if (updateError) throw updateError
+      }
+
+      await fetchRooms()
+      toast.success(`Catégorie de "${name}" modifiée dans ${updates.length} salle${updates.length > 1 ? 's' : ''}`)
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors du changement de catégorie')
+      toast.error(message)
+      throw error
+    }
+  }, [rooms, fetchRooms, handleError])
+
   // ==================== QUERY FUNCTIONS ====================
 
   const getRoomById = useCallback((id: UUID): Room | undefined => {
@@ -342,6 +428,9 @@ export function useRooms(): UseRoomsReturn {
     createRoom,
     updateRoom,
     deleteRoom,
+    renameEquipment,
+    deleteEquipment,
+    updateEquipmentCategory,
     getRoomById,
     filterRooms,
     refreshRooms,
