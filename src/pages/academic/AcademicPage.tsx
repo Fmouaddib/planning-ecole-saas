@@ -427,37 +427,48 @@ interface SubjectForm {
   code: string
   description: string
   category: string
+  diplomaId: string
 }
 
-const emptySubjectForm: SubjectForm = { name: '', code: '', description: '', category: '' }
+const emptySubjectForm: SubjectForm = { name: '', code: '', description: '', category: '', diplomaId: '' }
 
 function SubjectsTab({
   subjects,
+  diplomas,
+  diplomaOptions,
   createSubject,
   updateSubject,
   deleteSubject,
 }: {
   subjects: Subject[]
-  createSubject: (data: { name: string; code?: string; description?: string; category?: string }) => Promise<Subject>
-  updateSubject: (id: string, data: { name?: string; code?: string; description?: string; category?: string }) => Promise<Subject>
+  diplomas: Diploma[]
+  diplomaOptions: { value: string; label: string }[]
+  createSubject: (data: { name: string; code?: string; description?: string; category?: string; diplomaId?: string }) => Promise<Subject>
+  updateSubject: (id: string, data: { name?: string; code?: string; description?: string; category?: string; diplomaId?: string }) => Promise<Subject>
   deleteSubject: (id: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
+  const [diplomaFilter, setDiplomaFilter] = useState('')
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
   const [selected, setSelected] = useState<Subject | null>(null)
   const [form, setForm] = useState<SubjectForm>(emptySubjectForm)
   const [submitting, setSubmitting] = useState(false)
 
   const filtered = useMemo(() => {
-    return search ? filterBySearch(subjects, search, ['name', 'code']) : subjects
-  }, [subjects, search])
+    let result = subjects
+    if (search) result = filterBySearch(result, search, ['name', 'code'])
+    if (diplomaFilter) result = result.filter(s => s.diplomaId === diplomaFilter)
+    return result
+  }, [subjects, search, diplomaFilter])
+
+  const getDiplomaTitle = (diplomaId?: string) => diplomas.find(d => d.id === diplomaId)?.title || '-'
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
   const openCreate = () => { setForm(emptySubjectForm); setSelected(null); setModalMode('create') }
   const openEdit = (s: Subject) => {
     setSelected(s)
-    setForm({ name: s.name, code: s.code, description: s.description || '', category: s.category || '' })
+    setForm({ name: s.name, code: s.code, description: s.description || '', category: s.category || '', diplomaId: s.diplomaId || '' })
     setModalMode('edit')
   }
   const openDelete = (s: Subject) => { setSelected(s); setModalMode('delete') }
@@ -467,9 +478,9 @@ function SubjectsTab({
     setSubmitting(true)
     try {
       if (modalMode === 'create') {
-        await createSubject(form)
+        await createSubject({ ...form, diplomaId: form.diplomaId || undefined })
       } else if (modalMode === 'edit' && selected) {
-        await updateSubject(selected.id, form)
+        await updateSubject(selected.id, { ...form, diplomaId: form.diplomaId || undefined })
       }
       closeModal()
     } catch { /* toast in hook */ } finally { setSubmitting(false) }
@@ -489,6 +500,13 @@ function SubjectsTab({
         <div className="flex-1">
           <Input placeholder="Rechercher par nom ou code..." leftIcon={Search} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+        <div className="w-full sm:w-56">
+          <Select
+            options={[{ value: '', label: 'Tous les diplômes' }, ...diplomaOptions]}
+            value={diplomaFilter}
+            onChange={e => setDiplomaFilter(e.target.value)}
+          />
+        </div>
         <Button leftIcon={Plus} onClick={openCreate}>Ajouter une matière</Button>
       </div>
 
@@ -497,8 +515,8 @@ function SubjectsTab({
         <EmptyState
           icon={BookOpen}
           title="Aucune matière"
-          description={search ? 'Aucune matière ne correspond à votre recherche.' : 'Commencez par créer votre première matière.'}
-          action={!search ? { label: 'Ajouter une matière', onClick: openCreate, icon: Plus } : undefined}
+          description={search || diplomaFilter ? 'Aucune matière ne correspond à vos critères.' : 'Commencez par créer votre première matière.'}
+          action={!search && !diplomaFilter ? { label: 'Ajouter une matière', onClick: openCreate, icon: Plus } : undefined}
         />
       ) : (
         <>
@@ -509,6 +527,7 @@ function SubjectsTab({
                   <tr className="border-b border-neutral-200 bg-neutral-50">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
+                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Diplôme</th>
                     <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Catégorie</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Description</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
@@ -521,6 +540,13 @@ function SubjectsTab({
                         <span className="font-medium text-neutral-900">{s.name}</span>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600">{s.code || '-'}</td>
+                      <td className="px-4 py-3">
+                        {s.diplomaId ? (
+                          <Badge variant="success" size="sm">{getDiplomaTitle(s.diplomaId)}</Badge>
+                        ) : (
+                          <span className="text-sm text-neutral-400">-</span>
+                        )}
+                      </td>
                       <td className="hidden sm:table-cell px-4 py-3">
                         {s.category ? <Badge variant="warning" size="sm">{s.category}</Badge> : <span className="text-sm text-neutral-400">-</span>}
                       </td>
@@ -555,6 +581,8 @@ function SubjectsTab({
         <div className="space-y-4">
           <Input label="Nom de la matière" placeholder="Ex: Mathématiques" value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+          <Select label="Diplôme" options={[{ value: '', label: 'Sélectionner un diplôme...' }, ...diplomaOptions]}
+            value={form.diplomaId} onChange={e => setForm(f => ({ ...f, diplomaId: e.target.value }))} required />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Code" placeholder="Ex: MATH" value={form.code}
               onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
@@ -566,7 +594,7 @@ function SubjectsTab({
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
-          <Button onClick={handleSubmit} isLoading={submitting} disabled={!form.name.trim()}>
+          <Button onClick={handleSubmit} isLoading={submitting} disabled={!form.name.trim() || !form.diplomaId}>
             {modalMode === 'create' ? 'Créer' : 'Enregistrer'}
           </Button>
         </ModalFooter>
@@ -576,7 +604,7 @@ function SubjectsTab({
       <Modal isOpen={modalMode === 'delete'} onClose={closeModal} title="Supprimer la matière" size="sm">
         <p className="text-neutral-600">
           Êtes-vous sûr de vouloir supprimer la matière <strong>{selected?.name}</strong> ?
-          Elle sera retirée de toutes les classes auxquelles elle est associée.
+          Elle sera retirée de toutes les classes et de tous les professeurs auxquels elle est associée.
         </p>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
@@ -594,20 +622,29 @@ interface TeacherForm {
   lastName: string
   email: string
   hasAccess: boolean
+  subjectIds: string[]
 }
 
-const emptyTeacherForm: TeacherForm = { firstName: '', lastName: '', email: '', hasAccess: true }
+const emptyTeacherForm: TeacherForm = { firstName: '', lastName: '', email: '', hasAccess: true, subjectIds: [] }
 
 function TeachersTab({
   teachers,
+  subjects,
+  subjectOptions,
+  getSubjectIdsForTeacher,
   createTeacher,
   updateTeacher,
   deleteTeacher,
+  setTeacherSubjectLinks,
 }: {
   teachers: User[]
+  subjects: Subject[]
+  subjectOptions: { value: string; label: string }[]
+  getSubjectIdsForTeacher: (teacherId: string) => string[]
   createTeacher: (data: { firstName: string; lastName: string; email: string; role: 'teacher' | 'staff' }) => Promise<User>
-  updateTeacher: (id: string, data: { firstName?: string; lastName?: string; role?: 'teacher' | 'staff' }) => Promise<User>
+  updateTeacher: (id: string, data: { firstName?: string; lastName?: string; email?: string; role?: 'teacher' | 'staff' }) => Promise<User>
   deleteTeacher: (id: string) => Promise<void>
+  setTeacherSubjectLinks: (teacherId: string, subjectIds: string[]) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [accessFilter, setAccessFilter] = useState<'' | 'active' | 'inactive'>('')
@@ -633,6 +670,7 @@ function TeachersTab({
       firstName: t.firstName, lastName: t.lastName,
       email: t.email,
       hasAccess: t.role === 'teacher',
+      subjectIds: getSubjectIdsForTeacher(t.id),
     })
     setModalMode('edit')
   }
@@ -643,18 +681,23 @@ function TeachersTab({
     setSubmitting(true)
     try {
       if (modalMode === 'create') {
-        await createTeacher({
+        const created = await createTeacher({
           firstName: form.firstName,
           lastName: form.lastName,
           email: form.email,
           role: form.hasAccess ? 'teacher' : 'staff',
         })
+        if (form.subjectIds.length > 0) {
+          await setTeacherSubjectLinks(created.id, form.subjectIds)
+        }
       } else if (modalMode === 'edit' && selected) {
         await updateTeacher(selected.id, {
           firstName: form.firstName,
           lastName: form.lastName,
+          email: form.email,
           role: form.hasAccess ? 'teacher' : 'staff',
         })
+        await setTeacherSubjectLinks(selected.id, form.subjectIds)
       }
       closeModal()
     } catch { /* toast in hook */ } finally { setSubmitting(false) }
@@ -665,6 +708,11 @@ function TeachersTab({
     setSubmitting(true)
     try { await deleteTeacher(selected.id); closeModal() }
     catch { /* toast in hook */ } finally { setSubmitting(false) }
+  }
+
+  const getTeacherSubjectNames = (teacherId: string) => {
+    const ids = getSubjectIdsForTeacher(teacherId)
+    return subjects.filter(s => ids.includes(s.id)).map(s => s.name)
   }
 
   const toggleAccess = async (t: User) => {
@@ -713,17 +761,34 @@ function TeachersTab({
                   <tr className="border-b border-neutral-200 bg-neutral-50">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Email</th>
+                    <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Matières</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Accès professeur</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
-                  {paginatedData.map(t => (
+                  {paginatedData.map(t => {
+                    const subjectNames = getTeacherSubjectNames(t.id)
+                    return (
                     <tr key={t.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-4 py-3">
                         <span className="font-medium text-neutral-900">{t.firstName} {t.lastName}</span>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600">{t.email}</td>
+                      <td className="hidden lg:table-cell px-4 py-3">
+                        {subjectNames.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {subjectNames.slice(0, 3).map(name => (
+                              <Badge key={name} variant="neutral" size="sm">{name}</Badge>
+                            ))}
+                            {subjectNames.length > 3 && (
+                              <Badge variant="neutral" size="sm">+{subjectNames.length - 3}</Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-neutral-400">-</span>
+                        )}
+                      </td>
                       <td className="hidden md:table-cell px-4 py-3">
                         <button
                           onClick={() => toggleAccess(t)}
@@ -744,7 +809,8 @@ function TeachersTab({
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -773,7 +839,7 @@ function TeachersTab({
           </div>
           <Input label="Email" type="email" placeholder="jean.dupont@ecole.fr" value={form.email}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-            required={modalMode === 'create'} disabled={modalMode === 'edit'} />
+            required />
 
           {/* Toggle accès professeur */}
           <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
@@ -793,6 +859,16 @@ function TeachersTab({
               }`} />
             </button>
           </div>
+
+          {subjectOptions.length > 0 && (
+            <MultiSelect
+              label="Matières enseignées"
+              placeholder="Sélectionner les matières..."
+              options={subjectOptions}
+              value={form.subjectIds}
+              onChange={ids => setForm(f => ({ ...f, subjectIds: ids }))}
+            />
+          )}
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
@@ -838,6 +914,8 @@ function AcademicPage() {
     createSubject, updateSubject, deleteSubject,
     createTeacher, updateTeacher, deleteTeacher,
     setClassSubjectLinks,
+    setTeacherSubjectLinks,
+    getSubjectIdsForTeacher,
     refreshAll,
   } = useAcademicData()
 
@@ -919,6 +997,8 @@ function AcademicPage() {
       {activeTab === 'subjects' && (
         <SubjectsTab
           subjects={subjects}
+          diplomas={diplomas}
+          diplomaOptions={diplomaOptions}
           createSubject={createSubject}
           updateSubject={updateSubject}
           deleteSubject={deleteSubject}
@@ -927,9 +1007,13 @@ function AcademicPage() {
       {activeTab === 'teachers' && (
         <TeachersTab
           teachers={teachers}
+          subjects={subjects}
+          subjectOptions={subjectOptions}
+          getSubjectIdsForTeacher={getSubjectIdsForTeacher}
           createTeacher={createTeacher}
           updateTeacher={updateTeacher}
           deleteTeacher={deleteTeacher}
+          setTeacherSubjectLinks={setTeacherSubjectLinks}
         />
       )}
     </div>

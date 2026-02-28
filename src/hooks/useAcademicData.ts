@@ -21,12 +21,18 @@ interface ClassSubjectLink {
   subject_id: string
 }
 
+interface TeacherSubjectLink {
+  teacher_id: string
+  subject_id: string
+}
+
 export function useAcademicData() {
   const [diplomas, setDiplomas] = useState<Diploma[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [teachers, setTeachers] = useState<User[]>([])
   const [classSubjects, setClassSubjects] = useState<ClassSubjectLink[]>([])
+  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubjectLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
 
@@ -52,7 +58,7 @@ export function useAcademicData() {
           .order('name'),
         supabase
           .from('subjects')
-          .select('*')
+          .select('*, diploma:diplomas(id, title)')
           .eq('center_id', user.establishmentId)
           .order('name'),
         supabase
@@ -107,6 +113,8 @@ export function useAcademicData() {
         code: s.code || '',
         description: s.description ?? undefined,
         category: s.category ?? undefined,
+        diplomaId: s.diploma_id || undefined,
+        diploma: s.diploma || undefined,
         isActive: s.is_active ?? true,
         centerId: s.center_id,
         createdAt: s.created_at,
@@ -130,6 +138,21 @@ export function useAcademicData() {
         }
       } else {
         setClassSubjects([])
+      }
+
+      // Charger les liens teacher_subjects si on a des professeurs
+      const teacherIds = (teachersRes.data || []).map((t: any) => t.id)
+      if (teacherIds.length > 0) {
+        const { data: tsData, error: tsError } = await supabase
+          .from('teacher_subjects')
+          .select('teacher_id, subject_id')
+          .in('teacher_id', teacherIds)
+
+        if (!tsError && tsData) {
+          setTeacherSubjects(tsData)
+        }
+      } else {
+        setTeacherSubjects([])
       }
     } catch (error: any) {
       console.error('Erreur chargement données académiques:', error)
@@ -257,7 +280,7 @@ export function useAcademicData() {
 
   // ==================== CRUD Subjects ====================
 
-  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string }) => {
+  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; diplomaId?: string }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('subjects')
@@ -266,14 +289,16 @@ export function useAcademicData() {
         code: data.code || null,
         description: data.description || null,
         category: data.category || null,
+        diploma_id: data.diplomaId || null,
         center_id: user.establishmentId,
       })
-      .select('*')
+      .select('*, diploma:diplomas(id, title)')
       .single()
     if (error) { toast.error('Erreur création matière: ' + error.message); throw error }
     const newSubject: Subject = {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
-      category: row.category ?? undefined, isActive: row.is_active ?? true,
+      category: row.category ?? undefined, diplomaId: row.diploma_id || undefined,
+      diploma: row.diploma || undefined, isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
     setSubjects(prev => [...prev, newSubject].sort((a, b) => a.name.localeCompare(b.name)))
@@ -281,17 +306,20 @@ export function useAcademicData() {
     return newSubject
   }, [user?.establishmentId])
 
-  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string }) => {
+  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; diplomaId?: string }) => {
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.code !== undefined) payload.code = data.code || null
     if (data.description !== undefined) payload.description = data.description || null
     if (data.category !== undefined) payload.category = data.category || null
-    const { data: row, error } = await supabase.from('subjects').update(payload).eq('id', id).select('*').single()
+    if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId || null
+    const { data: row, error } = await supabase.from('subjects').update(payload).eq('id', id)
+      .select('*, diploma:diplomas(id, title)').single()
     if (error) { toast.error('Erreur modification matière: ' + error.message); throw error }
     const updated: Subject = {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
-      category: row.category ?? undefined, isActive: row.is_active ?? true,
+      category: row.category ?? undefined, diplomaId: row.diploma_id || undefined,
+      diploma: row.diploma || undefined, isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
     setSubjects(prev => prev.map(s => s.id === id ? updated : s))
@@ -304,6 +332,7 @@ export function useAcademicData() {
     if (error) { toast.error('Erreur suppression matière: ' + error.message); throw error }
     setSubjects(prev => prev.filter(s => s.id !== id))
     setClassSubjects(prev => prev.filter(cs => cs.subject_id !== id))
+    setTeacherSubjects(prev => prev.filter(ts => ts.subject_id !== id))
     toast.success('Matière supprimée')
   }, [])
 
@@ -377,12 +406,13 @@ export function useAcademicData() {
     throw rpcError || new Error('Erreur inconnue')
   }, [user?.establishmentId])
 
-  const updateTeacher = useCallback(async (id: string, data: { firstName?: string; lastName?: string; role?: 'teacher' | 'staff' }) => {
+  const updateTeacher = useCallback(async (id: string, data: { firstName?: string; lastName?: string; email?: string; role?: 'teacher' | 'staff' }) => {
     const current = teachers.find(t => t.id === id)
     const fn = data.firstName ?? current?.firstName ?? ''
     const ln = data.lastName ?? current?.lastName ?? ''
     const payload: Record<string, any> = {}
     payload.full_name = `${fn} ${ln}`.trim()
+    if (data.email !== undefined) payload.email = data.email
     if (data.role !== undefined) payload.role = data.role
 
     const { data: row, error } = await supabase.from('profiles').update(payload).eq('id', id).select('*').single()
@@ -397,6 +427,7 @@ export function useAcademicData() {
     const { error } = await supabase.from('profiles').update({ is_active: false }).eq('id', id)
     if (error) { toast.error('Erreur suppression professeur: ' + error.message); throw error }
     setTeachers(prev => prev.filter(t => t.id !== id))
+    setTeacherSubjects(prev => prev.filter(ts => ts.teacher_id !== id))
     toast.success('Professeur retiré')
   }, [])
 
@@ -433,6 +464,41 @@ export function useAcademicData() {
       return classSubjects.filter(cs => cs.class_id === classId).map(cs => cs.subject_id)
     },
     [classSubjects],
+  )
+
+  // ==================== Liens teacher_subjects ====================
+
+  const linkSubjectToTeacher = useCallback(async (teacherId: string, subjectId: string) => {
+    const { error } = await supabase.from('teacher_subjects').insert({ teacher_id: teacherId, subject_id: subjectId })
+    if (error) { toast.error('Erreur liaison matière: ' + error.message); throw error }
+    setTeacherSubjects(prev => [...prev, { teacher_id: teacherId, subject_id: subjectId }])
+  }, [])
+
+  const unlinkSubjectFromTeacher = useCallback(async (teacherId: string, subjectId: string) => {
+    const { error } = await supabase.from('teacher_subjects').delete()
+      .eq('teacher_id', teacherId).eq('subject_id', subjectId)
+    if (error) { toast.error('Erreur suppression liaison: ' + error.message); throw error }
+    setTeacherSubjects(prev => prev.filter(ts => !(ts.teacher_id === teacherId && ts.subject_id === subjectId)))
+  }, [])
+
+  const setTeacherSubjectLinks = useCallback(async (teacherId: string, subjectIds: string[]) => {
+    const currentIds = teacherSubjects.filter(ts => ts.teacher_id === teacherId).map(ts => ts.subject_id)
+    const toAdd = subjectIds.filter(id => !currentIds.includes(id))
+    const toRemove = currentIds.filter(id => !subjectIds.includes(id))
+
+    for (const sid of toAdd) {
+      await linkSubjectToTeacher(teacherId, sid)
+    }
+    for (const sid of toRemove) {
+      await unlinkSubjectFromTeacher(teacherId, sid)
+    }
+  }, [teacherSubjects, linkSubjectToTeacher, unlinkSubjectFromTeacher])
+
+  const getSubjectIdsForTeacher = useCallback(
+    (teacherId: string): string[] => {
+      return teacherSubjects.filter(ts => ts.teacher_id === teacherId).map(ts => ts.subject_id)
+    },
+    [teacherSubjects],
   )
 
   // Helpers de cascade
@@ -536,6 +602,9 @@ export function useAcademicData() {
     unlinkSubjectFromClass,
     setClassSubjectLinks,
     getSubjectIdsForClass,
+    // Teacher-Subject links
+    setTeacherSubjectLinks,
+    getSubjectIdsForTeacher,
     // Refresh
     refreshAll: fetchAll,
   }

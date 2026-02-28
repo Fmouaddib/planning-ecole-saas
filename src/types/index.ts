@@ -268,6 +268,8 @@ export interface Subject {
   code: string
   description?: string
   category?: string
+  diplomaId?: string
+  diploma?: { id: string; title: string }
   isActive: boolean
   centerId: string
   createdAt: string
