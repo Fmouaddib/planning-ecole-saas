@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Modal, ModalFooter, Button, Input, Select, Textarea } from '@/components/ui'
@@ -14,10 +14,15 @@ interface CreateBookingModalProps {
     startDateTime: string
     endDateTime: string
     description: string
+    subjectId?: string
+    classId?: string
   }) => void
   prefilledDate: Date | null
   prefilledHour: number | null
   rooms: { value: string; label: string }[]
+  diplomaOptions?: { value: string; label: string }[]
+  classOptionsByDiploma?: (diplomaId: string) => { value: string; label: string }[]
+  subjectOptionsByClass?: (classId: string) => { value: string; label: string }[]
 }
 
 const typeOptions = [
@@ -35,6 +40,9 @@ export function CreateBookingModal({
   prefilledDate,
   prefilledHour,
   rooms,
+  diplomaOptions = [],
+  classOptionsByDiploma,
+  subjectOptionsByClass,
 }: CreateBookingModalProps) {
   const dateStr = prefilledDate ? format(prefilledDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   const startH = prefilledHour != null ? prefilledHour : 8
@@ -49,12 +57,74 @@ export function CreateBookingModal({
   const [description, setDescription] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Cascade académique
+  const [diplomaId, setDiplomaId] = useState('')
+  const [classId, setClassId] = useState('')
+  const [subjectId, setSubjectId] = useState('')
+
+  const classOptions = useMemo(
+    () => (diplomaId && classOptionsByDiploma ? classOptionsByDiploma(diplomaId) : []),
+    [diplomaId, classOptionsByDiploma],
+  )
+
+  const subjectOptions = useMemo(
+    () => (classId && subjectOptionsByClass ? subjectOptionsByClass(classId) : []),
+    [classId, subjectOptionsByClass],
+  )
+
+  const hasDiplomaData = diplomaOptions.length > 0
+
+  const handleDiplomaChange = (newDiplomaId: string) => {
+    setDiplomaId(newDiplomaId)
+    setClassId('')
+    setSubjectId('')
+  }
+
+  const handleClassChange = (newClassId: string) => {
+    setClassId(newClassId)
+    setSubjectId('')
+  }
+
+  const handleSubjectChange = (newSubjectId: string) => {
+    setSubjectId(newSubjectId)
+    // Auto-remplir le titre si vide
+    if (!title.trim()) {
+      const subjectLabel = subjectOptions.find(s => s.value === newSubjectId)?.label
+      const classLabel = classOptions.find(c => c.value === classId)?.label
+      if (subjectLabel && classLabel) {
+        setTitle(`${subjectLabel} - ${classLabel}`)
+      } else if (subjectLabel) {
+        setTitle(subjectLabel)
+      }
+    }
+  }
+
+  // Auto-ajuster l'heure de fin quand le début change (+1h, max 20:00)
+  const handleStartTimeChange = (newStart: string) => {
+    setStartTime(newStart)
+    const [h, m] = newStart.split(':').map(Number)
+    const endH = Math.min(h + 1, 20)
+    const newEnd = `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+    // Ajuster la fin seulement si elle serait avant le nouveau début
+    if (newEnd > endTime || newStart >= endTime) {
+      setEndTime(newEnd)
+    }
+  }
+
+  // Empêcher l'heure de fin d'être avant le début
+  const handleEndTimeChange = (newEnd: string) => {
+    if (newEnd <= startTime) return
+    setEndTime(newEnd)
+  }
+
   const validate = () => {
     const errs: Record<string, string> = {}
     if (!title.trim()) errs.title = 'Le titre est requis'
     if (!roomId) errs.roomId = 'La salle est requise'
     if (!date) errs.date = 'La date est requise'
     if (startTime >= endTime) errs.endTime = 'L\'heure de fin doit être après le début'
+    if (startTime < '08:00') errs.startTime = 'Début minimum : 08:00'
+    if (endTime > '20:00') errs.endTime = 'Fin maximum : 20:00'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -70,12 +140,17 @@ export function CreateBookingModal({
       startDateTime,
       endDateTime,
       description: description.trim(),
+      subjectId: subjectId || undefined,
+      classId: classId || undefined,
     })
     // Reset
     setTitle('')
     setRoomId('')
     setType('course')
     setDescription('')
+    setDiplomaId('')
+    setClassId('')
+    setSubjectId('')
     setErrors({})
     onClose()
   }
@@ -91,6 +166,32 @@ export function CreateBookingModal({
       )}
 
       <div className="space-y-4">
+        {/* Cascade académique */}
+        {hasDiplomaData && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Select
+              label="Diplôme"
+              options={[{ value: '', label: 'Sélectionner...' }, ...diplomaOptions]}
+              value={diplomaId}
+              onChange={e => handleDiplomaChange(e.target.value)}
+            />
+            <Select
+              label="Classe"
+              options={[{ value: '', label: diplomaId ? 'Sélectionner...' : 'Choisir un diplôme' }, ...classOptions]}
+              value={classId}
+              onChange={e => handleClassChange(e.target.value)}
+              disabled={!diplomaId}
+            />
+            <Select
+              label="Matière"
+              options={[{ value: '', label: classId ? 'Sélectionner...' : 'Choisir une classe' }, ...subjectOptions]}
+              value={subjectId}
+              onChange={e => handleSubjectChange(e.target.value)}
+              disabled={!classId}
+            />
+          </div>
+        )}
+
         <Input
           label="Titre"
           value={title}
@@ -127,13 +228,18 @@ export function CreateBookingModal({
             label="Début"
             type="time"
             value={startTime}
-            onChange={e => setStartTime(e.target.value)}
+            onChange={e => handleStartTimeChange(e.target.value)}
+            min="08:00"
+            max="19:00"
+            error={errors.startTime}
           />
           <Input
             label="Fin"
             type="time"
             value={endTime}
-            onChange={e => setEndTime(e.target.value)}
+            onChange={e => handleEndTimeChange(e.target.value)}
+            min={startTime}
+            max="20:00"
             error={errors.endTime}
           />
         </div>

@@ -149,6 +149,8 @@ export function useBookings(): UseBookingsReturn {
         center_id: user.establishmentId,
         session_type: 'in_person' as const,  // enum: in_person, online, hybrid
         status: 'scheduled' as const,
+        subject_id: data.subjectId || null,
+        class_id: data.classId || null,
       }
 
       const { data: newSession, error: createError } = await supabase
@@ -208,6 +210,8 @@ export function useBookings(): UseBookingsReturn {
         start_time: data.startDateTime,
         end_time: data.endDateTime,
         room_id: data.roomId,
+        subject_id: data.subjectId,
+        class_id: data.classId,
       }
 
       // Supprimer les propriétés undefined

@@ -21,6 +21,7 @@ const CoursesPage = lazy(() => import('@/pages/courses/CoursesPage'))
 const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'))
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'))
 const HelpPage = lazy(() => import('@/pages/help/HelpPage'))
+const AcademicPage = lazy(() => import('@/pages/academic/AcademicPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -49,6 +50,7 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.ANALYTICS]: AnalyticsPage,
   [ROUTES.SETTINGS]: SettingsPage,
   [ROUTES.PROFILE]: ProfilePage,
+  [ROUTES.ACADEMIC]: AcademicPage,
   [ROUTES.HELP]: HelpPage,
 }
 

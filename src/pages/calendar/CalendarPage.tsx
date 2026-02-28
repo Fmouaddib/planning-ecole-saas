@@ -28,7 +28,7 @@ import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { formatTimeRange } from '@/utils/helpers'
-import { MATIERES, DIPLOMES, NIVEAUX } from '@/utils/constants'
+import { useAcademicData } from '@/hooks/useAcademicData'
 import { exportToExcel, exportToCSV, exportToPDF, exportToWord, exportToExcelCalendar, exportToCSVCalendar, exportToPDFCalendar, exportToWordCalendar } from '@/utils/export'
 import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
@@ -203,6 +203,14 @@ interface DragState {
 function CalendarPage() {
   const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking } = useBookings()
   const { rooms, buildingsWithRooms } = useRooms()
+  const {
+    diplomaOptions,
+    classOptionsByDiploma,
+    subjectOptionsByClass,
+    allSubjectOptions,
+    allDiplomaOptions,
+    allClassOptions,
+  } = useAcademicData()
   const [view, setView] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [roomFilter, setRoomFilter] = useState('')
@@ -382,6 +390,8 @@ function CalendarPage() {
     startDateTime: string
     endDateTime: string
     description: string
+    subjectId?: string
+    classId?: string
   }) => {
     try {
       await createBooking({
@@ -391,6 +401,8 @@ function CalendarPage() {
         startDateTime: data.startDateTime,
         endDateTime: data.endDateTime,
         description: data.description,
+        subjectId: data.subjectId,
+        classId: data.classId,
       })
     } catch {
       // Error handled by hook toast
@@ -615,24 +627,24 @@ function CalendarPage() {
             />
             <MultiSelect
               label="Matière"
-              options={MATIERES}
+              options={allSubjectOptions}
               value={selectedMatieres}
               onChange={setSelectedMatieres}
               placeholder="Toutes les matières"
             />
             <MultiSelect
               label="Diplôme"
-              options={DIPLOMES}
+              options={allDiplomaOptions}
               value={selectedDiplomes}
               onChange={setSelectedDiplomes}
               placeholder="Tous les diplômes"
             />
             <MultiSelect
-              label="Niveau"
-              options={NIVEAUX}
+              label="Classe"
+              options={allClassOptions}
               value={selectedNiveaux}
               onChange={setSelectedNiveaux}
-              placeholder="Tous les niveaux"
+              placeholder="Toutes les classes"
             />
           </div>
         </div>
@@ -760,19 +772,19 @@ function CalendarPage() {
               {selectedEvent.matiere && (
                 <div>
                   <label className="text-sm font-medium text-neutral-500">Matière</label>
-                  <p className="text-neutral-900">{MATIERES.find(m => m.value === selectedEvent.matiere)?.label || selectedEvent.matiere}</p>
+                  <p className="text-neutral-900">{selectedEvent.matiere}</p>
                 </div>
               )}
               {selectedEvent.diplome && (
                 <div>
                   <label className="text-sm font-medium text-neutral-500">Diplôme</label>
-                  <p className="text-neutral-900">{DIPLOMES.find(d => d.value === selectedEvent.diplome)?.label || selectedEvent.diplome}</p>
+                  <p className="text-neutral-900">{selectedEvent.diplome}</p>
                 </div>
               )}
               {selectedEvent.niveau && (
                 <div>
-                  <label className="text-sm font-medium text-neutral-500">Niveau</label>
-                  <p className="text-neutral-900">{NIVEAUX.find(n => n.value === selectedEvent.niveau)?.label || selectedEvent.niveau}</p>
+                  <label className="text-sm font-medium text-neutral-500">Classe</label>
+                  <p className="text-neutral-900">{selectedEvent.niveau}</p>
                 </div>
               )}
             </div>
@@ -797,6 +809,9 @@ function CalendarPage() {
         prefilledDate={createDate}
         prefilledHour={createHour}
         rooms={roomOptions}
+        diplomaOptions={diplomaOptions}
+        classOptionsByDiploma={classOptionsByDiploma}
+        subjectOptionsByClass={subjectOptionsByClass}
       />
 
       {/* Move Confirmation Modal */}

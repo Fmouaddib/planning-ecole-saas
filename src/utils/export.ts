@@ -6,14 +6,7 @@ import autoTable from 'jspdf-autotable'
 import { format, parseISO, startOfWeek, addDays, isSameDay, getHours, getMinutes } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { CalendarEvent } from '@/types'
-import { MATIERES, DIPLOMES, NIVEAUX } from '@/utils/constants'
-
 // ==================== HELPERS ====================
-
-function getLabelFor(value: string | undefined, list: { value: string; label: string }[]): string {
-  if (!value) return '-'
-  return list.find(item => item.value === value)?.label || value
-}
 
 function formatDate(dateValue: string | Date): string {
   const d = typeof dateValue === 'string' ? parseISO(dateValue) : dateValue
@@ -78,9 +71,9 @@ function eventToRow(event: CalendarEvent) {
     'Début': formatTime(event.start),
     'Fin': formatTime(event.end),
     'Type': typeLabels[event.type || ''] || event.type || '-',
-    'Matière': getLabelFor(event.matiere, MATIERES),
-    'Diplôme': getLabelFor(event.diplome, DIPLOMES),
-    'Niveau': getLabelFor(event.niveau, NIVEAUX),
+    'Matière': event.matiere || '-',
+    'Diplôme': event.diplome || '-',
+    'Niveau': event.niveau || '-',
     'Statut': statusLabels[event.status || ''] || event.status || '-',
   }
 }

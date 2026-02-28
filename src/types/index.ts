@@ -106,6 +106,8 @@ export interface Booking {
   cancelledAt?: string
   cancelledBy?: string
   cancellationReason?: string
+  subjectId?: string
+  classId?: string
   matiere?: string
   diplome?: string
   niveau?: string
@@ -234,6 +236,41 @@ export interface CalendarEvent {
   niveau?: string
   recurrence?: RecurrenceRule
   teacher?: string
+}
+
+export interface Diploma {
+  id: string
+  title: string
+  description: string
+  durationYears: number
+  programId?: string
+  isActive: boolean
+  centerId: string
+  createdAt: string
+}
+
+export interface Class {
+  id: string
+  name: string
+  diplomaId: string
+  centerId: string
+  academicYear: string
+  startDate?: string
+  endDate?: string
+  isActive: boolean
+  createdAt: string
+  diploma?: { id: string; title: string }
+}
+
+export interface Subject {
+  id: string
+  name: string
+  code: string
+  description?: string
+  category?: string
+  isActive: boolean
+  centerId: string
+  createdAt: string
 }
 
 export type ExportFormat = 'excel' | 'csv' | 'word' | 'pdf'
@@ -370,6 +407,8 @@ export interface CreateBookingData {
   endDateTime: DateString
   roomId: string
   bookingType: BookingType
+  subjectId?: string
+  classId?: string
   matiere?: string
   diplome?: string
   niveau?: string

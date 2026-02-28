@@ -11,7 +11,8 @@ import {
   Home,
   BookOpen,
   Clock,
-  Shield
+  Shield,
+  GraduationCap
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -83,6 +84,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Séances',
       href: '/bookings',
       active: currentPath === '/bookings'
+    },
+    {
+      icon: GraduationCap,
+      label: 'Référentiel',
+      href: '/academic',
+      active: currentPath === '/academic',
+      roles: ['admin']
     },
     {
       icon: BarChart3,

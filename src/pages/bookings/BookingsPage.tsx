@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
+import { useAcademicData } from '@/hooks/useAcademicData'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { BOOKING_TYPES, BOOKING_STATUS } from '@/utils/constants'
@@ -55,6 +56,9 @@ interface BookingFormData {
   startDateTime: string
   endDateTime: string
   description: string
+  diplomaId: string
+  classId: string
+  subjectId: string
 }
 
 const emptyForm: BookingFormData = {
@@ -64,11 +68,20 @@ const emptyForm: BookingFormData = {
   startDateTime: '',
   endDateTime: '',
   description: '',
+  diplomaId: '',
+  classId: '',
+  subjectId: '',
 }
 
 function BookingsPage() {
   const { bookings, isLoading, error, createBooking, updateBooking, deleteBooking, cancelBooking, refreshBookings } = useBookings()
   const { rooms } = useRooms()
+  const {
+    diplomaOptions,
+    classOptionsByDiploma,
+    subjectOptionsByClass,
+    getDiplomaIdByClass,
+  } = useAcademicData()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -79,6 +92,44 @@ function BookingsPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const roomOptions = rooms.map(r => ({ value: r.id, label: `${r.name} (${r.code})` }))
+
+  // Options cascade pour le formulaire
+  const classOptions = useMemo(
+    () => (form.diplomaId ? classOptionsByDiploma(form.diplomaId) : []),
+    [form.diplomaId, classOptionsByDiploma],
+  )
+
+  const subjectOptions = useMemo(
+    () => (form.classId ? subjectOptionsByClass(form.classId) : []),
+    [form.classId, subjectOptionsByClass],
+  )
+
+  const hasDiplomaData = diplomaOptions.length > 0
+
+  const handleDiplomaChange = (diplomaId: string) => {
+    setForm(f => ({ ...f, diplomaId, classId: '', subjectId: '' }))
+  }
+
+  const handleClassChange = (classId: string) => {
+    setForm(f => ({ ...f, classId, subjectId: '' }))
+  }
+
+  const handleSubjectChange = (subjectId: string) => {
+    setForm(f => {
+      const newForm = { ...f, subjectId }
+      // Auto-remplir le titre si vide
+      if (!f.title.trim()) {
+        const subjectLabel = subjectOptions.find(s => s.value === subjectId)?.label
+        const classLabel = classOptions.find(c => c.value === f.classId)?.label
+        if (subjectLabel && classLabel) {
+          newForm.title = `${subjectLabel} - ${classLabel}`
+        } else if (subjectLabel) {
+          newForm.title = subjectLabel
+        }
+      }
+      return newForm
+    })
+  }
 
   const filtered = useMemo(() => {
     let result = bookings
@@ -104,6 +155,7 @@ function BookingsPage() {
 
   const openEdit = (booking: Booking) => {
     setSelectedBooking(booking)
+    const diplomaId = booking.classId ? (getDiplomaIdByClass(booking.classId) || '') : ''
     setForm({
       title: booking.title,
       roomId: booking.roomId,
@@ -111,6 +163,9 @@ function BookingsPage() {
       startDateTime: booking.startDateTime?.slice(0, 16) || '',
       endDateTime: booking.endDateTime?.slice(0, 16) || '',
       description: booking.description || '',
+      diplomaId,
+      classId: booking.classId || '',
+      subjectId: booking.subjectId || '',
     })
     setModalMode('edit')
   }
@@ -142,6 +197,8 @@ function BookingsPage() {
           startDateTime: form.startDateTime,
           endDateTime: form.endDateTime,
           description: form.description,
+          subjectId: form.subjectId || undefined,
+          classId: form.classId || undefined,
         }
         await createBooking(data)
       } else if (modalMode === 'edit' && selectedBooking) {
@@ -153,6 +210,8 @@ function BookingsPage() {
           startDateTime: form.startDateTime,
           endDateTime: form.endDateTime,
           description: form.description,
+          subjectId: form.subjectId || undefined,
+          classId: form.classId || undefined,
         })
       }
       closeModal()
@@ -351,6 +410,32 @@ function BookingsPage() {
         size="md"
       >
         <div className="space-y-4">
+          {/* Cascade académique */}
+          {hasDiplomaData && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Select
+                label="Diplôme"
+                options={[{ value: '', label: 'Sélectionner...' }, ...diplomaOptions]}
+                value={form.diplomaId}
+                onChange={e => handleDiplomaChange(e.target.value)}
+              />
+              <Select
+                label="Classe"
+                options={[{ value: '', label: form.diplomaId ? 'Sélectionner...' : 'Choisir un diplôme' }, ...classOptions]}
+                value={form.classId}
+                onChange={e => handleClassChange(e.target.value)}
+                disabled={!form.diplomaId}
+              />
+              <Select
+                label="Matière"
+                options={[{ value: '', label: form.classId ? 'Sélectionner...' : 'Choisir une classe' }, ...subjectOptions]}
+                value={form.subjectId}
+                onChange={e => handleSubjectChange(e.target.value)}
+                disabled={!form.classId}
+              />
+            </div>
+          )}
+
           <Input
             label="Titre"
             placeholder="Ex: Cours de mathématiques"

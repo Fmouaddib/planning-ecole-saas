@@ -62,6 +62,8 @@ export function transformBooking(raw: Record<string, any>): Booking {
     cancelledAt: undefined,
     cancelledBy: undefined,
     cancellationReason: undefined,
+    subjectId: raw.subject_id ?? undefined,
+    classId: raw.class_id ?? undefined,
     matiere: subject?.name ?? undefined,
     diplome: class_?.diploma?.title ?? undefined,
     niveau: class_?.name ?? undefined,

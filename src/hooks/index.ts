@@ -6,6 +6,7 @@ export { useAuth } from './useAuth'
 export { useRooms } from './useRooms'
 export { useBookings } from './useBookings'
 export { useUsers } from './useUsers'
+export { useAcademicData } from './useAcademicData'
 export { useEstablishmentId } from './useEstablishmentId'
 export { useSubscriptionInfo } from './useSubscriptionInfo'
 
