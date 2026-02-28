@@ -11,7 +11,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Diploma, Class, Subject, User } from '@/types'
-import { createClient } from '@supabase/supabase-js'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { transformUser } from '@/utils/transforms'
@@ -300,56 +299,73 @@ export function useAcademicData() {
   }, [])
 
   // ==================== CRUD Teachers ====================
-  // signUp via client Supabase ISOLÉ (persistSession:false → pas de disruption session)
-  // Le trigger handle_new_user crée le profil automatiquement → on fait un UPDATE ensuite.
+  // Approche RPC : appelle create_teacher_profile() (SECURITY DEFINER)
+  // → insert direct dans auth.users (bypass GoTrue rate limit + email validation)
+  // → le trigger handle_new_user crée le profil, puis UPDATE avec center_id/role
+  // Fallback : signUp classique si la fonction RPC n'existe pas
 
   const createTeacher = useCallback(async (data: { firstName: string; lastName: string; email: string; role: 'teacher' | 'staff' }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const fullName = `${data.firstName} ${data.lastName}`.trim()
 
-    // Client isolé pour ne pas perturber la session admin
-    const tempClient = createClient(
-      import.meta.env.VITE_SUPABASE_URL,
-      import.meta.env.VITE_SUPABASE_ANON_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-    )
-
-    // 1. Créer le compte auth (mot de passe aléatoire)
-    const tempPassword = crypto.randomUUID() + 'Aa1!'
-    const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
-      email: data.email,
-      password: tempPassword,
-      options: { data: { full_name: fullName, role: data.role } },
+    // Essayer l'approche RPC d'abord (pas de rate limit email)
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('create_teacher_profile', {
+      p_email: data.email,
+      p_full_name: fullName,
+      p_role: data.role,
     })
-    if (signUpError) {
-      toast.error('Erreur : ' + signUpError.message)
-      throw signUpError
+
+    if (!rpcError && rpcResult) {
+      // RPC a fonctionné — transformer le résultat
+      const row = typeof rpcResult === 'string' ? JSON.parse(rpcResult) : rpcResult
+      const newTeacher = transformUser(row)
+      setTeachers(prev => [...prev, newTeacher].sort((a, b) =>
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+      ))
+      toast.success(`Professeur ajouté — connexion via "Mot de passe oublié"`)
+      return newTeacher
     }
-    if (!signUpData.user) { toast.error('Échec création du compte'); throw new Error('signUp failed') }
 
-    // 2. Le trigger a créé le profil → on le met à jour avec center_id et role
-    //    Petit délai pour laisser le trigger s'exécuter
-    await new Promise(r => setTimeout(r, 500))
+    // Si la fonction RPC n'existe pas, on tombe en fallback signUp
+    if (rpcError && rpcError.message.includes('could not find')) {
+      console.warn('RPC create_teacher_profile non disponible, fallback signUp')
+      const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+      const tempClient = createSupabaseClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+      )
 
-    const { data: row, error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName,
-        role: data.role,
-        center_id: user.establishmentId,
-        is_active: true,
+      const tempPassword = crypto.randomUUID() + 'Aa1!'
+      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+        email: data.email,
+        password: tempPassword,
+        options: { data: { full_name: fullName, role: data.role } },
       })
-      .eq('id', signUpData.user.id)
-      .select('*')
-      .single()
-    if (error) { toast.error('Erreur mise à jour profil: ' + error.message); throw error }
+      if (signUpError) { toast.error('Erreur : ' + signUpError.message); throw signUpError }
+      if (!signUpData.user) { toast.error('Échec création du compte'); throw new Error('signUp failed') }
 
-    const newTeacher = transformUser(row)
-    setTeachers(prev => [...prev, newTeacher].sort((a, b) =>
-      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
-    ))
-    toast.success(`Professeur ajouté — connexion via "Mot de passe oublié"`)
-    return newTeacher
+      await new Promise(r => setTimeout(r, 500))
+
+      const { data: row, error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName, role: data.role, center_id: user.establishmentId, is_active: true })
+        .eq('id', signUpData.user.id)
+        .select('*')
+        .single()
+      if (error) { toast.error('Erreur mise à jour profil: ' + error.message); throw error }
+
+      const newTeacher = transformUser(row)
+      setTeachers(prev => [...prev, newTeacher].sort((a, b) =>
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+      ))
+      toast.success(`Professeur ajouté — connexion via "Mot de passe oublié"`)
+      return newTeacher
+    }
+
+    // Autre erreur RPC
+    toast.error('Erreur création professeur: ' + (rpcError?.message || 'Erreur inconnue'))
+    throw rpcError || new Error('Erreur inconnue')
   }, [user?.establishmentId])
 
   const updateTeacher = useCallback(async (id: string, data: { firstName?: string; lastName?: string; role?: 'teacher' | 'staff' }) => {
