@@ -71,17 +71,10 @@ export function useAcademicData() {
       ])
 
       // Afficher les erreurs RLS/query individuellement
-      if (diplomasRes.error) { toast.error('Erreur diplômes: ' + diplomasRes.error.message); console.error('diplomas:', diplomasRes.error) }
-      if (classesRes.error) { toast.error('Erreur classes: ' + classesRes.error.message); console.error('classes:', classesRes.error) }
-      if (subjectsRes.error) { toast.error('Erreur matières: ' + subjectsRes.error.message); console.error('subjects:', subjectsRes.error) }
-      if (teachersRes.error) { toast.error('Erreur professeurs: ' + teachersRes.error.message); console.error('teachers:', teachersRes.error) }
-
-      console.log('[academic] Résultats fetch:', {
-        diplomas: diplomasRes.data?.length ?? 'ERR',
-        classes: classesRes.data?.length ?? 'ERR',
-        subjects: subjectsRes.data?.length ?? 'ERR',
-        teachers: teachersRes.data?.length ?? 'ERR',
-      })
+      if (diplomasRes.error) toast.error('Erreur diplômes: ' + diplomasRes.error.message)
+      if (classesRes.error) toast.error('Erreur classes: ' + classesRes.error.message)
+      if (subjectsRes.error) toast.error('Erreur matières: ' + subjectsRes.error.message)
+      if (teachersRes.error) toast.error('Erreur professeurs: ' + teachersRes.error.message)
 
       const transformedDiplomas: Diploma[] = (diplomasRes.data || []).map((d: any) => ({
         id: d.id,
@@ -155,7 +148,6 @@ export function useAcademicData() {
         setTeacherSubjects([])
       }
     } catch (error: any) {
-      console.error('Erreur chargement données académiques:', error)
       toast.error('Erreur chargement référentiel: ' + (error?.message || 'Erreur inconnue'))
     } finally {
       setIsLoading(false)
@@ -366,7 +358,6 @@ export function useAcademicData() {
 
     // Si la fonction RPC n'existe pas, on tombe en fallback signUp
     if (rpcError && rpcError.message.includes('could not find')) {
-      console.warn('RPC create_teacher_profile non disponible, fallback signUp')
       const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
       const tempClient = createSupabaseClient(
         import.meta.env.VITE_SUPABASE_URL,
