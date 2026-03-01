@@ -42,14 +42,12 @@ export const Layout: React.FC<LayoutProps> = ({
 
   // Sync si le thème est changé ailleurs (ex: SettingsPage)
   useEffect(() => {
-    const handler = () => {
-      const hasDark = document.documentElement.classList.contains('dark')
-      if (hasDark !== isDarkMode) setIsDarkMode(hasDark)
-    }
-    const observer = new MutationObserver(handler)
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'))
+    })
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     return () => observer.disconnect()
-  }, [isDarkMode])
+  }, [])
 
   const handleMenuToggle = () => {
     setSidebarOpen(!sidebarOpen)
