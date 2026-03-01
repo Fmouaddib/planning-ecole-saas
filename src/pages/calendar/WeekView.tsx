@@ -211,7 +211,7 @@ export default function WeekView({
         {/* Hours column */}
         <div>
           {hours.map(hour => (
-            <div key={hour} className="border-b border-neutral-100 text-right pr-2 text-xs text-neutral-400" style={{ height: `${HOUR_HEIGHT}px` }}>
+            <div key={hour} className="border-b border-neutral-100 dark:border-neutral-800 text-right pr-2 text-xs text-neutral-400" style={{ height: `${HOUR_HEIGHT}px` }}>
               <span className="relative -top-2">{`${hour}:00`}</span>
             </div>
           ))}
@@ -227,7 +227,7 @@ export default function WeekView({
               {hours.map(hour => (
                 <div
                   key={hour}
-                  className="border-b border-neutral-100 hover:bg-primary-50/30 transition-colors cursor-pointer"
+                  className="border-b border-neutral-100 dark:border-neutral-800 hover:bg-primary-50/30 transition-colors cursor-pointer"
                   style={{ height: `${HOUR_HEIGHT}px` }}
                   onClick={() => onSlotClick(day, hour)}
                 />

@@ -247,7 +247,7 @@ export default function MonthView({
             return (
               <div
                 key={day.toISOString()}
-                className={`min-h-[100px] border-b border-r border-neutral-100 p-1.5 cursor-pointer transition-colors relative group ${
+                className={`min-h-[100px] border-b border-r border-neutral-100 dark:border-neutral-800 p-1.5 cursor-pointer transition-colors relative group ${
                   !inCurrentMonth ? 'opacity-40' : ''
                 } ${isWeekend ? 'bg-neutral-50' : style.bg} ${isToday(day) ? 'ring-2 ring-inset ring-primary-400' : ''}`}
                 onClick={() => onDayClick(day)}
@@ -287,7 +287,7 @@ export default function MonthView({
           return (
             <div
               key={day.toISOString()}
-              className={`min-h-[100px] border-b border-r border-neutral-100 p-1 cursor-pointer hover:bg-primary-50/30 transition-colors ${
+              className={`min-h-[100px] border-b border-r border-neutral-100 dark:border-neutral-800 p-1 cursor-pointer hover:bg-primary-50/30 transition-colors ${
                 !inCurrentMonth ? 'bg-neutral-50' : ''
               } ${isToday(day) ? 'bg-primary-50' : ''}`}
               onClick={() => onDayClick(day)}

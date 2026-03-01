@@ -150,18 +150,18 @@ export default function DayView({
         {/* Hours */}
         <div>
           {hours.map(hour => (
-            <div key={hour} className="border-b border-neutral-100 text-right pr-2 text-xs text-neutral-400" style={{ height: `${HOUR_HEIGHT}px` }}>
+            <div key={hour} className="border-b border-neutral-100 dark:border-neutral-800 text-right pr-2 text-xs text-neutral-400" style={{ height: `${HOUR_HEIGHT}px` }}>
               <span className="relative -top-2">{`${hour}:00`}</span>
             </div>
           ))}
         </div>
 
         {/* Events */}
-        <div className="relative border-l border-neutral-200">
+        <div className="relative border-l border-neutral-200 dark:border-neutral-800">
           {hours.map(hour => (
             <div
               key={hour}
-              className="border-b border-neutral-100 hover:bg-primary-50/30 transition-colors cursor-pointer"
+              className="border-b border-neutral-100 dark:border-neutral-800 hover:bg-primary-50/30 transition-colors cursor-pointer"
               style={{ height: `${HOUR_HEIGHT}px` }}
               onClick={() => onSlotClick(currentDate, hour)}
             />

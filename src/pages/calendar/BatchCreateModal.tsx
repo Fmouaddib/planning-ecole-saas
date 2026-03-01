@@ -382,7 +382,7 @@ function BatchCreateModal({
     <Modal isOpen={isOpen} onClose={handleClose} title="Saisie en lot" size="xl">
       {/* Global cascade: Diplôme → Classe (filters subjects available in table) */}
       {hasDiplomaData && (
-        <div className="flex items-end gap-3 mb-3 pb-3 border-b border-neutral-100">
+        <div className="flex items-end gap-3 mb-3 pb-3 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex-1 max-w-[200px]">
             <label className="block text-[11px] font-medium text-neutral-600 mb-0.5">Diplôme</label>
             <select className={cellSelect} value={diplomaId}

@@ -130,7 +130,7 @@ export function RoomsView({
             {HOURS.map(h => (
               <div
                 key={h}
-                className="flex-1 min-w-[80px] text-center text-xs font-medium text-neutral-500 py-2 border-r border-neutral-100"
+                className="flex-1 min-w-[80px] text-center text-xs font-medium text-neutral-500 py-2 border-r border-neutral-100 dark:border-neutral-800"
               >
                 {h}h
               </div>
@@ -178,7 +178,7 @@ export function RoomsView({
                       {HOURS.map(h => (
                         <div
                           key={h}
-                          className="flex-1 min-w-[80px] border-r border-neutral-100"
+                          className="flex-1 min-w-[80px] border-r border-neutral-100 dark:border-neutral-800"
                         />
                       ))}
                     </div>
