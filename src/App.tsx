@@ -359,10 +359,18 @@ export default function App() {
   // Super Admin space
   if (hash.startsWith('#/super-admin')) {
     return (
-      <SuperAdminApp
-        user={_user ? { email: _user.email, firstName: _user.firstName, lastName: _user.lastName, role: _user.role } : null}
-        onLogout={handleLogout}
-      />
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+            <LoadingState size="lg" text="Chargement super-admin..." />
+          </div>
+        }
+      >
+        <SuperAdminApp
+          user={_user ? { email: _user.email, firstName: _user.firstName, lastName: _user.lastName, role: _user.role } : null}
+          onLogout={handleLogout}
+        />
+      </Suspense>
     )
   }
 
