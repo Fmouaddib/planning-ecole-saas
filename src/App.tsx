@@ -3,7 +3,7 @@ import { LoginPage, SignupPage } from '@/pages/auth'
 import { Layout } from '@/components/layout'
 import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
-import { SuperAdminApp } from '@/components/super-admin/SuperAdminApp'
+const SuperAdminApp = lazy(() => import('@/components/super-admin/SuperAdminApp').then(m => ({ default: m.SuperAdminApp })))
 import { ROUTES } from '@/utils/constants'
 import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
@@ -304,17 +304,7 @@ export default function App() {
 
   void _handleForgotPassword
 
-  // Appliquer le thème sauvegardé dès le montage (avant Layout)
-  useEffect(() => {
-    const stored = localStorage.getItem('theme')
-    if (stored === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else if (stored === 'light') {
-      document.documentElement.classList.remove('dark')
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.classList.add('dark')
-    }
-  }, [])
+  // Le thème est appliqué par le script inline dans index.html (pas de FOUC)
 
   // États de chargement et d'erreur
   if (appState === 'loading') {

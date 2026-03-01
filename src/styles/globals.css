@@ -381,6 +381,10 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 /* --- Ring offset (focus) --- */
 .dark .ring-offset-white { --tw-ring-offset-color: #18181b; }
 
+/* --- Gradient endpoints (auth pages) --- */
+.dark .from-primary-50  { --tw-gradient-from: #0c1a3d; }
+.dark .to-accent-50     { --tw-gradient-to: #1a0c3d; }
+
 /* --- Shadows → subtler, use elevation instead --- */
 .dark .shadow-soft {
   box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03);

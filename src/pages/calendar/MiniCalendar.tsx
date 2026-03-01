@@ -122,7 +122,7 @@ export function MiniCalendar({
                         key={type}
                         className="w-1 h-1 rounded-full"
                         style={{
-                          backgroundColor: isSelected ? 'white' : (typeColors[type] || '#3b82f6'),
+                          backgroundColor: isSelected ? 'currentColor' : (typeColors[type] || '#3b82f6'),
                         }}
                       />
                     ))}
