@@ -92,7 +92,7 @@ export const SAPlansPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+        <div className="p-8 text-center sa-text-muted">Chargement...</div>
       ) : filteredPlans.length === 0 ? (
         <div className="sa-empty-state">
           <div className="sa-empty-icon">💎</div>
@@ -109,17 +109,17 @@ export const SAPlansPage = () => {
                 </div>
               )}
               <div className="sa-plan-name">{plan.name}</div>
-              <p style={{ fontSize: '0.8rem', color: '#737373', marginBottom: '16px' }}>{plan.description}</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)', marginBottom: '16px' }}>{plan.description}</p>
               <div className="sa-plan-price">
                 {plan.price_monthly}{'\u20AC'}<span>/mois</span>
               </div>
               {plan.price_yearly != null && plan.price_yearly > 0 && (
-                <div style={{ fontSize: '0.8rem', color: '#737373', marginTop: '4px' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)', marginTop: '4px' }}>
                   ou {plan.price_yearly}{'\u20AC'}/an
                 </div>
               )}
 
-              <div style={{ margin: '16px 0', borderTop: '1px solid var(--color-gray-100)', paddingTop: '16px' }}>
+              <div style={{ margin: '16px 0', borderTop: '1px solid var(--sa-border-light)', paddingTop: '16px' }}>
                 <div className="sa-plan-limit">
                   <span>Utilisateurs</span>
                   <strong>{formatLimit(plan.max_users)}</strong>

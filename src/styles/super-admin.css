@@ -806,3 +806,179 @@
     width: 140px;
   }
 }
+
+/* ===== CSS custom properties for inline styles ===== */
+:root {
+  --sa-text-primary: #171717;
+  --sa-text-secondary: #737373;
+  --sa-text-tertiary: #a3a3a3;
+  --sa-bg-subtle: #fafafa;
+  --sa-border-light: #f5f5f5;
+  --sa-border-medium: #e5e5e5;
+  --sa-bulk-bg: #eff6ff;
+  --sa-bulk-text: #1e40af;
+  --sa-text-accent: #002F5D;
+}
+
+.dark {
+  --sa-text-primary: #fafafa;
+  --sa-text-secondary: #a1a1aa;
+  --sa-text-tertiary: #71717a;
+  --sa-bg-subtle: #27272a;
+  --sa-border-light: #27272a;
+  --sa-border-medium: #3f3f46;
+  --sa-bulk-bg: #172554;
+  --sa-bulk-text: #93c5fd;
+  --sa-text-accent: #93c5fd;
+}
+
+/* ===== DARK MODE ===== */
+.dark .sa-kpi-card {
+  background: #18181b;
+  border-color: #27272a;
+}
+
+.dark .sa-kpi-label { color: #a1a1aa; }
+.dark .sa-kpi-value { color: #fafafa; }
+.dark .sa-kpi-change { color: #a1a1aa; }
+
+.dark .sa-table-container {
+  background: #18181b;
+  border-color: #27272a;
+}
+
+.dark .sa-table-header { border-bottom-color: #27272a; }
+.dark .sa-table-title { color: #fafafa; }
+
+.dark .sa-table th {
+  color: #a1a1aa;
+  background: #09090b;
+  border-bottom-color: #27272a;
+}
+
+.dark .sa-table td {
+  color: #e4e4e7;
+  border-bottom-color: #27272a;
+}
+
+.dark .sa-table tr:hover td { background: #27272a; }
+
+.dark .sa-search-input {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #fafafa;
+}
+
+.dark .sa-filter-btn {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #e4e4e7;
+}
+
+.dark .sa-filter-btn:hover {
+  background: #27272a;
+  border-color: #52525b;
+}
+
+.dark .sa-modal {
+  background: #18181b;
+  border: 1px solid #27272a;
+}
+
+.dark .sa-modal-title { color: #fafafa; }
+
+.dark .sa-form-label { color: #a1a1aa; }
+
+.dark .sa-form-input,
+.dark .sa-form-select,
+.dark .sa-form-textarea {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #fafafa;
+}
+
+.dark .sa-form-input:disabled,
+.dark .sa-form-select:disabled {
+  background: #09090b;
+}
+
+.dark .sa-btn-secondary {
+  background: #27272a;
+  color: #e4e4e7;
+  border-color: #3f3f46;
+}
+
+.dark .sa-btn-secondary:hover { background: #3f3f46; }
+
+.dark .sa-btn-danger {
+  background: #450a0a;
+  color: #fca5a5;
+}
+
+.dark .sa-btn-danger:hover { background: #7f1d1d; }
+
+.dark .sa-btn-success {
+  background: #052e16;
+  color: #86efac;
+}
+
+.dark .sa-btn-success:hover { background: #14532d; }
+
+.dark .sa-plan-card {
+  background: #18181b;
+  border-color: #27272a;
+}
+
+.dark .sa-plan-card.featured { border-color: #e74c3c; }
+.dark .sa-plan-name { color: #fafafa; }
+.dark .sa-plan-price span { color: #a1a1aa; }
+.dark .sa-plan-features li { color: #a1a1aa; }
+.dark .sa-plan-limit {
+  color: #71717a;
+  border-bottom-color: #27272a;
+}
+
+.dark .sa-chart-container {
+  background: #18181b;
+  border-color: #27272a;
+}
+
+.dark .sa-chart-title { color: #fafafa; }
+.dark .sa-chart-bar-label { color: #71717a; }
+.dark .sa-chart-bar-value { color: #a1a1aa; }
+
+.dark .sa-page-title { color: #fafafa; }
+.dark .sa-page-subtitle { color: #a1a1aa; }
+
+.dark .sa-activity-item { border-bottom-color: #27272a; }
+.dark .sa-activity-icon { background: #27272a; }
+.dark .sa-activity-text { color: #e4e4e7; }
+.dark .sa-activity-time { color: #71717a; }
+
+.dark .sa-empty-title { color: #a1a1aa; }
+.dark .sa-empty-text { color: #71717a; }
+
+.dark .sa-tabs { background: #27272a; }
+.dark .sa-tab { color: #a1a1aa; }
+.dark .sa-tab.active {
+  background: #18181b;
+  color: #fafafa;
+}
+
+.dark .sa-pagination { border-top-color: #27272a; }
+.dark .sa-pagination-info { color: #a1a1aa; }
+.dark .sa-pagination-select {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #e4e4e7;
+}
+.dark .sa-pagination-current { color: #a1a1aa; }
+
+.dark .sa-text-muted { color: #a1a1aa; }
+
+.dark .sa-status.active { background: #052e16; color: #86efac; }
+.dark .sa-status.inactive,
+.dark .sa-status.cancelled,
+.dark .sa-status.expired { background: #450a0a; color: #fca5a5; }
+.dark .sa-status.trialing { background: #172554; color: #93c5fd; }
+.dark .sa-status.past_due { background: #451a03; color: #fcd34d; }

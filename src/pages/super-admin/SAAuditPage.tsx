@@ -98,11 +98,11 @@ export const SAAuditPage = () => {
           {isExpanded ? 'Masquer' : 'Voir details'}
         </button>
         {isExpanded && (
-          <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--color-gray-50, #fafafa)', borderRadius: '6px', fontSize: '0.8rem' }}>
+          <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--sa-bg-subtle)', borderRadius: '6px', fontSize: '0.8rem' }}>
             {Object.entries(entry.details).map(([key, value]) => (
-              <div key={key} style={{ display: 'flex', gap: '8px', padding: '3px 0', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ fontWeight: 600, color: '#737373', minWidth: '80px' }}>{key}</span>
-                <span style={{ color: '#171717' }}>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+              <div key={key} style={{ display: 'flex', gap: '8px', padding: '3px 0', borderBottom: '1px solid var(--sa-border-light)' }}>
+                <span style={{ fontWeight: 600, color: 'var(--sa-text-secondary)', minWidth: '80px' }}>{key}</span>
+                <span style={{ color: 'var(--sa-text-primary)' }}>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
               </div>
             ))}
           </div>
@@ -174,7 +174,7 @@ export const SAAuditPage = () => {
       {/* Table */}
       <div className="sa-table-container">
         {isLoading ? (
-          <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+          <div className="p-8 text-center sa-text-muted">Chargement...</div>
         ) : entries.length === 0 ? (
           <div className="sa-empty-state">
             <div className="sa-empty-icon">📝</div>
@@ -204,7 +204,7 @@ export const SAAuditPage = () => {
                         {entry.user?.full_name || entry.user_email || 'Systeme'}
                       </div>
                       {entry.user_email && entry.user?.full_name && (
-                        <div style={{ fontSize: '0.75rem', color: '#737373' }}>{entry.user_email}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{entry.user_email}</div>
                       )}
                     </td>
                     <td>
@@ -213,7 +213,7 @@ export const SAAuditPage = () => {
                         <span style={{ fontWeight: 500 }}>{entry.action}</span>
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.85rem', color: '#737373' }}>
+                    <td style={{ fontSize: '0.85rem', color: 'var(--sa-text-secondary)' }}>
                       {entry.entity_type ? (
                         <span>
                           {entry.entity_type}

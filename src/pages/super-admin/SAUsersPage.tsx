@@ -150,9 +150,9 @@ export const SAUsersPage = () => {
       {selectedIds.size > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px',
-          background: '#eff6ff', borderRadius: '8px', marginBottom: '12px', fontSize: '0.85rem',
+          background: 'var(--sa-bulk-bg)', borderRadius: '8px', marginBottom: '12px', fontSize: '0.85rem',
         }}>
-          <span style={{ fontWeight: 600, color: '#1e40af' }}>{selectedIds.size} selectionne(s)</span>
+          <span style={{ fontWeight: 600, color: 'var(--sa-bulk-text)' }}>{selectedIds.size} selectionne(s)</span>
           <button
             className="sa-btn sa-btn-danger"
             style={{ padding: '4px 12px', fontSize: '0.8rem' }}
@@ -180,7 +180,7 @@ export const SAUsersPage = () => {
       {/* Table */}
       <div className="sa-table-container">
         {isLoading ? (
-          <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+          <div className="p-8 text-center sa-text-muted">Chargement...</div>
         ) : filteredUsers.length === 0 ? (
           <div className="sa-empty-state">
             <div className="sa-empty-icon">👥</div>
@@ -222,7 +222,7 @@ export const SAUsersPage = () => {
                     <td>
                       <div>
                         <div style={{ fontWeight: 600 }}>{user.full_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#737373' }}>{user.email}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{user.email}</div>
                       </div>
                     </td>
                     <td>
@@ -230,7 +230,7 @@ export const SAUsersPage = () => {
                         {user.role}
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.8rem', color: '#737373' }}>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>
                       {user.center_id ? (centers || []).find(c => c.id === user.center_id)?.name || user.center_id : '-'}
                     </td>
                     <td>
@@ -238,7 +238,7 @@ export const SAUsersPage = () => {
                         {user.is_active ? 'Actif' : 'Inactif'}
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.8rem', color: '#737373' }}>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>
                       {new Date(user.created_at).toLocaleDateString('fr-FR')}
                     </td>
                     <td>

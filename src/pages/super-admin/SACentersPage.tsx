@@ -97,7 +97,7 @@ export const SACentersPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+        <div className="p-8 text-center sa-text-muted">Chargement...</div>
       ) : allCenters.length === 0 ? (
         <div className="sa-empty-state">
           <div className="sa-empty-icon">🏢</div>
@@ -112,7 +112,7 @@ export const SACentersPage = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
                     <div className="sa-plan-name">{center.name}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#737373' }}>{center.email || 'Pas d\'email'}</div>
+                    <div className="sa-text-muted" style={{ fontSize: '0.8rem' }}>{center.email || 'Pas d\'email'}</div>
                   </div>
                   <span className={`sa-status ${center.is_active ? 'active' : 'inactive'}`}>
                     {center.is_active ? 'Actif' : 'Inactif'}
@@ -120,7 +120,7 @@ export const SACentersPage = () => {
                 </div>
 
                 {center.address && (
-                  <p style={{ fontSize: '0.8rem', color: '#737373', marginBottom: '12px' }}>{center.address}</p>
+                  <p className="sa-text-muted" style={{ fontSize: '0.8rem', marginBottom: '12px' }}>{center.address}</p>
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '12px' }}>
@@ -130,9 +130,9 @@ export const SACentersPage = () => {
                     { label: 'Salles', value: center._count?.rooms || 0 },
                     { label: 'Programmes', value: center._count?.programs || 0 },
                   ].map(stat => (
-                    <div key={stat.label} style={{ textAlign: 'center', padding: '8px', background: 'var(--color-gray-50)', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>{stat.value}</div>
-                      <div style={{ fontSize: '0.65rem', color: '#737373', textTransform: 'uppercase' }}>{stat.label}</div>
+                    <div key={stat.label} style={{ textAlign: 'center', padding: '8px', background: 'var(--sa-bg-subtle)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--sa-text-primary)' }}>{stat.value}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--sa-text-secondary)', textTransform: 'uppercase' }}>{stat.label}</div>
                     </div>
                   ))}
                 </div>

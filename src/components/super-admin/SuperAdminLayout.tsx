@@ -132,7 +132,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   );
 
   return (
-    <div className="flex h-screen bg-neutral-50">
+    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-950">
       {/* Mobile Header */}
       <div className="sa-mobile-header">
         <button className="sa-mobile-menu-btn" onClick={() => setSidebarOpen(true)}>

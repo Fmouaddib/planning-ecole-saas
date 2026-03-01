@@ -182,7 +182,7 @@ export const SASubscriptionsPage = () => {
 
           <div className="sa-table-container">
             {isLoading ? (
-              <div className="p-8 text-center" style={{ color: '#737373' }}>Chargement...</div>
+              <div className="p-8 text-center sa-text-muted">Chargement...</div>
             ) : filteredSubs.length === 0 ? (
               <div className="sa-empty-state">
                 <div className="sa-empty-icon">📋</div>
@@ -207,12 +207,12 @@ export const SASubscriptionsPage = () => {
                       <tr key={sub.id}>
                         <td>
                           <div style={{ fontWeight: 600 }}>{sub.center?.name || sub.center_id}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#737373' }}>{sub.center?.email || ''}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.center?.email || ''}</div>
                         </td>
                         <td>
                           <strong>{sub.plan?.name || sub.plan_id}</strong>
                           {sub.plan?.price_monthly != null && (
-                            <div style={{ fontSize: '0.75rem', color: '#737373' }}>{sub.plan.price_monthly}{'\u20AC'}/mois</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.plan.price_monthly}{'\u20AC'}/mois</div>
                           )}
                         </td>
                         <td>
@@ -224,7 +224,7 @@ export const SASubscriptionsPage = () => {
                           )}
                         </td>
                         <td style={{ textTransform: 'capitalize' }}>{sub.billing_cycle}</td>
-                        <td style={{ fontSize: '0.8rem', color: '#737373' }}>
+                        <td style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>
                           {formatDate(sub.current_period_start)} - {formatDate(sub.current_period_end)}
                         </td>
                         <td>
@@ -298,7 +298,7 @@ export const SASubscriptionsPage = () => {
                       <td>{event.center?.name || event.center_id || '-'}</td>
                       <td><span className="sa-status active">{event.event_type}</span></td>
                       <td style={{ fontWeight: 600 }}>{event.amount != null ? `${event.amount}\u20AC` : '-'}</td>
-                      <td style={{ fontSize: '0.85rem', color: '#737373' }}>{event.description || '-'}</td>
+                      <td style={{ fontSize: '0.85rem', color: 'var(--sa-text-secondary)' }}>{event.description || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -413,11 +413,11 @@ export const SASubscriptionsPage = () => {
                     value={maxStudentsInput}
                     onChange={(e) => setMaxStudentsInput(parseInt(e.target.value) || 0)}
                   />
-                  <div style={{ fontSize: '0.8rem', color: '#737373', marginTop: '4px' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)', marginTop: '4px' }}>
                     100 etud. = 149{'\u20AC'} | 500 etud. = 199{'\u20AC'} | +29{'\u20AC'}/250 au-dela
                   </div>
                   {computedPrice != null && (
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#002F5D', marginTop: '8px' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--sa-text-accent)', marginTop: '8px' }}>
                       Prix calcule : {computedPrice}{'\u20AC'}/mois
                     </div>
                   )}
