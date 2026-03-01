@@ -304,10 +304,22 @@ export default function App() {
 
   void _handleForgotPassword
 
+  // Appliquer le thème sauvegardé dès le montage (avant Layout)
+  useEffect(() => {
+    const stored = localStorage.getItem('theme')
+    if (stored === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else if (stored === 'light') {
+      document.documentElement.classList.remove('dark')
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
+
   // États de chargement et d'erreur
   if (appState === 'loading') {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
         <LoadingState size="lg" text="Chargement de l'application..." />
       </div>
     )
@@ -344,7 +356,7 @@ export default function App() {
     return (
       <Suspense
         fallback={
-          <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+          <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
             <LoadingState size="lg" text="Chargement..." />
           </div>
         }
@@ -387,10 +399,10 @@ export default function App() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-neutral-900 mb-4">
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-4">
             Page introuvable
           </h1>
-          <p className="text-neutral-600 mb-6">
+          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
             La page &quot;{currentPath}&quot; n'existe pas.
           </p>
           <button
@@ -414,7 +426,7 @@ export default function App() {
     >
       <Suspense
         fallback={
-          <div className="flex items-center justify-center py-20">
+          <div className="flex items-center justify-center py-20 dark:bg-neutral-950">
             <LoadingState size="lg" text="Chargement de la page..." />
           </div>
         }
