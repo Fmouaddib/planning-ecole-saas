@@ -26,7 +26,7 @@ export const Badge: React.FC<BadgeProps> = ({
     warning: 'bg-warning-100 text-warning-800',
     error: 'bg-error-100 text-error-800',
     info: 'bg-primary-100 text-primary-800',
-    neutral: 'bg-neutral-100 text-neutral-700'
+    neutral: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
   }
 
   const sizeClasses = {

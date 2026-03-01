@@ -34,7 +34,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const errorClasses = error
       ? 'border-error-300 focus:border-error-500 focus:ring-error-500'
-      : 'border-neutral-200 focus:border-primary-500 focus:ring-primary-500 hover:border-neutral-300'
+      : 'border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500 hover:border-neutral-300 dark:hover:border-neutral-600'
 
     const resizeClasses = {
       none: 'resize-none',

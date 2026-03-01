@@ -406,7 +406,7 @@ function RoomsPage() {
                             const textColor = pct === 0 ? 'text-neutral-400' : pct < 50 ? 'text-success-700' : pct <= 80 ? 'text-warning-700' : 'text-error-700'
                             return (
                               <div className="flex items-center gap-2">
-                                <div className="w-20 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                                <div className="w-20 h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                                   <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
                                 </div>
                                 <span className={`text-xs font-medium ${textColor}`}>{pct}%</span>

@@ -842,7 +842,7 @@ function TeachersTab({
             required />
 
           {/* Toggle accès professeur */}
-          <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+          <div className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700">
             <div>
               <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Accès professeur</p>
               <p className="text-xs text-neutral-500">Permet au professeur de se connecter et consulter son planning</p>
@@ -948,7 +948,7 @@ function AcademicPage() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-neutral-200 mb-6">
+      <div className="border-b border-neutral-200 dark:border-neutral-800 mb-6">
         <nav className="flex space-x-1 -mb-px">
           {tabs.map(tab => {
             const Icon = tab.icon
@@ -960,7 +960,7 @@ function AcademicPage() {
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   isActive
                     ? 'border-primary-600 text-primary-700'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:border-neutral-300'
                 }`}
               >
                 <Icon size={16} />

@@ -533,7 +533,7 @@ function BatchCreateModal({
               {dayLabels.map((label, i) => (
                 <button key={i}
                   className={`w-8 h-8 rounded-full text-[11px] font-medium transition-colors ${
-                    recDays.includes(i) ? 'bg-primary-600 text-white' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+                    recDays.includes(i) ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700'
                   }`}
                   onClick={() => setRecDays(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
                 >
@@ -566,15 +566,15 @@ function BatchCreateModal({
           <p className="text-sm">Aucune séance. Ajoutez des lignes ou utilisez la récurrence.</p>
         </div>
       ) : (
-        <div className="max-h-[420px] overflow-auto border border-neutral-200 rounded-lg">
+        <div className="max-h-[420px] overflow-auto border border-neutral-200 dark:border-neutral-700 rounded-lg">
           <table className="w-full text-xs">
-            <thead className="bg-neutral-50 sticky top-0 z-10">
+            <thead className="bg-neutral-50 dark:bg-neutral-800 sticky top-0 z-10">
               <tr>
                 <th className="px-1.5 py-2 w-8">
                   <input type="checkbox"
                     checked={rows.length > 0 && rows.every(r => r.checked)}
                     onChange={e => toggleAll(e.target.checked)}
-                    className="rounded border-neutral-300"
+                    className="rounded border-neutral-300 dark:border-neutral-600"
                   />
                 </th>
                 <th className="px-1.5 py-2 text-left text-neutral-600 font-semibold">Date</th>
@@ -588,7 +588,7 @@ function BatchCreateModal({
                 <th className="px-1.5 py-2 w-16"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {rows.map((r) => {
                 const rowInvalid = !r.date || !r.subjectId || !r.roomId || !r.trainerId || r.startTime >= r.endTime
                 return (
@@ -600,7 +600,7 @@ function BatchCreateModal({
                   >
                     <td className="px-1.5 py-1">
                       <input type="checkbox" checked={r.checked}
-                        onChange={() => toggleRow(r.id)} className="rounded border-neutral-300" />
+                        onChange={() => toggleRow(r.id)} className="rounded border-neutral-300 dark:border-neutral-600" />
                     </td>
                     <td className="px-1.5 py-1">
                       <input type="date" className={cellInput} style={{ width: '130px' }}
@@ -668,7 +668,7 @@ function BatchCreateModal({
       {stats.conflicts > 0 && (
         <label className="flex items-center gap-2 text-xs text-neutral-600 cursor-pointer mt-2">
           <input type="checkbox" checked={ignoreConflicts}
-            onChange={e => setIgnoreConflicts(e.target.checked)} className="rounded border-neutral-300" />
+            onChange={e => setIgnoreConflicts(e.target.checked)} className="rounded border-neutral-300 dark:border-neutral-600" />
           <AlertTriangle size={13} className="text-warning-500" />
           Ignorer les conflits et forcer la création
         </label>
@@ -683,10 +683,10 @@ function BatchCreateModal({
 
       {/* Hours per trainer */}
       {hoursByTrainer.length > 0 && (
-        <div className="mt-2 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 flex items-center gap-3 flex-wrap text-xs">
+        <div className="mt-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 flex items-center gap-3 flex-wrap text-xs">
           <Clock size={14} className="text-neutral-500 shrink-0" />
           {hoursByTrainer.length === 1 ? (
-            <span className="text-neutral-700">
+            <span className="text-neutral-700 dark:text-neutral-300">
               <span className="font-medium">{hoursByTrainer[0].name}</span>
               {' : '}
               <span className="font-semibold text-primary-700">
@@ -696,7 +696,7 @@ function BatchCreateModal({
           ) : (
             <>
               {hoursByTrainer.map(t => (
-                <span key={t.trainerId} className="text-neutral-700">
+                <span key={t.trainerId} className="text-neutral-700 dark:text-neutral-300">
                   <span className="font-medium">{t.name}</span>
                   {' : '}
                   <span className="font-semibold text-primary-700">
@@ -705,7 +705,7 @@ function BatchCreateModal({
                 </span>
               ))}
               <span className="text-neutral-400">|</span>
-              <span className="text-neutral-700">
+              <span className="text-neutral-700 dark:text-neutral-300">
                 Total : <span className="font-semibold text-primary-700">
                   {totalHoursAll.hours}h{totalHoursAll.mins > 0 ? `${String(totalHoursAll.mins).padStart(2, '0')}` : ''}
                 </span>

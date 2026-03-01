@@ -29,11 +29,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         </div>
       )}
       
-      <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+      <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
         {title}
       </h3>
       
-      <p className="text-neutral-600 mb-6 max-w-md mx-auto">
+      <p className="text-neutral-600 dark:text-neutral-400 mb-6 max-w-md mx-auto">
         {description}
       </p>
       

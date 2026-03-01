@@ -220,7 +220,7 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
 
             {usage && (
               <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide">
+                <h4 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
                   Utilisation
                 </h4>
                 <UsageBar label="Utilisateurs" usage={usage.users} />

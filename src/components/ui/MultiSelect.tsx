@@ -100,7 +100,7 @@ export function MultiSelect({ options, value, onChange, label, placeholder = 'SÃ
                   onClick={() => toggleOption(option.value)}
                 >
                   <span className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${
-                    isSelected ? 'bg-primary-600 border-primary-600' : 'border-neutral-300'
+                    isSelected ? 'bg-primary-600 border-primary-600' : 'border-neutral-300 dark:border-neutral-600'
                   }`}>
                     {isSelected && <Check size={12} className="text-white" />}
                   </span>

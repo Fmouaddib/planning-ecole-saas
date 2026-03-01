@@ -27,7 +27,7 @@ import type { CalendarEvent } from '@/types'
 import { HOUR_START, HOUR_END } from './calendar-helpers'
 
 function getOccupationStyle(rate: number) {
-  if (rate === 0) return { bg: 'bg-neutral-50', text: 'text-neutral-400', bar: 'bg-neutral-300' }
+  if (rate === 0) return { bg: 'bg-neutral-50 dark:bg-neutral-900', text: 'text-neutral-400', bar: 'bg-neutral-300 dark:bg-neutral-600' }
   if (rate <= 25) return { bg: 'bg-emerald-50', text: 'text-emerald-700', bar: 'bg-emerald-500' }
   if (rate <= 50) return { bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500' }
   if (rate <= 75) return { bg: 'bg-orange-100', text: 'text-orange-800', bar: 'bg-orange-500' }
@@ -249,13 +249,13 @@ export default function MonthView({
                 key={day.toISOString()}
                 className={`min-h-[100px] border-b border-r border-neutral-100 dark:border-neutral-800 p-1.5 cursor-pointer transition-colors relative group ${
                   !inCurrentMonth ? 'opacity-40' : ''
-                } ${isWeekend ? 'bg-neutral-50' : style.bg} ${isToday(day) ? 'ring-2 ring-inset ring-primary-400' : ''}`}
+                } ${isWeekend ? 'bg-neutral-50 dark:bg-neutral-900' : style.bg} ${isToday(day) ? 'ring-2 ring-inset ring-primary-400' : ''}`}
                 onClick={() => onDayClick(day)}
                 title={`${occ?.bookedHours ?? 0}h de séances / ${totalRooms * (HOUR_END - HOUR_START)}h possibles (${occ?.roomsUsed ?? 0} salle${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''} active${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''})`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className={`text-sm font-medium ${
-                    !inCurrentMonth ? 'text-neutral-300' : isToday(day) ? 'text-primary-600' : 'text-neutral-700'
+                    !inCurrentMonth ? 'text-neutral-300' : isToday(day) ? 'text-primary-600' : 'text-neutral-700 dark:text-neutral-300'
                   }`}>
                     {format(day, 'd')}
                   </span>
@@ -288,12 +288,12 @@ export default function MonthView({
             <div
               key={day.toISOString()}
               className={`min-h-[100px] border-b border-r border-neutral-100 dark:border-neutral-800 p-1 cursor-pointer hover:bg-primary-50/30 transition-colors ${
-                !inCurrentMonth ? 'bg-neutral-50' : ''
-              } ${isToday(day) ? 'bg-primary-50' : ''}`}
+                !inCurrentMonth ? 'bg-neutral-50 dark:bg-neutral-900' : ''
+              } ${isToday(day) ? 'bg-primary-50 dark:bg-primary-950' : ''}`}
               onClick={() => onDayClick(day)}
             >
               <div className={`text-sm font-medium mb-1 ${
-                !inCurrentMonth ? 'text-neutral-300' : isToday(day) ? 'text-primary-600' : 'text-neutral-700'
+                !inCurrentMonth ? 'text-neutral-300' : isToday(day) ? 'text-primary-600' : 'text-neutral-700 dark:text-neutral-300'
               }`}>
                 {format(day, 'd')}
               </div>
@@ -336,7 +336,7 @@ export default function MonthView({
             { label: '76-100%', style: getOccupationStyle(90) },
           ].map(({ label, style }) => (
             <div key={label} className="flex items-center gap-1">
-              <div className={`w-4 h-3 rounded ${style.bg} border border-neutral-200`} />
+              <div className={`w-4 h-3 rounded ${style.bg} border border-neutral-200 dark:border-neutral-700`} />
               <span className={`text-[10px] font-medium ${style.text}`}>{label}</span>
             </div>
           ))}

@@ -29,11 +29,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               <li key={index} className="flex items-center">
                 {index > 0 && <span className="mx-2">/</span>}
                 {crumb.href ? (
-                  <button className="hover:text-neutral-700 transition-colors duration-200">
+                  <button className="hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors duration-200">
                     {crumb.label}
                   </button>
                 ) : (
-                  <span className="text-neutral-900 font-medium">{crumb.label}</span>
+                  <span className="text-neutral-900 dark:text-neutral-100 font-medium">{crumb.label}</span>
                 )}
               </li>
             ))}
@@ -51,11 +51,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           )}
           
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900 font-display">
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 font-display">
               {title}
             </h1>
             {subtitle && (
-              <p className="text-neutral-600 mt-1">
+              <p className="text-neutral-600 dark:text-neutral-400 mt-1">
                 {subtitle}
               </p>
             )}

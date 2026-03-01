@@ -123,7 +123,7 @@ export function RoomsView({
       <div className="overflow-x-auto">
         {/* Hour header */}
         <div className="flex sticky top-0 z-10 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800" style={{ minWidth: `${160 + HOURS.length * 80}px` }}>
-          <div className="w-40 min-w-[160px] shrink-0 px-3 py-2 text-xs font-semibold text-neutral-500 border-r border-neutral-200">
+          <div className="w-40 min-w-[160px] shrink-0 px-3 py-2 text-xs font-semibold text-neutral-500 border-r border-neutral-200 dark:border-neutral-800">
             Salle
           </div>
           <div className="flex-1 flex">
@@ -162,7 +162,7 @@ export function RoomsView({
                   style={{ minWidth: `${160 + HOURS.length * 80}px` }}
                 >
                   {/* Room label */}
-                  <div className="w-40 min-w-[160px] shrink-0 px-3 py-2 border-r border-neutral-200 flex flex-col justify-center">
+                  <div className="w-40 min-w-[160px] shrink-0 px-3 py-2 border-r border-neutral-200 dark:border-neutral-800 flex flex-col justify-center">
                     <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
                       {room.name}
                     </span>
