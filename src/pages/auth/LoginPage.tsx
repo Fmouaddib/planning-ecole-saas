@@ -54,7 +54,7 @@ function LoginPage({ onLogin, onSwitchToSignup, isLoading = false, error }: Logi
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Erreur globale */}
               {error && (
-                <div className="bg-error-50 border border-error-200 text-error-700 px-4 py-3 rounded-lg">
+                <div className="bg-error-50 dark:bg-error-950 border border-error-200 dark:border-error-800 text-error-700 dark:text-error-300 px-4 py-3 rounded-lg">
                   <p className="text-sm">{error}</p>
                 </div>
               )}

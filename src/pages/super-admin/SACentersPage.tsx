@@ -108,7 +108,7 @@ export const SACentersPage = () => {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '20px' }}>
             {paginatedData.map((center) => (
-              <div key={center.id} className="sa-plan-card" style={{ borderColor: center.is_active ? 'var(--color-gray-200)' : '#fca5a5' }}>
+              <div key={center.id} className="sa-plan-card" style={{ borderColor: center.is_active ? 'var(--sa-border-medium)' : '#fca5a5' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
                     <div className="sa-plan-name">{center.name}</div>
@@ -138,11 +138,11 @@ export const SACentersPage = () => {
                 </div>
 
                 {center.subscription ? (
-                  <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: '8px', marginBottom: '12px', fontSize: '0.8rem' }}>
+                  <div style={{ padding: '8px 12px', background: 'var(--sa-subscription-active-bg)', color: 'var(--sa-subscription-active-text)', borderRadius: '8px', marginBottom: '12px', fontSize: '0.8rem' }}>
                     Plan <strong>{center.subscription.plan?.name || '?'}</strong> — {center.subscription.status}
                   </div>
                 ) : (
-                  <div style={{ padding: '8px 12px', background: '#fef3c7', borderRadius: '8px', marginBottom: '12px', fontSize: '0.8rem', color: '#92400e' }}>
+                  <div style={{ padding: '8px 12px', background: 'var(--sa-subscription-none-bg)', color: 'var(--sa-subscription-none-text)', borderRadius: '8px', marginBottom: '12px', fontSize: '0.8rem' }}>
                     Aucun abonnement
                   </div>
                 )}

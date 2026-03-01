@@ -1,5 +1,5 @@
-import React, { useState, type ReactNode } from 'react';
-import { LogOut, ArrowLeft, Menu, X } from 'lucide-react';
+import React, { useState, useEffect, type ReactNode } from 'react';
+import { LogOut, ArrowLeft, Menu, X, Moon, Sun } from 'lucide-react';
 
 interface SuperAdminLayoutProps {
   children: ReactNode;
@@ -19,6 +19,26 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   onBackToApp
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleThemeToggle = () => {
+    const next = !isDarkMode;
+    if (next) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+    setIsDarkMode(next);
+  };
 
   const mainItems = [
     { id: 'sa-dashboard', label: 'Tableau de bord', icon: '📊' },
@@ -119,6 +139,13 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
               </p>
             </div>
             <button
+              onClick={handleThemeToggle}
+              className="p-1.5 text-neutral-500 hover:text-white rounded-md hover:bg-white/5 transition-colors"
+              title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button
               onClick={onSignOut}
               className="p-1.5 text-neutral-500 hover:text-[#e74c3c] rounded-md hover:bg-white/5 transition-colors"
               title="Deconnexion"
@@ -144,6 +171,13 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
           </div>
           <span className="sa-badge">SUPER ADMIN</span>
         </div>
+        <button
+          onClick={handleThemeToggle}
+          className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+          title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
+        >
+          {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
       </div>
 
       {/* Sidebar Overlay */}

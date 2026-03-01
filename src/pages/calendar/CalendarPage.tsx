@@ -422,7 +422,7 @@ function CalendarPage() {
           <button
             className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
               showFilters || activeFilterCount > 0
-                ? 'bg-primary-50 border-primary-300 text-primary-700'
+                ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
                 : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
             }`}
             onClick={() => setShowFilters(!showFilters)}
@@ -449,7 +449,7 @@ function CalendarPage() {
 
           {/* Batch create button */}
           <button
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
             onClick={() => setShowBatchModal(true)}
           >
             <Repeat size={16} />

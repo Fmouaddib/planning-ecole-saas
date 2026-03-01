@@ -234,7 +234,7 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
           </button>
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left hover:bg-error-50 transition-colors border border-error-200"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left hover:bg-error-50 dark:hover:bg-error-950 transition-colors border border-error-200 dark:border-error-800"
           >
             <LogOut size={18} className="text-error-500" />
             <div>

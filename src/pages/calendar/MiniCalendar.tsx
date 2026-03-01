@@ -108,7 +108,7 @@ export function MiniCalendar({
                     : isSelected
                     ? 'bg-primary-600 text-white font-bold'
                     : today
-                    ? 'bg-primary-50 text-primary-700 font-semibold'
+                    ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-semibold'
                     : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 onClick={() => onSelectDate(day)}
