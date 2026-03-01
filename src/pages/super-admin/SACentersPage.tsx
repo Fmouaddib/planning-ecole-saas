@@ -13,6 +13,7 @@ import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
 import type { CreateCenterData, SuperAdminCenter } from '@/types/super-admin';
 import { centerDisplayName, formatCenterAddress } from '@/utils/helpers';
+import { setImpersonation } from '@/utils/impersonation';
 
 export const SACentersPage = () => {
   const [search, setSearch] = useState('');
@@ -163,7 +164,16 @@ export const SACentersPage = () => {
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    className="sa-btn sa-btn-primary"
+                    onClick={() => {
+                      setImpersonation({ centerId: center.id, centerName: centerDisplayName(center) });
+                      window.location.hash = '';
+                    }}
+                  >
+                    Voir en tant que
+                  </button>
                   <button className="sa-btn sa-btn-secondary" onClick={() => { setEditingCenter(center); setShowModal(true); }}>
                     Modifier
                   </button>

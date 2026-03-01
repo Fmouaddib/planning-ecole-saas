@@ -3,12 +3,13 @@
  * Gère toutes les opérations d'authentification et l'état utilisateur
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AuthUser, LoginCredentials, RegisterData, User, UseAuthReturn } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { getErrorMessage, parseFullName } from '@/utils'
 import { AuditService } from '@/services/auditService'
+import { getImpersonation, clearImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
 import toast from 'react-hot-toast'
 
 export function useAuth(): UseAuthReturn {
@@ -153,6 +154,9 @@ export function useAuth(): UseAuthReturn {
       setIsLoading(true)
       setError(null)
 
+      // Nettoyer l'impersonation avant déconnexion
+      clearImpersonation()
+
       // Audit logging avant la déconnexion
       if (user?.establishmentId) {
         AuditService.logLogout(user.id, user.email, user.establishmentId)
@@ -287,12 +291,35 @@ export function useAuth(): UseAuthReturn {
     return () => subscription.unsubscribe()
   }, [transformUser])
 
+  // ==================== IMPERSONATION ====================
+
+  // Tick counter pour forcer le recalcul de effectiveUser quand l'impersonation change
+  const [_impersonationTick, setImpersonationTick] = useState(0)
+
+  useEffect(() => {
+    const onChanged = () => setImpersonationTick(t => t + 1)
+    window.addEventListener(IMPERSONATION_EVENT, onChanged)
+    return () => window.removeEventListener(IMPERSONATION_EVENT, onChanged)
+  }, [])
+
+  // Override establishmentId si super_admin en mode impersonation
+  const effectiveUser = useMemo(() => {
+    if (!user) return null
+    if (user.role !== 'super_admin') return user
+
+    const imp = getImpersonation()
+    if (!imp) return user
+
+    return { ...user, establishmentId: imp.centerId }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, _impersonationTick])
+
   // ==================== COMPUTED VALUES ====================
 
-  const isAuthenticated = user !== null
+  const isAuthenticated = effectiveUser !== null
 
   return {
-    user,
+    user: effectiveUser,
     isLoading,
     isAuthenticated,
     login,

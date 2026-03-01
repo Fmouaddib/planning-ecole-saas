@@ -8,6 +8,8 @@ import { ROUTES } from '@/utils/constants'
 import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
+import { clearImpersonation } from '@/utils/impersonation'
+import { ImpersonationBanner } from '@/components/ui/ImpersonationBanner'
 import toast, { Toaster } from 'react-hot-toast'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
@@ -314,6 +316,7 @@ export default function App() {
   }
 
   const handleLogout = async () => {
+    clearImpersonation()
     if (!isDemoMode) {
       await supabase.auth.signOut()
     }
@@ -484,21 +487,24 @@ export default function App() {
 
   // Application principale
   return (
-    <Layout
-      user={_user}
-      currentPath={currentPath}
-      onNavigate={handleNavigate}
-      onLogout={handleLogout}
-    >
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center py-20 dark:bg-neutral-950">
-            <LoadingState size="lg" text="Chargement de la page..." />
-          </div>
-        }
+    <>
+      <ImpersonationBanner />
+      <Layout
+        user={_user}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
       >
-        {renderPage()}
-      </Suspense>
-    </Layout>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-20 dark:bg-neutral-950">
+              <LoadingState size="lg" text="Chargement de la page..." />
+            </div>
+          }
+        >
+          {renderPage()}
+        </Suspense>
+      </Layout>
+    </>
   )
 }
