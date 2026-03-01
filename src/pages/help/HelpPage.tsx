@@ -53,26 +53,26 @@ function HelpPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-neutral-900">Aide</h1>
-        <p className="text-neutral-500 mt-1">Trouvez des réponses à vos questions</p>
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Aide</h1>
+        <p className="text-neutral-500 dark:text-neutral-400 mt-1">Trouvez des réponses à vos questions</p>
       </div>
 
       {/* FAQ */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-primary-100 rounded-lg">
             <HelpCircle size={20} className="text-primary-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900">Questions fréquentes</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Questions fréquentes</h3>
         </div>
-        <div className="divide-y divide-neutral-100">
+        <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
           {faqItems.map((item, index) => (
             <div key={index}>
               <button
-                className="w-full flex items-center justify-between py-4 text-left hover:bg-neutral-50 transition-colors rounded-lg px-2 -mx-2"
+                className="w-full flex items-center justify-between py-4 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors rounded-lg px-2 -mx-2"
                 onClick={() => toggleFaq(index)}
               >
-                <span className="font-medium text-neutral-900 pr-4">{item.question}</span>
+                <span className="font-medium text-neutral-900 dark:text-neutral-100 pr-4">{item.question}</span>
                 <ChevronDown
                   size={18}
                   className={`text-neutral-400 shrink-0 transition-transform ${
@@ -82,7 +82,7 @@ function HelpPage() {
               </button>
               {openIndex === index && (
                 <div className="pb-4 px-2 -mx-2">
-                  <p className="text-sm text-neutral-600 leading-relaxed">{item.answer}</p>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">{item.answer}</p>
                 </div>
               )}
             </div>
@@ -92,14 +92,14 @@ function HelpPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contact Support */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-success-100 rounded-lg">
               <Mail size={20} className="text-success-600" />
             </div>
-            <h3 className="text-lg font-semibold text-neutral-900">Contacter le support</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Contacter le support</h3>
           </div>
-          <p className="text-sm text-neutral-600 mb-4">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
             Notre équipe est disponible du lundi au vendredi de 9h à 18h.
             Nous répondons généralement sous 24 heures ouvrées.
           </p>
@@ -112,22 +112,22 @@ function HelpPage() {
         </div>
 
         {/* Keyboard Shortcuts */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-warning-100 rounded-lg">
               <Keyboard size={20} className="text-warning-600" />
             </div>
-            <h3 className="text-lg font-semibold text-neutral-900">Raccourcis clavier</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Raccourcis clavier</h3>
           </div>
           <div className="space-y-3">
             {shortcuts.map((shortcut, index) => (
               <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-neutral-600">{shortcut.description}</span>
+                <span className="text-sm text-neutral-600 dark:text-neutral-400">{shortcut.description}</span>
                 <div className="flex gap-1">
                   {shortcut.keys.map(key => (
                     <kbd
                       key={key}
-                      className="px-2 py-1 text-xs font-mono bg-neutral-100 border border-neutral-200 rounded text-neutral-700"
+                      className="px-2 py-1 text-xs font-mono bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-neutral-700 dark:text-neutral-300"
                     >
                       {key}
                     </kbd>

@@ -33,5 +33,14 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+/**
+ * Client isolé (sans persistance de session) pour les opérations
+ * qui ne doivent pas perturber la session principale (ex: vérification de mot de passe,
+ * création de compte enseignant via signUp fallback).
+ */
+export const isolatedClient = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+})
+
 // Types utilitaires pour Supabase
 export type SupabaseClient = typeof supabase

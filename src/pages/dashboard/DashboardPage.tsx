@@ -329,10 +329,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
             Bonjour, {displayName}
           </h1>
-          <p className="text-neutral-500 mt-1 capitalize">{today}</p>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1 capitalize">{today}</p>
         </div>
         <button
           className="btn-primary mt-4 sm:mt-0 flex items-center gap-2"
@@ -349,8 +349,8 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           <div key={stat.label} className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-500">{stat.label}</p>
-                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 mt-1">{stat.value}</p>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{stat.label}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{stat.value}</p>
               </div>
               <div className={`p-3 rounded-xl ${stat.iconBg}`}>
                 <stat.icon size={22} className={stat.iconColor} />
@@ -387,13 +387,13 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                   <Gauge size={20} className="text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-neutral-900">Taux d'occupation moyen</h3>
-                  <p className="text-xs text-neutral-500">Semaine en cours (Lu-Ve, 8h-18h)</p>
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Taux d'occupation moyen</h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">Semaine en cours (Lu-Ve, 8h-18h)</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <div className="h-3 bg-neutral-100 rounded-full overflow-hidden">
+                  <div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
                         globalOccupation > 80 ? 'bg-error-500' : globalOccupation > 50 ? 'bg-warning-500' : 'bg-success-500'
@@ -418,18 +418,18 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 <div className="p-2 bg-primary-50 rounded-lg">
                   <BarChart3 size={20} className="text-primary-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-neutral-900">Quotas d'utilisation</h3>
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Quotas d'utilisation</h3>
               </div>
               <div className="space-y-3">
                 {quotaItems.map(item => (
                   <div key={item.label}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-neutral-600">{item.label}</span>
-                      <span className="font-medium text-neutral-900">
+                      <span className="text-neutral-600 dark:text-neutral-400">{item.label}</span>
+                      <span className="font-medium text-neutral-900 dark:text-neutral-100">
                         {item.current} / {item.isUnlimited ? 'Illimité' : item.max}
                       </span>
                     </div>
-                    <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${item.colorClass}`}
                         style={{ width: item.isUnlimited ? '10%' : `${Math.min(item.pct, 100)}%` }}
@@ -448,7 +448,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         {/* Upcoming bookings */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-neutral-900">Prochaines séances</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaines séances</h2>
             <button
               className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
               onClick={() => onNavigate?.('/bookings')}
@@ -463,14 +463,14 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               displayBookings.map((booking, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors"
+                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <div className="text-sm font-semibold text-neutral-900 w-14 shrink-0">
+                  <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 w-14 shrink-0">
                     {booking.time}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-neutral-900 truncate">{booking.title}</p>
-                    <p className="text-xs text-neutral-500">{booking.room}</p>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{booking.title}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">{booking.room}</p>
                   </div>
                   <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${
                     STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'
@@ -486,7 +486,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         {/* Recent activity */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-neutral-900">Activité récente</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Activité récente</h2>
           </div>
           <div className="space-y-4">
             {displayActivity.length === 0 ? (
@@ -497,12 +497,12 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                   <div className="flex flex-col items-center">
                     <div className={`w-2.5 h-2.5 rounded-full ${item.color} mt-1.5`} />
                     {i < displayActivity.length - 1 && (
-                      <div className="w-px flex-1 bg-neutral-200 mt-1" />
+                      <div className="w-px flex-1 bg-neutral-200 dark:bg-neutral-700 mt-1" />
                     )}
                   </div>
                   <div className="pb-4">
-                    <p className="text-sm text-neutral-700">{item.text}</p>
-                    <p className="text-xs text-neutral-400 mt-0.5">{item.time}</p>
+                    <p className="text-sm text-neutral-700 dark:text-neutral-300">{item.text}</p>
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{item.time}</p>
                   </div>
                 </div>
               ))
@@ -513,7 +513,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       {/* Quick actions */}
       <div>
-        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Actions rapides</h2>
+        <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Actions rapides</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {quickActions.map((action) => (
             <button
@@ -525,8 +525,8 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 <action.icon size={20} className="text-primary-600" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-neutral-900">{action.label}</p>
-                <p className="text-xs text-neutral-500">Accès rapide</p>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{action.label}</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Accès rapide</p>
               </div>
             </button>
           ))}

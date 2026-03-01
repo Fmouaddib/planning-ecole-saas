@@ -25,12 +25,12 @@ export function LoadingSpinner({
     <div className={cn('flex flex-col items-center justify-center', className)}>
       <div
         className={cn(
-          'animate-spin rounded-full border-2 border-gray-300 border-t-primary-600',
+          'animate-spin rounded-full border-2 border-gray-300 dark:border-neutral-700 border-t-primary-600 dark:border-t-primary-400',
           sizeClasses[size]
         )}
       />
       {text && (
-        <p className="mt-2 text-sm text-gray-600">{text}</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-neutral-400">{text}</p>
       )}
     </div>
   )
@@ -46,7 +46,7 @@ export const LoadingState = LoadingSpinner
 
 export function FullPageLoading({ text = 'Chargement...' }: FullPageLoadingProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-neutral-950">
       <LoadingSpinner size="lg" text={text} />
     </div>
   )

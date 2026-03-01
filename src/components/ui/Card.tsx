@@ -18,7 +18,8 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const baseClasses = [
     'bg-white rounded-xl border border-neutral-200',
-    'transition-all duration-300'
+    'transition-all duration-300',
+    'dark:bg-neutral-900 dark:border-neutral-800'
   ]
 
   const variantClasses = {
@@ -58,7 +59,7 @@ interface CardHeaderProps {
 
 export const CardHeader: React.FC<CardHeaderProps> = ({ children, className }) => {
   return (
-    <div className={clsx('border-b border-neutral-200 pb-4 mb-4', className)}>
+    <div className={clsx('border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-4', className)}>
       {children}
     </div>
   )
@@ -84,7 +85,7 @@ export const CardTitle: React.FC<CardTitleProps> = ({
   }
 
   return (
-    <Tag className={clsx('text-neutral-900', levelClasses[level], className)}>
+    <Tag className={clsx('text-neutral-900 dark:text-neutral-100', levelClasses[level], className)}>
       {children}
     </Tag>
   )
@@ -100,7 +101,7 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
   className 
 }) => {
   return (
-    <p className={clsx('text-neutral-600 mt-2', className)}>
+    <p className={clsx('text-neutral-600 dark:text-neutral-400 mt-2', className)}>
       {children}
     </p>
   )
@@ -126,7 +127,7 @@ interface CardFooterProps {
 
 export const CardFooter: React.FC<CardFooterProps> = ({ children, className }) => {
   return (
-    <div className={clsx('border-t border-neutral-200 pt-4 mt-4', className)}>
+    <div className={clsx('border-t border-neutral-200 dark:border-neutral-800 pt-4 mt-4', className)}>
       {children}
     </div>
   )

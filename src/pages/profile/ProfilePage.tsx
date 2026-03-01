@@ -4,6 +4,8 @@ import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { Button, Input, Modal, ModalFooter } from '@/components/ui'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage } from '@/types'
 import { User, KeyRound, Mail, LogOut } from 'lucide-react'
+import { supabase, isolatedClient } from '@/lib/supabase'
+import toast from 'react-hot-toast'
 
 interface ProfilePageProps {
   onLogout?: () => void
@@ -48,14 +50,14 @@ function UsageBar({ label, usage }: { label: string; usage: ResourceUsage }) {
 }
 
 function ProfilePage({ onLogout }: ProfilePageProps) {
-  const { user } = useAuthContext()
+  const { user, updateProfile } = useAuthContext()
   const { plan, subscription, usage, isLoading: subLoading, error: subError } = useSubscriptionInfo()
 
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [editForm, setEditForm] = useState({
-    firstName: user?.email?.split('@')[0] || '',
-    lastName: '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     email: user?.email || '',
   })
   const [passwordForm, setPasswordForm] = useState({
@@ -65,6 +67,7 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
   })
   const [editSaving, setEditSaving] = useState(false)
   const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
   const tierConfig = plan?.tier ? PLAN_TIER_CONFIG[plan.tier] : null
   const statusConfig = subscription?.status ? STATUS_CONFIG[subscription.status] : null
@@ -72,8 +75,14 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
   const handleEditProfile = async () => {
     setEditSaving(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 800))
+      await updateProfile({
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        email: editForm.email,
+      })
       setEditModalOpen(false)
+    } catch {
+      // l'erreur est déjà gérée par updateProfile (toast)
     } finally {
       setEditSaving(false)
     }
@@ -81,13 +90,40 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
 
   const handleChangePassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Les mots de passe ne correspondent pas')
+      return
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('Le nouveau mot de passe doit contenir au moins 6 caractères')
       return
     }
     setPasswordSaving(true)
+    setPasswordError(null)
     try {
-      await new Promise(resolve => setTimeout(resolve, 800))
+      // 1. Vérifier le mot de passe actuel via le client isolé (évite de perturber la session)
+      const { error: verifyError } = await isolatedClient.auth.signInWithPassword({
+        email: user?.email || '',
+        password: passwordForm.currentPassword,
+      })
+      if (verifyError) {
+        setPasswordError('Le mot de passe actuel est incorrect')
+        return
+      }
+
+      // 2. Mettre à jour le mot de passe
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword,
+      })
+      if (error) throw error
+
+      toast.success('Mot de passe modifié avec succès')
       setPasswordModalOpen(false)
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setPasswordError(null)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur lors du changement de mot de passe'
+      setPasswordError(msg)
+      toast.error(msg)
     } finally {
       setPasswordSaving(false)
     }
@@ -96,18 +132,18 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-neutral-900">Mon profil</h1>
-        <p className="text-neutral-500 mt-1">Gérer vos informations personnelles et votre abonnement</p>
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Mon profil</h1>
+        <p className="text-neutral-500 dark:text-neutral-400 mt-1">Gérer vos informations personnelles et votre abonnement</p>
       </div>
 
       {/* Informations personnelles */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-start sm:items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-100 rounded-lg shrink-0">
               <User size={20} className="text-primary-600" />
             </div>
-            <h3 className="text-lg font-semibold text-neutral-900">Informations personnelles</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Informations personnelles</h3>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setEditModalOpen(true)} className="shrink-0">
             Modifier
@@ -115,11 +151,17 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
-            <label className="text-sm font-medium text-neutral-500">Email</label>
-            <p className="text-neutral-900 mt-1">{user?.email}</p>
+            <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Nom complet</label>
+            <p className="text-neutral-900 dark:text-neutral-100 mt-1">
+              {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || '-'}
+            </p>
           </div>
           <div>
-            <label className="text-sm font-medium text-neutral-500">Rôle</label>
+            <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Email</label>
+            <p className="text-neutral-900 dark:text-neutral-100 mt-1">{user?.email}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Rôle</label>
             <p className="mt-1">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-700">
                 {user?.role}
@@ -127,19 +169,19 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
             </p>
           </div>
           <div>
-            <label className="text-sm font-medium text-neutral-500">Établissement</label>
-            <p className="text-neutral-900 mt-1">{user?.establishmentId || '-'}</p>
+            <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Établissement</label>
+            <p className="text-neutral-900 dark:text-neutral-100 mt-1">{user?.establishmentId || '-'}</p>
           </div>
         </div>
       </div>
 
       {/* Section Abonnement */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-success-100 rounded-lg shrink-0">
             <Mail size={20} className="text-success-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900">Mon abonnement</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Mon abonnement</h3>
         </div>
         {subLoading ? (
           <p className="text-neutral-500 text-center py-4">Chargement...</p>
@@ -148,7 +190,7 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
         ) : (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <span className="text-lg font-semibold text-neutral-900">
+              <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
                 {plan?.name || 'Aucun plan'}
               </span>
               {tierConfig && (
@@ -165,8 +207,8 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
 
             {subscription?.renewalDate && (
               <div>
-                <label className="text-sm font-medium text-neutral-500">Date de renouvellement</label>
-                <p className="text-neutral-900 mt-1">
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Date de renouvellement</label>
+                <p className="text-neutral-900 dark:text-neutral-100 mt-1">
                   {new Date(subscription.renewalDate).toLocaleDateString('fr-FR', {
                     year: 'numeric',
                     month: 'long',
@@ -187,8 +229,8 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
               </div>
             )}
 
-            <div className="pt-4 border-t border-neutral-200">
-              <p className="text-sm text-neutral-500 mb-3">
+            <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
                 Pour changer de plan ou poser une question sur votre abonnement :
               </p>
               <a href="mailto:support@antiplanning.com">
@@ -200,15 +242,15 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
       </div>
 
       {/* Actions du compte */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-warning-100 rounded-lg shrink-0">
             <KeyRound size={20} className="text-warning-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900">Actions du compte</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Actions du compte</h3>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={() => setPasswordModalOpen(true)}>
+          <Button variant="secondary" onClick={() => { setPasswordModalOpen(true); setPasswordError(null); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }) }}>
             Changer le mot de passe
           </Button>
           <Button variant="danger" leftIcon={LogOut} onClick={onLogout}>
@@ -283,6 +325,11 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
           />
           {passwordForm.newPassword && passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
             <p className="text-sm text-error-600">Les mots de passe ne correspondent pas</p>
+          )}
+          {passwordError && (
+            <div className="p-3 rounded-lg bg-error-50 border border-error-200">
+              <p className="text-sm text-error-700">{passwordError}</p>
+            </div>
           )}
         </div>
         <ModalFooter>

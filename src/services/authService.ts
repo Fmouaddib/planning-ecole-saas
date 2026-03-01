@@ -5,7 +5,7 @@
 
 import type { LoginCredentials, RegisterData, User, AuthUser } from '@/types'
 import { supabase } from '@/lib/supabase'
-import { getErrorMessage } from '@/utils'
+import { getErrorMessage, parseFullName } from '@/utils'
 
 export class AuthService {
   // ==================== AUTHENTICATION ====================
@@ -88,19 +88,22 @@ export class AuthService {
   static async getUserProfile(userId: string): Promise<AuthUser> {
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('id, email, role, establishment_id')
+        .from('profiles')
+        .select('id, email, full_name, role, center_id')
         .eq('id', userId)
         .single()
 
       if (error) throw error
       if (!data) throw new Error('Profil utilisateur introuvable')
 
+      const { firstName, lastName } = parseFullName(data.full_name)
       return {
         id: data.id,
         email: data.email,
+        firstName,
+        lastName,
         role: data.role,
-        establishmentId: data.establishment_id,
+        establishmentId: data.center_id,
       }
     } catch (error) {
       throw new Error(getErrorMessage(error))

@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Diploma, Class, Subject, User } from '@/types'
-import { supabase, isDemoMode } from '@/lib/supabase'
+import { supabase, isDemoMode, isolatedClient } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { transformUser } from '@/utils/transforms'
 import toast from 'react-hot-toast'
@@ -358,15 +358,8 @@ export function useAcademicData() {
 
     // Si la fonction RPC n'existe pas, on tombe en fallback signUp
     if (rpcError && rpcError.message.includes('could not find')) {
-      const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-      const tempClient = createSupabaseClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
-        { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-      )
-
       const tempPassword = crypto.randomUUID() + 'Aa1!'
-      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+      const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
         email: data.email,
         password: tempPassword,
         options: { data: { full_name: fullName, role: data.role } },

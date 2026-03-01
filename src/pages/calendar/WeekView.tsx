@@ -185,20 +185,20 @@ export default function WeekView({
   return (
     <div className="overflow-auto" ref={gridRef}>
       {/* Header */}
-      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)] border-b border-neutral-200 sticky top-0 bg-white z-10">
+      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)] border-b border-neutral-200 dark:border-neutral-800 sticky top-0 bg-white dark:bg-neutral-900 z-10">
         <div className="p-2" />
         {days.map(day => (
           <div
             key={day.toISOString()}
-            className={`p-2 text-center border-l border-neutral-200 ${
-              isToday(day) ? 'bg-primary-50' : ''
+            className={`p-2 text-center border-l border-neutral-200 dark:border-neutral-800 ${
+              isToday(day) ? 'bg-primary-50 dark:bg-primary-950' : ''
             }`}
           >
-            <div className="text-xs text-neutral-500 uppercase">
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 uppercase">
               {format(day, 'EEE', { locale: fr })}
             </div>
             <div className={`text-lg font-semibold ${
-              isToday(day) ? 'text-primary-600' : 'text-neutral-900'
+              isToday(day) ? 'text-primary-600' : 'text-neutral-900 dark:text-neutral-100'
             }`}>
               {format(day, 'd')}
             </div>
@@ -223,7 +223,7 @@ export default function WeekView({
           const overlapLayout = computeOverlapLayout(dayEvents)
 
           return (
-            <div key={day.toISOString()} className="relative border-l border-neutral-200">
+            <div key={day.toISOString()} className="relative border-l border-neutral-200 dark:border-neutral-800">
               {hours.map(hour => (
                 <div
                   key={hour}

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react'
-import { createPortal } from 'react-dom'
+import { SIDEBAR_DATE_EVENT } from '@/components/layout/SidebarCalendar'
 import {
   format,
   startOfWeek,
@@ -24,7 +24,6 @@ import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
 import { mockBuildingRooms } from '@/data/mock-room-buildings'
 import { ColorLegend } from './ColorLegend'
-import { MiniCalendar } from './MiniCalendar'
 import { CreateBookingModal } from './CreateBookingModal'
 import { RoomsView } from './RoomsView'
 import {
@@ -103,9 +102,6 @@ function CalendarPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
-
-  // Mini-calendar state
-  const [miniMonth, setMiniMonth] = useState(new Date())
 
   // Create booking modal state
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -260,11 +256,29 @@ function CalendarPage() {
     else setCurrentDate(d => subDays(d, 1))
   }
 
-  // Mini-calendar: select date -> go to day view
-  const handleMiniCalendarSelect = (date: Date) => {
-    setCurrentDate(date)
-    setView('day')
-  }
+  // Listen for sidebar mini-calendar date selection
+  useEffect(() => {
+    // Check if a date was set before mount (e.g. navigating from another page)
+    const stored = sessionStorage.getItem('planning-target-date')
+    if (stored) {
+      sessionStorage.removeItem('planning-target-date')
+      setCurrentDate(new Date(stored))
+      setView('day')
+    }
+
+    const handler = (e: Event) => {
+      const date = (e as CustomEvent<Date>).detail
+      setCurrentDate(date)
+      setView('day')
+    }
+    window.addEventListener(SIDEBAR_DATE_EVENT, handler)
+    return () => window.removeEventListener(SIDEBAR_DATE_EVENT, handler)
+  }, [])
+
+  // Notify sidebar when currentDate changes (for sync)
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('calendar-date-change', { detail: currentDate }))
+  }, [currentDate])
 
   // Create event from calendar click
   const handleSlotClick = (date: Date, hour: number | null) => {
@@ -372,8 +386,8 @@ function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 no-print">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Calendrier</h1>
-          <p className="text-neutral-500 mt-1 capitalize">{headerLabel}</p>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Calendrier</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1 capitalize">{headerLabel}</p>
         </div>
       </div>
 
@@ -391,12 +405,12 @@ function CalendarPage() {
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
+          <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
             {(['day', 'week', 'month', 'rooms'] as ViewMode[]).map(v => (
               <button
                 key={v}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  view === v ? 'bg-primary-600 text-white' : 'bg-white text-neutral-600 hover:bg-neutral-50'
+                  view === v ? 'bg-primary-600 text-white' : 'bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
                 }`}
                 onClick={() => setView(v)}
               >
@@ -409,7 +423,7 @@ function CalendarPage() {
             className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
               showFilters || activeFilterCount > 0
                 ? 'bg-primary-50 border-primary-300 text-primary-700'
-                : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
             }`}
             onClick={() => setShowFilters(!showFilters)}
           >
@@ -425,7 +439,7 @@ function CalendarPage() {
 
           {/* Print button */}
           <button
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
             onClick={handlePrint}
             title="Imprimer"
           >
@@ -445,7 +459,7 @@ function CalendarPage() {
           {/* Export dropdown */}
           <div className="relative" ref={exportMenuRef}>
             <button
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
               onClick={() => setShowExportMenu(!showExportMenu)}
             >
               <Download size={16} />
@@ -453,7 +467,7 @@ function CalendarPage() {
               <ChevronDown size={14} className={`transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
             </button>
             {showExportMenu && (
-              <div className="absolute right-0 z-50 mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg py-1">
+              <div className="absolute right-0 z-50 mt-1 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1">
                 <div className="px-3 py-1.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">Grille semaine</div>
                 {([
                   { fmt: 'excel' as ExportFormat, label: 'Excel', ext: '.xlsx' },
@@ -463,14 +477,14 @@ function CalendarPage() {
                 ]).map(({ fmt, label, ext }) => (
                   <button
                     key={`cal-${fmt}`}
-                    className="w-full text-left px-3 py-1.5 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 transition-colors flex items-center justify-between"
+                    className="w-full text-left px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-primary-50 dark:hover:bg-neutral-800 hover:text-primary-700 transition-colors flex items-center justify-between"
                     onClick={() => handleExport(fmt, 'calendar')}
                   >
                     <span>{label}</span>
                     <span className="text-[10px] text-neutral-400">{ext}</span>
                   </button>
                 ))}
-                <div className="my-1 border-t border-neutral-100" />
+                <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
                 <div className="px-3 py-1.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">Liste</div>
                 {([
                   { fmt: 'excel' as ExportFormat, label: 'Excel', ext: '.xlsx' },
@@ -480,7 +494,7 @@ function CalendarPage() {
                 ]).map(({ fmt, label, ext }) => (
                   <button
                     key={`list-${fmt}`}
-                    className="w-full text-left px-3 py-1.5 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 transition-colors flex items-center justify-between"
+                    className="w-full text-left px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-primary-50 dark:hover:bg-neutral-800 hover:text-primary-700 transition-colors flex items-center justify-between"
                     onClick={() => handleExport(fmt, 'list')}
                   >
                     <span>{label}</span>
@@ -495,9 +509,9 @@ function CalendarPage() {
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 mb-4 no-print">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 mb-4 no-print">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-neutral-700">Filtres avancés</h3>
+            <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Filtres avancés</h3>
             {activeFilterCount > 0 && (
               <button
                 className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
@@ -552,22 +566,8 @@ function CalendarPage() {
       {/* F2 - Color Legend */}
       <ColorLegend activeTypes={activeTypes} onToggleType={handleToggleType} />
 
-      {/* F6 - Mini Calendar (portal into sidebar) */}
-      {document.getElementById('sidebar-mini-calendar') &&
-        createPortal(
-          <MiniCalendar
-            selectedDate={currentDate}
-            onSelectDate={handleMiniCalendarSelect}
-            events={filteredEvents}
-            miniMonth={miniMonth}
-            onMiniMonthChange={setMiniMonth}
-          />,
-          document.getElementById('sidebar-mini-calendar')!,
-        )
-      }
-
       {/* Calendar Views */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden print-calendar">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden print-calendar">
         <Suspense fallback={<div className="flex items-center justify-center py-20"><LoadingSpinner size="lg" /></div>}>
           {view === 'week' && (
             <WeekView
@@ -623,9 +623,9 @@ function CalendarPage() {
         {selectedEvent && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-neutral-900">{selectedEvent.title}</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{selectedEvent.title}</h3>
               {selectedEvent.recurrence && (
-                <span className="inline-flex items-center gap-1 text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">
                   <Repeat size={12} />
                   {recurrenceLabels[selectedEvent.recurrence.frequency] || selectedEvent.recurrence.frequency}
                 </span>
@@ -633,31 +633,31 @@ function CalendarPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-neutral-500">Salle</label>
-                <p className="text-neutral-900">{selectedEvent.roomName || '-'}</p>
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Salle</label>
+                <p className="text-neutral-900 dark:text-neutral-100">{selectedEvent.roomName || '-'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-neutral-500">Type</label>
-                <p className="text-neutral-900">{bookingTypeLabels[selectedEvent.type || ''] || selectedEvent.type}</p>
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Type</label>
+                <p className="text-neutral-900 dark:text-neutral-100">{bookingTypeLabels[selectedEvent.type || ''] || selectedEvent.type}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-neutral-500">Horaire</label>
-                <p className="text-neutral-900">
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Horaire</label>
+                <p className="text-neutral-900 dark:text-neutral-100">
                   {selectedEvent.start && selectedEvent.end
                     ? formatTimeRange(selectedEvent.start as string, selectedEvent.end as string)
                     : '-'}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-neutral-500">Date</label>
-                <p className="text-neutral-900">
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Date</label>
+                <p className="text-neutral-900 dark:text-neutral-100">
                   {selectedEvent.start
                     ? format(typeof selectedEvent.start === 'string' ? parseISO(selectedEvent.start) : selectedEvent.start, 'dd/MM/yyyy', { locale: fr })
                     : '-'}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-neutral-500">Statut</label>
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Statut</label>
                 <div className="mt-1">
                   <Badge variant={statusBadgeVariant[selectedEvent.status || ''] || 'neutral'} size="sm">
                     {statusLabels[selectedEvent.status || ''] || selectedEvent.status}
@@ -666,33 +666,33 @@ function CalendarPage() {
               </div>
               {(selectedEvent.teacher || selectedEvent.userName) && (
                 <div>
-                  <label className="text-sm font-medium text-neutral-500">Professeur</label>
-                  <p className="text-neutral-900">{selectedEvent.teacher || selectedEvent.userName}</p>
+                  <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Professeur</label>
+                  <p className="text-neutral-900 dark:text-neutral-100">{selectedEvent.teacher || selectedEvent.userName}</p>
                 </div>
               )}
               {selectedEvent.matiere && (
                 <div>
-                  <label className="text-sm font-medium text-neutral-500">Matière</label>
-                  <p className="text-neutral-900">{selectedEvent.matiere}</p>
+                  <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Matière</label>
+                  <p className="text-neutral-900 dark:text-neutral-100">{selectedEvent.matiere}</p>
                 </div>
               )}
               {selectedEvent.diplome && (
                 <div>
-                  <label className="text-sm font-medium text-neutral-500">Diplôme</label>
-                  <p className="text-neutral-900">{selectedEvent.diplome}</p>
+                  <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Diplôme</label>
+                  <p className="text-neutral-900 dark:text-neutral-100">{selectedEvent.diplome}</p>
                 </div>
               )}
               {selectedEvent.niveau && (
                 <div>
-                  <label className="text-sm font-medium text-neutral-500">Classe</label>
-                  <p className="text-neutral-900">{selectedEvent.niveau}</p>
+                  <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Classe</label>
+                  <p className="text-neutral-900 dark:text-neutral-100">{selectedEvent.niveau}</p>
                 </div>
               )}
             </div>
             {selectedEvent.description && (
               <div>
-                <label className="text-sm font-medium text-neutral-500">Description</label>
-                <p className="text-neutral-700 mt-1">{selectedEvent.description}</p>
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Description</label>
+                <p className="text-neutral-700 dark:text-neutral-300 mt-1">{selectedEvent.description}</p>
               </div>
             )}
           </div>
@@ -747,10 +747,10 @@ function CalendarPage() {
           const oldRoomName = pendingMove.event.roomName || roomOptions.find(r => r.value === pendingMove.event.roomId)?.label || '—'
           return (
             <div>
-              <p className="font-medium text-neutral-900 mb-3">{pendingMove.event.title}</p>
+              <p className="font-medium text-neutral-900 dark:text-neutral-100 mb-3">{pendingMove.event.title}</p>
 
               {/* Ancien créneau (lecture seule) */}
-              <div className="bg-neutral-50 rounded-md px-3 py-2 text-sm text-neutral-500 mb-4">
+              <div className="bg-neutral-50 dark:bg-neutral-800 rounded-md px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400 mb-4">
                 <p className="font-medium mb-0.5">Séance d'origine :</p>
                 <p>{format(oldStart, 'EEEE d MMM', { locale: fr })}</p>
                 <p>{formatTimeRange(pendingMove.event.start as string, pendingMove.event.end as string)} · {oldRoomName}</p>
@@ -759,31 +759,31 @@ function CalendarPage() {
               {/* Formulaire éditable */}
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Date</label>
                   <input
                     type="date"
                     value={moveDate}
                     onChange={e => setMoveDate(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">Début</label>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Début</label>
                     <input
                       type="time"
                       value={moveStartTime}
                       onChange={e => setMoveStartTime(e.target.value)}
-                      className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">Fin</label>
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Fin</label>
                     <input
                       type="time"
                       value={moveEndTime}
                       onChange={e => setMoveEndTime(e.target.value)}
-                      className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -794,7 +794,7 @@ function CalendarPage() {
                   </p>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Salle</label>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Salle</label>
                   <Select
                     value={moveRoomId}
                     onChange={e => setMoveRoomId(e.target.value)}

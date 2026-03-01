@@ -10,6 +10,7 @@ import {
   Search,
   Menu,
   LogOut,
+  HelpCircle,
 } from 'lucide-react'
 import { User as UserType } from '@/types'
 
@@ -29,8 +30,7 @@ interface HeaderProps {
   isDarkMode?: boolean
   onThemeToggle?: () => void
   onNotificationsClick?: () => void
-  onProfileClick?: () => void
-  onSettingsClick?: () => void
+  onNavigate?: (path: string) => void
   onLogout?: () => void
   className?: string
 }
@@ -41,8 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   isDarkMode = false,
   onThemeToggle,
   onNotificationsClick,
-  onProfileClick,
-  onSettingsClick,
+  onNavigate,
   onLogout,
   className
 }) => {
@@ -61,10 +60,15 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handler)
   }, [menuOpen])
 
+  const navigate = (path: string) => {
+    setMenuOpen(false)
+    onNavigate?.(path)
+  }
+
   return (
-    <header 
+    <header
       className={clsx(
-        'bg-white border-b border-neutral-200 shadow-soft',
+        'bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 shadow-soft',
         'h-16 flex items-center justify-between px-4 lg:px-6',
         'sticky top-0 z-30',
         className
@@ -75,9 +79,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Mobile menu button */}
         <button
           onClick={onMenuToggle}
-          className="lg:hidden p-2 rounded-lg hover:bg-neutral-100 transition-colors duration-200"
+          className="lg:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
         >
-          <Menu size={20} className="text-neutral-600" />
+          <Menu size={20} className="text-neutral-600 dark:text-neutral-400" />
         </button>
 
         {/* Logo */}
@@ -85,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm text-white" style={{ background: 'linear-gradient(135deg, #FF5B46, #FBA625)' }}>
             A
           </div>
-          <span className="hidden sm:block font-display font-semibold text-xl text-neutral-900">
+          <span className="hidden sm:block font-display font-semibold text-xl text-neutral-900 dark:text-neutral-100">
             AntiPlanning
           </span>
         </div>
@@ -98,7 +102,8 @@ export const Header: React.FC<HeaderProps> = ({
           <input
             type="text"
             placeholder="Rechercher salles, événements..."
-            className="w-80 pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-lg
+            className="w-80 pl-10 pr-4 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-lg
+                     text-neutral-900 dark:text-neutral-100 placeholder-neutral-500
                      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
                      transition-all duration-200"
           />
@@ -108,49 +113,39 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right side */}
       <div className="flex items-center space-x-2">
         {/* Search button - Mobile only */}
-        <button className="md:hidden p-2 rounded-lg hover:bg-neutral-100 transition-colors duration-200">
-          <Search size={20} className="text-neutral-600" />
+        <button className="md:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200">
+          <Search size={20} className="text-neutral-600 dark:text-neutral-400" />
         </button>
 
         {/* Theme toggle */}
         <button
           onClick={onThemeToggle}
-          className="p-2 rounded-lg hover:bg-neutral-100 transition-colors duration-200"
+          className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
           title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
         >
           {isDarkMode ? (
-            <Sun size={20} className="text-neutral-600" />
+            <Sun size={20} className="text-neutral-600 dark:text-neutral-400" />
           ) : (
-            <Moon size={20} className="text-neutral-600" />
+            <Moon size={20} className="text-neutral-600 dark:text-neutral-400" />
           )}
         </button>
 
         {/* Notifications */}
         <button
           onClick={onNotificationsClick}
-          className="relative p-2 rounded-lg hover:bg-neutral-100 transition-colors duration-200"
+          className="relative p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
           title="Notifications"
         >
-          <Bell size={20} className="text-neutral-600" />
-          {/* Notification badge */}
+          <Bell size={20} className="text-neutral-600 dark:text-neutral-400" />
           <span className="absolute top-0 right-0 h-2 w-2 bg-error-500 rounded-full"></span>
-        </button>
-
-        {/* Settings */}
-        <button
-          onClick={onSettingsClick}
-          className="p-2 rounded-lg hover:bg-neutral-100 transition-colors duration-200"
-          title="Paramètres"
-        >
-          <Settings size={20} className="text-neutral-600" />
         </button>
 
         {/* User menu with dropdown */}
         {user && (
-          <div ref={menuRef} className="relative flex items-center space-x-2 pl-2 border-l border-neutral-200">
+          <div ref={menuRef} className="relative flex items-center space-x-2 pl-2 border-l border-neutral-200 dark:border-neutral-700">
             <button
               onClick={() => setMenuOpen(prev => !prev)}
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-neutral-100
+              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800
                        transition-colors duration-200"
             >
               <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center">
@@ -166,10 +161,10 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
 
               <div className="hidden sm:block text-left">
-                <p className="text-sm font-medium text-neutral-900">
+                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
                   {ROLE_LABELS[user.role] || user.role}
                 </p>
               </div>
@@ -179,38 +174,45 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Dropdown menu */}
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl border border-neutral-200 shadow-lg py-1 z-50">
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-lg py-1 z-50">
                 {/* User info header */}
-                <div className="px-4 py-3 border-b border-neutral-100">
-                  <p className="text-sm font-semibold text-neutral-900 truncate">
+                <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
+                  <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
                     {user.firstName} {user.lastName}
                   </p>
-                  <p className="text-xs text-neutral-500 truncate">{user.email}</p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{user.email}</p>
                 </div>
 
-                {/* Menu items */}
+                {/* Navigation items */}
                 <div className="py-1">
                   <button
-                    onClick={() => { setMenuOpen(false); onProfileClick?.() }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                    onClick={() => navigate('/profile')}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <User size={16} className="text-neutral-400" />
                     Mon profil
                   </button>
                   <button
-                    onClick={() => { setMenuOpen(false); onSettingsClick?.() }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                    onClick={() => navigate('/settings')}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <Settings size={16} className="text-neutral-400" />
                     Paramètres
                   </button>
+                  <button
+                    onClick={() => navigate('/help')}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <HelpCircle size={16} className="text-neutral-400" />
+                    Aide & Support
+                  </button>
                 </div>
 
                 {/* Logout */}
-                <div className="border-t border-neutral-100 py-1">
+                <div className="border-t border-neutral-100 dark:border-neutral-800 py-1">
                   <button
                     onClick={() => { setMenuOpen(false); onLogout?.() }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-error-600 hover:bg-error-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-error-600 hover:bg-error-50 dark:hover:bg-error-950 transition-colors"
                   >
                     <LogOut size={16} />
                     Se déconnecter

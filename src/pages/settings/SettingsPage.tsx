@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Button, Select } from '@/components/ui'
-import { Settings, Bell, Monitor, Save } from 'lucide-react'
+import { Settings, Bell, Monitor, Save, LogOut, User, HelpCircle } from 'lucide-react'
+
+interface SettingsPageProps {
+  onLogout?: () => void
+  onNavigate?: (path: string) => void
+}
 
 interface AppSettings {
   language: string
@@ -29,7 +34,7 @@ const defaultSettings: AppSettings = {
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="flex items-center justify-between cursor-pointer">
-      <span className="text-sm text-neutral-700">{label}</span>
+      <span className="text-sm text-neutral-700 dark:text-neutral-300">{label}</span>
       <button
         type="button"
         role="switch"
@@ -49,22 +54,34 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-function SettingsPage() {
+function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem('appSettings')
-    if (stored) {
-      try {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) })
-      } catch { /* ignore */ }
-    }
+    let parsed: Record<string, unknown> = {}
+    try { parsed = JSON.parse(localStorage.getItem('appSettings') || '{}') } catch { /* ignore */ }
+    // Synchroniser le thème depuis localStorage.theme (source de vérité du Layout)
+    const themeKey = localStorage.getItem('theme')
+    const theme: 'light' | 'dark' | 'auto' = themeKey === 'dark' ? 'dark' : themeKey === 'light' ? 'light' : 'auto'
+    setSettings({ ...defaultSettings, ...parsed, theme })
   }, [])
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(s => ({ ...s, [key]: value }))
     setSaved(false)
+
+    // Appliquer le thème immédiatement
+    if (key === 'theme') {
+      const theme = value as 'light' | 'dark' | 'auto'
+      const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      if (isDark) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+      localStorage.setItem('theme', theme === 'auto' ? '' : theme)
+    }
   }
 
   const handleSave = () => {
@@ -77,8 +94,8 @@ function SettingsPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Paramètres</h1>
-          <p className="text-neutral-500 mt-1">Configurez vos préférences</p>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Paramètres</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">Configurez vos préférences</p>
         </div>
         <Button leftIcon={Save} onClick={handleSave} className="self-start sm:self-auto">
           {saved ? 'Enregistré !' : 'Enregistrer'}
@@ -86,12 +103,12 @@ function SettingsPage() {
       </div>
 
       {/* General */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-primary-100 rounded-lg">
             <Settings size={20} className="text-primary-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900">Général</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Général</h3>
         </div>
         <div className="space-y-4 max-w-md">
           <Select
@@ -128,12 +145,12 @@ function SettingsPage() {
       </div>
 
       {/* Notifications */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6 mb-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-warning-100 rounded-lg">
             <Bell size={20} className="text-warning-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900">Notifications</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Notifications</h3>
         </div>
         <div className="space-y-4 max-w-md">
           <Toggle
@@ -160,12 +177,12 @@ function SettingsPage() {
       </div>
 
       {/* Display */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-success-100 rounded-lg">
             <Monitor size={20} className="text-success-600" />
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900">Affichage</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Affichage</h3>
         </div>
         <div className="space-y-4 max-w-md">
           <Select
@@ -183,6 +200,48 @@ function SettingsPage() {
             checked={settings.compactMode}
             onChange={v => updateSetting('compactMode', v)}
           />
+        </div>
+      </div>
+
+      {/* Compte */}
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mt-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-error-100 rounded-lg">
+            <User size={20} className="text-error-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Compte</h3>
+        </div>
+        <div className="space-y-3">
+          <button
+            onClick={() => onNavigate?.('/profile')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors border border-neutral-200 dark:border-neutral-700"
+          >
+            <User size={18} className="text-neutral-500" />
+            <div>
+              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Mon profil</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Informations personnelles et abonnement</p>
+            </div>
+          </button>
+          <button
+            onClick={() => onNavigate?.('/help')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors border border-neutral-200 dark:border-neutral-700"
+          >
+            <HelpCircle size={18} className="text-neutral-500" />
+            <div>
+              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Aide & Support</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Documentation et assistance</p>
+            </div>
+          </button>
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left hover:bg-error-50 transition-colors border border-error-200"
+          >
+            <LogOut size={18} className="text-error-500" />
+            <div>
+              <p className="text-sm font-medium text-error-600">Se déconnecter</p>
+              <p className="text-xs text-error-400">Fermer la session en cours</p>
+            </div>
+          </button>
         </div>
       </div>
     </div>

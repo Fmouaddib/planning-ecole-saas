@@ -19,11 +19,7 @@ export function transformBooking(raw: Record<string, any>): Booking {
   // On utilise 'course' par défaut car il n'y a pas de colonne booking_type dans le schéma
   const bookingType: 'course' = 'course'
 
-  // Extraire prénom/nom depuis full_name
-  const trainerName = trainer?.full_name || ''
-  const nameParts = trainerName.split(' ')
-  const firstName = nameParts[0] || ''
-  const lastName = nameParts.slice(1).join(' ') || ''
+  const { firstName, lastName } = parseFullName(trainer?.full_name)
 
   return {
     id: raw.id,
@@ -96,13 +92,17 @@ export function transformRoom(raw: Record<string, any>): Room {
   }
 }
 
+// ==================== HELPERS ====================
+
+export function parseFullName(fullName: string | null | undefined): { firstName: string; lastName: string } {
+  const parts = (fullName || '').split(' ')
+  return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' }
+}
+
 // ==================== USER (from profiles) ====================
 
 export function transformUser(raw: Record<string, any>): User {
-  const fullName = raw.full_name || ''
-  const nameParts = fullName.split(' ')
-  const firstName = nameParts[0] || ''
-  const lastName = nameParts.slice(1).join(' ') || ''
+  const { firstName, lastName } = parseFullName(raw.full_name)
 
   return {
     id: raw.id,

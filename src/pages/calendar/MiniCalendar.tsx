@@ -61,23 +61,23 @@ export function MiniCalendar({
 
   return (
     <div className="no-print">
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-3">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-3">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <button
-            className="p-1 hover:bg-neutral-100 rounded transition-colors"
+            className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
             onClick={() => onMiniMonthChange(subMonths(miniMonth, 1))}
           >
-            <ChevronLeft size={16} className="text-neutral-500" />
+            <ChevronLeft size={16} className="text-neutral-500 dark:text-neutral-400" />
           </button>
-          <span className="text-sm font-semibold text-neutral-800 capitalize">
+          <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 capitalize">
             {format(miniMonth, 'MMMM yyyy', { locale: fr })}
           </span>
           <button
-            className="p-1 hover:bg-neutral-100 rounded transition-colors"
+            className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
             onClick={() => onMiniMonthChange(addMonths(miniMonth, 1))}
           >
-            <ChevronRight size={16} className="text-neutral-500" />
+            <ChevronRight size={16} className="text-neutral-500 dark:text-neutral-400" />
           </button>
         </div>
 
@@ -109,7 +109,7 @@ export function MiniCalendar({
                     ? 'bg-primary-600 text-white font-bold'
                     : today
                     ? 'bg-primary-50 text-primary-700 font-semibold'
-                    : 'text-neutral-700 hover:bg-neutral-100'
+                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
                 onClick={() => onSelectDate(day)}
               >

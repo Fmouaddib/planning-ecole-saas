@@ -160,11 +160,11 @@ export default function MonthView({
   return (
     <div>
       {/* Toggle bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200 bg-neutral-50/50">
-        <div className="flex items-center gap-1 bg-neutral-200/60 rounded-lg p-0.5">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-950/50">
+        <div className="flex items-center gap-1 bg-neutral-200/60 dark:bg-neutral-800/60 rounded-lg p-0.5">
           <button
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-              !showOccupation ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+              !showOccupation ? 'bg-white dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 shadow-sm' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
             }`}
             onClick={() => setShowOccupation(false)}
           >
@@ -173,7 +173,7 @@ export default function MonthView({
           </button>
           <button
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-              showOccupation ? 'bg-white text-neutral-800 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+              showOccupation ? 'bg-white dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100 shadow-sm' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
             }`}
             onClick={() => setShowOccupation(true)}
           >
@@ -188,7 +188,7 @@ export default function MonthView({
 
       {/* Month stats (occupation mode only) */}
       {showOccupation && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 border-b border-neutral-200 bg-white">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
           <div className="flex items-center gap-2 p-2 rounded-lg bg-primary-50">
             <TrendingUp size={16} className="text-primary-500" />
             <div>
@@ -222,7 +222,7 @@ export default function MonthView({
 
       {/* Day names header + Day cells (scrollable on mobile) */}
       <div className="overflow-x-auto">
-      <div className="min-w-[500px] grid grid-cols-7 border-b border-neutral-200">
+      <div className="min-w-[500px] grid grid-cols-7 border-b border-neutral-200 dark:border-neutral-800">
         {dayNames.map(name => (
           <div key={name} className="p-2 text-center text-xs font-semibold text-neutral-500 uppercase">
             {name}
@@ -326,7 +326,7 @@ export default function MonthView({
 
       {/* Occupation legend */}
       {showOccupation && (
-        <div className="flex items-center justify-center gap-4 px-4 py-2 border-t border-neutral-200 bg-neutral-50/50">
+        <div className="flex items-center justify-center gap-4 px-4 py-2 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-950/50">
           <span className="text-[10px] text-neutral-400 uppercase font-semibold mr-1">Légende :</span>
           {[
             { label: '0%', style: getOccupationStyle(0) },

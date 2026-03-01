@@ -330,8 +330,8 @@ function RoomsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Gestion des salles</h1>
-          <p className="text-neutral-500 mt-1">{rooms.length} salle{rooms.length > 1 ? 's' : ''} au total</p>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Gestion des salles</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{rooms.length} salle{rooms.length > 1 ? 's' : ''} au total</p>
         </div>
         <Button leftIcon={Plus} onClick={openCreate} className="mt-4 sm:mt-0">
           Ajouter une salle
@@ -367,11 +367,11 @@ function RoomsPage() {
         />
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Type</th>
@@ -382,23 +382,23 @@ function RoomsPage() {
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {paginatedData.map(room => {
                     const eqList = room.equipment || []
                     const MAX_VISIBLE = 3
                     return (
-                      <tr key={room.id} className="hover:bg-neutral-50 transition-colors">
+                      <tr key={room.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                         <td className="px-4 py-3">
-                          <span className="font-medium text-neutral-900">{room.name}</span>
+                          <span className="font-medium text-neutral-900 dark:text-neutral-100">{room.name}</span>
                           <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{room.code}</span>
                         </td>
-                        <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">{room.code}</td>
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{room.code}</td>
                         <td className="px-4 py-3">
                           <Badge variant={roomTypeBadgeVariant[room.roomType || room.type] || 'neutral'} size="sm">
                             {roomTypeLabels[room.roomType || room.type] || room.roomType || room.type}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-sm text-neutral-600">{room.capacity} places</td>
+                        <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{room.capacity} places</td>
                         <td className="hidden md:table-cell px-4 py-3">
                           {(() => {
                             const pct = occupationMap.get(room.id) ?? 0
@@ -414,7 +414,7 @@ function RoomsPage() {
                             )
                           })()}
                         </td>
-                        <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600">{room.floor ?? '-'}</td>
+                        <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{room.floor ?? '-'}</td>
                         <td className="hidden lg:table-cell px-4 py-3">
                           {eqList.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
@@ -478,9 +478,9 @@ function RoomsPage() {
       </div>
 
       {showCatalog && (
-        <div className="mt-4 bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-neutral-200">
-            <h2 className="text-lg font-semibold text-neutral-900">Catalogue d'équipements</h2>
+        <div className="mt-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Catalogue d'équipements</h2>
             <span className="text-sm text-neutral-400">{filteredCatalogCount}/{catalog.length}</span>
             <div className="ml-auto w-44">
               <Select
@@ -494,7 +494,7 @@ function RoomsPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50">
+                <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                   <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                   <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Salles</th>
                   <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
@@ -503,9 +503,9 @@ function RoomsPage() {
               {filteredCatalog.map(group => {
                 const isCollapsed = collapsedCategories.has(group.category)
                 return (
-                  <tbody key={group.category} className="divide-y divide-neutral-100">
+                  <tbody key={group.category} className="divide-y divide-neutral-100 dark:divide-neutral-800">
                     <tr
-                      className="bg-neutral-50/70 cursor-pointer select-none hover:bg-neutral-100/70 transition-colors"
+                      className="bg-neutral-50/70 dark:bg-neutral-950/70 cursor-pointer select-none hover:bg-neutral-100/70 dark:hover:bg-neutral-800/70 transition-colors"
                       onClick={() => toggleCategory(group.category)}
                     >
                       <td colSpan={3} className="px-4 py-2">
@@ -519,11 +519,11 @@ function RoomsPage() {
                     {!isCollapsed && group.items.map(entry => {
                       const count = equipmentCounts.get(entry.name.toLowerCase()) || 0
                       return (
-                        <tr key={entry.name} className="hover:bg-neutral-50 transition-colors">
+                        <tr key={entry.name} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                           <td className="px-4 py-2.5 pl-8">
-                            <span className="font-medium text-neutral-900 text-sm">{entry.name}</span>
+                            <span className="font-medium text-neutral-900 dark:text-neutral-100 text-sm">{entry.name}</span>
                           </td>
-                          <td className="px-4 py-2.5 text-sm text-neutral-600">
+                          <td className="px-4 py-2.5 text-sm text-neutral-600 dark:text-neutral-400">
                             {count > 0 ? count : <span className="text-neutral-400">—</span>}
                           </td>
                           <td className="px-4 py-2.5 text-right">
@@ -646,7 +646,7 @@ function RoomsPage() {
         title="Supprimer la salle"
         size="sm"
       >
-        <p className="text-neutral-600">
+        <p className="text-neutral-600 dark:text-neutral-400">
           Êtes-vous sûr de vouloir supprimer la salle <strong>{selectedRoom?.name}</strong> ?
           Cette action est irréversible.
         </p>
@@ -703,7 +703,7 @@ function RoomsPage() {
         size="sm"
       >
         <div className="space-y-3">
-          <p className="text-neutral-600">
+          <p className="text-neutral-600 dark:text-neutral-400">
             Êtes-vous sûr de vouloir supprimer l'équipement <strong>{equipToDelete}</strong> du catalogue ?
           </p>
           {(equipmentCounts.get(equipToDelete.toLowerCase()) || 0) > 0 && (

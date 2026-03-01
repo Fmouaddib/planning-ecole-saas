@@ -26,8 +26,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
 
     const inputClasses = [
-      'w-full bg-white border rounded-lg px-3 py-2.5',
-      'text-neutral-900 placeholder-neutral-500',
+      'w-full bg-white dark:bg-neutral-950 border rounded-lg px-3 py-2.5',
+      'text-neutral-900 dark:text-neutral-100 placeholder-neutral-500',
       'focus:outline-none focus:ring-2 focus:ring-opacity-50',
       'disabled:bg-neutral-50 disabled:text-neutral-500 disabled:cursor-not-allowed',
       'transition-all duration-200 ease-out',
@@ -36,7 +36,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
     const errorClasses = error
       ? 'border-error-300 focus:border-error-500 focus:ring-error-500'
-      : 'border-neutral-200 focus:border-primary-500 focus:ring-primary-500 hover:border-neutral-300'
+      : 'border-neutral-200 dark:border-neutral-700 focus:border-primary-500 focus:ring-primary-500 hover:border-neutral-300 dark:hover:border-neutral-600'
 
     const iconSizeClasses = LeftIcon || RightIcon ? 'pl-10' : ''
     const rightIconClasses = RightIcon ? 'pr-10' : ''
@@ -46,7 +46,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label 
             htmlFor={inputId} 
-            className="block text-sm font-medium text-neutral-700 mb-2"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
           >
             {label}
           </label>

@@ -5,6 +5,7 @@ import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
 import { SuperAdminApp } from '@/components/super-admin/SuperAdminApp'
 import { ROUTES } from '@/utils/constants'
+import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -46,7 +47,6 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.USERS]: UsersPage,
   [ROUTES.PLANNING]: CalendarPage,
   [ROUTES.ANALYTICS]: AnalyticsPage,
-  [ROUTES.SETTINGS]: SettingsPage,
   [ROUTES.PROFILE]: ProfilePage,
   [ROUTES.ACADEMIC]: AcademicPage,
   [ROUTES.HELP]: HelpPage,
@@ -88,12 +88,12 @@ export default function App() {
             .single()
 
           if (profile) {
-            const nameParts = (profile.full_name || '').split(' ')
+            const { firstName, lastName } = parseFullName(profile.full_name)
             setUser({
               id: profile.id,
               email: profile.email,
-              firstName: nameParts[0] || '',
-              lastName: nameParts.slice(1).join(' ') || '',
+              firstName,
+              lastName,
               role: profile.role || 'student',
               schoolId: profile.center_id,
               establishmentId: profile.center_id,
@@ -128,12 +128,12 @@ export default function App() {
               .single()
 
             if (profile) {
-              const nameParts = (profile.full_name || '').split(' ')
+              const { firstName, lastName } = parseFullName(profile.full_name)
               setUser({
                 id: profile.id,
                 email: profile.email,
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
+                firstName,
+                lastName,
                 role: profile.role || 'student',
                 schoolId: profile.center_id,
                 establishmentId: profile.center_id,
@@ -213,12 +213,12 @@ export default function App() {
         }
 
         console.log('[Login] Profile OK:', profile.email, 'role:', profile.role, 'center:', profile.center_id)
-        const nameParts = (profile.full_name || '').split(' ')
+        const { firstName, lastName } = parseFullName(profile.full_name)
         setUser({
           id: profile.id,
           email: profile.email,
-          firstName: nameParts[0] || '',
-          lastName: nameParts.slice(1).join(' ') || '',
+          firstName,
+          lastName,
           role: profile.role || 'student',
           schoolId: profile.center_id,
           establishmentId: profile.center_id,
@@ -374,6 +374,10 @@ export default function App() {
       return <ProfilePage onLogout={handleLogout} />
     }
 
+    if (currentPath === ROUTES.SETTINGS) {
+      return <SettingsPage onLogout={handleLogout} onNavigate={handleNavigate} />
+    }
+
     const PageComponent = routeComponents[currentPath]
     if (PageComponent) {
       return <PageComponent />
@@ -407,8 +411,6 @@ export default function App() {
       currentPath={currentPath}
       onNavigate={handleNavigate}
       onLogout={handleLogout}
-      onProfileClick={() => handleNavigate('/profile')}
-      onSettingsClick={() => handleNavigate('/settings')}
     >
       <Suspense
         fallback={

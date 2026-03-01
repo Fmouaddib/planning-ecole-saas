@@ -27,7 +27,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       'disabled:bg-neutral-50 disabled:text-neutral-500 disabled:cursor-not-allowed',
       'transition-all duration-200 ease-out',
       'shadow-soft hover:shadow-medium focus:shadow-medium',
-      'scrollbar-thin'
+      'scrollbar-thin',
+      'dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder-neutral-500',
+      'dark:border-neutral-700 dark:disabled:bg-neutral-900'
     ]
 
     const errorClasses = error
@@ -46,7 +48,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label 
             htmlFor={textareaId} 
-            className="block text-sm font-medium text-neutral-700 mb-2"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
           >
             {label}
           </label>

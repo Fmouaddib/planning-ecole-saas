@@ -49,20 +49,20 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal */}
       <div
         className={clsx(
-          'relative w-full bg-white rounded-2xl shadow-strong',
+          'relative w-full bg-white dark:bg-neutral-900 rounded-2xl shadow-strong dark:border dark:border-neutral-700',
           'animate-scale-in max-h-full flex flex-col',
           sizeClasses[size]
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-neutral-200 shrink-0">
-          <h2 className="text-lg sm:text-xl font-semibold text-neutral-900">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+          <h2 className="text-lg sm:text-xl font-semibold text-neutral-900 dark:text-neutral-100">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-neutral-100 transition-colors duration-200"
+            className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
           >
             <X size={20} className="text-neutral-500" />
           </button>
@@ -85,7 +85,7 @@ interface ModalFooterProps {
 export const ModalFooter: React.FC<ModalFooterProps> = ({ children, className }) => {
   return (
     <div className={clsx(
-      'flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-neutral-200 bg-neutral-50 rounded-b-2xl shrink-0',
+      'flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 rounded-b-2xl shrink-0',
       className
     )}>
       {children}

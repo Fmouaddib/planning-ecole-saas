@@ -89,24 +89,24 @@ function DiplomasTab({
         />
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Titre</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Description</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Durée</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {paginatedData.map(d => (
-                    <tr key={d.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={d.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-neutral-900">{d.title}</span>
+                        <span className="font-medium text-neutral-900 dark:text-neutral-100">{d.title}</span>
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 max-w-xs truncate">
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400 max-w-xs truncate">
                         {d.description || '-'}
                       </td>
                       <td className="px-4 py-3">
@@ -306,11 +306,11 @@ function ClassesTab({
         />
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Diplôme</th>
                     <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Année</th>
@@ -318,18 +318,18 @@ function ClassesTab({
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {paginatedData.map(c => {
                     const subjectNames = getClassSubjectNames(c.id)
                     return (
-                      <tr key={c.id} className="hover:bg-neutral-50 transition-colors">
+                      <tr key={c.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                         <td className="px-4 py-3">
-                          <span className="font-medium text-neutral-900">{c.name}</span>
+                          <span className="font-medium text-neutral-900 dark:text-neutral-100">{c.name}</span>
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="success" size="sm">{getDiplomaTitle(c.diplomaId)}</Badge>
                         </td>
-                        <td className="hidden sm:table-cell px-4 py-3 text-sm text-neutral-600">{c.academicYear || '-'}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{c.academicYear || '-'}</td>
                         <td className="hidden lg:table-cell px-4 py-3">
                           {subjectNames.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
@@ -520,11 +520,11 @@ function SubjectsTab({
         />
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Diplôme</th>
@@ -533,13 +533,13 @@ function SubjectsTab({
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {paginatedData.map(s => (
-                    <tr key={s.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={s.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-neutral-900">{s.name}</span>
+                        <span className="font-medium text-neutral-900 dark:text-neutral-100">{s.name}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">{s.code || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{s.code || '-'}</td>
                       <td className="px-4 py-3">
                         {s.diplomaId ? (
                           <Badge variant="success" size="sm">{getDiplomaTitle(s.diplomaId)}</Badge>
@@ -550,7 +550,7 @@ function SubjectsTab({
                       <td className="hidden sm:table-cell px-4 py-3">
                         {s.category ? <Badge variant="warning" size="sm">{s.category}</Badge> : <span className="text-sm text-neutral-400">-</span>}
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 max-w-xs truncate">{s.description || '-'}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400 max-w-xs truncate">{s.description || '-'}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openEdit(s)}><Pencil size={14} /></Button>
@@ -754,11 +754,11 @@ function TeachersTab({
         />
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Email</th>
                     <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Matières</th>
@@ -766,15 +766,15 @@ function TeachersTab({
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {paginatedData.map(t => {
                     const subjectNames = getTeacherSubjectNames(t.id)
                     return (
-                    <tr key={t.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={t.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-neutral-900">{t.firstName} {t.lastName}</span>
+                        <span className="font-medium text-neutral-900 dark:text-neutral-100">{t.firstName} {t.lastName}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-neutral-600">{t.email}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{t.email}</td>
                       <td className="hidden lg:table-cell px-4 py-3">
                         {subjectNames.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
@@ -844,7 +844,7 @@ function TeachersTab({
           {/* Toggle accès professeur */}
           <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
             <div>
-              <p className="text-sm font-medium text-neutral-900">Accès professeur</p>
+              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Accès professeur</p>
               <p className="text-xs text-neutral-500">Permet au professeur de se connecter et consulter son planning</p>
             </div>
             <button
@@ -937,7 +937,7 @@ function AcademicPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Référentiel académique</h1>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Référentiel académique</h1>
           <p className="text-neutral-500 mt-1">
             {diplomas.length} diplôme{diplomas.length > 1 ? 's' : ''}, {classes.length} classe{classes.length > 1 ? 's' : ''}, {subjects.length} matière{subjects.length > 1 ? 's' : ''}, {teachers.length} professeur{teachers.length > 1 ? 's' : ''}
           </p>

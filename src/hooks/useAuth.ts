@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AuthUser, LoginCredentials, RegisterData, User, UseAuthReturn } from '@/types'
 import { supabase } from '@/lib/supabase'
-import { getErrorMessage } from '@/utils'
+import { getErrorMessage, parseFullName } from '@/utils'
 import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
 
@@ -38,7 +38,7 @@ export function useAuth(): UseAuthReturn {
       // Récupérer les informations complètes de l'utilisateur depuis la table profiles
       const { data: userData, error: userError } = await supabase
         .from('profiles')
-        .select('id, email, role, center_id')
+        .select('id, email, full_name, role, center_id')
         .eq('id', supabaseUser.id)
         .single()
 
@@ -47,9 +47,12 @@ export function useAuth(): UseAuthReturn {
         return null
       }
 
+      const { firstName, lastName } = parseFullName(userData.full_name)
       return {
         id: userData.id,
         email: userData.email,
+        firstName,
+        lastName,
         role: userData.role,
         establishmentId: userData.center_id,
       }
@@ -177,18 +180,18 @@ export function useAuth(): UseAuthReturn {
       setIsLoading(true)
       setError(null)
 
-      // Mettre à jour les données dans la table users
-      const { data, error: updateError } = await supabase
-        .from('users')
-        .update({
-          first_name: updateData.firstName,
-          last_name: updateData.lastName,
-          email: updateData.email,
-          profile_picture: updateData.profilePicture,
-        })
+      // Construire full_name à partir de firstName/lastName
+      const fullName = [updateData.firstName, updateData.lastName].filter(Boolean).join(' ')
+
+      // Mettre à jour les données dans la table profiles
+      const updateFields: Record<string, unknown> = {}
+      if (fullName) updateFields.full_name = fullName
+      if (updateData.email) updateFields.email = updateData.email
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updateFields)
         .eq('id', user.id)
-        .select()
-        .single()
 
       if (updateError) throw updateError
 
@@ -197,15 +200,20 @@ export function useAuth(): UseAuthReturn {
         const { error: emailError } = await supabase.auth.updateUser({
           email: updateData.email,
         })
-        
+
         if (emailError) throw emailError
       }
 
       // Mettre à jour l'état local
-      setUser(prev => prev ? { ...prev, email: data.email } : null)
-      
+      setUser(prev => prev ? {
+        ...prev,
+        firstName: updateData.firstName ?? prev.firstName,
+        lastName: updateData.lastName ?? prev.lastName,
+        email: updateData.email ?? prev.email,
+      } : null)
+
       toast.success('Profil mis à jour avec succès')
-      return data
+      return { ...updateData, id: user.id, email: updateData.email ?? user.email } as User
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la mise à jour du profil')
       toast.error(message)

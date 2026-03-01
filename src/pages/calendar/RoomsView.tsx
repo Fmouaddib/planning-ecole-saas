@@ -86,7 +86,7 @@ export function RoomsView({
   return (
     <div className="flex flex-col">
       {/* Top bar: day tabs + building selector */}
-      <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2 bg-neutral-50">
+      <div className="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 px-4 py-2 bg-neutral-50 dark:bg-neutral-950">
         {/* Day tabs */}
         <div className="flex gap-1">
           {weekDays.map((day, idx) => (
@@ -96,7 +96,7 @@ export function RoomsView({
               className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 idx === selectedDayIndex
                   ? 'bg-primary-600 text-white'
-                  : 'text-neutral-600 hover:bg-neutral-100'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
             >
               {format(day, 'EEE d', { locale: fr })}
@@ -108,7 +108,7 @@ export function RoomsView({
         <select
           value={selectedBuilding}
           onChange={e => setSelectedBuilding(e.target.value)}
-          className="text-sm border border-neutral-200 rounded-lg px-3 py-1.5 bg-white text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">Tous les bâtiments</option>
           {buildings.map(b => (
@@ -122,7 +122,7 @@ export function RoomsView({
       {/* Grid */}
       <div className="overflow-x-auto">
         {/* Hour header */}
-        <div className="flex sticky top-0 z-10 bg-white border-b border-neutral-200" style={{ minWidth: `${160 + HOURS.length * 80}px` }}>
+        <div className="flex sticky top-0 z-10 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800" style={{ minWidth: `${160 + HOURS.length * 80}px` }}>
           <div className="w-40 min-w-[160px] shrink-0 px-3 py-2 text-xs font-semibold text-neutral-500 border-r border-neutral-200">
             Salle
           </div>
@@ -142,9 +142,9 @@ export function RoomsView({
         {visibleBuildings.map(building => (
           <div key={building.id}>
             {/* Building header */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-neutral-100 border-b border-neutral-200">
+            <div className="flex items-center gap-2 px-3 py-2 bg-neutral-100 dark:bg-neutral-950 border-b border-neutral-200 dark:border-neutral-800">
               <Building2 size={16} className="text-neutral-500" />
-              <span className="text-sm font-semibold text-neutral-700">
+              <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                 {building.name}
               </span>
               <span className="text-xs text-neutral-400">
@@ -158,12 +158,12 @@ export function RoomsView({
               return (
                 <div
                   key={room.name}
-                  className="flex border-b border-neutral-100 hover:bg-neutral-50/50 transition-colors"
+                  className="flex border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50/50 dark:hover:bg-neutral-800/50 transition-colors"
                   style={{ minWidth: `${160 + HOURS.length * 80}px` }}
                 >
                   {/* Room label */}
                   <div className="w-40 min-w-[160px] shrink-0 px-3 py-2 border-r border-neutral-200 flex flex-col justify-center">
-                    <span className="text-sm font-medium text-neutral-800">
+                    <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
                       {room.name}
                     </span>
                     <span className="text-[11px] text-neutral-400">

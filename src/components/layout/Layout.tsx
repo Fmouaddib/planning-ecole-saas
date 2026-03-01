@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { User } from '@/types'
@@ -10,8 +10,14 @@ interface LayoutProps {
   onNavigate?: (path: string) => void
   onLogout?: () => void
   onNotificationsClick?: () => void
-  onProfileClick?: () => void
-  onSettingsClick?: () => void
+}
+
+function getInitialTheme(): boolean {
+  const stored = localStorage.getItem('theme')
+  if (stored === 'dark') return true
+  if (stored === 'light') return false
+  // Auto : respecter la préférence système
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
 export const Layout: React.FC<LayoutProps> = ({
@@ -21,11 +27,18 @@ export const Layout: React.FC<LayoutProps> = ({
   onNavigate,
   onLogout,
   onNotificationsClick,
-  onProfileClick,
-  onSettingsClick
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(getInitialTheme)
+
+  // Appliquer le thème au montage et à chaque changement
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [isDarkMode])
 
   const handleMenuToggle = () => {
     setSidebarOpen(!sidebarOpen)
@@ -36,51 +49,43 @@ export const Layout: React.FC<LayoutProps> = ({
   }
 
   const handleThemeToggle = () => {
-    setIsDarkMode(!isDarkMode)
-    // TODO: Implémenter la logique du thème
-    if (!isDarkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    const next = !isDarkMode
+    setIsDarkMode(next)
+    localStorage.setItem('theme', next ? 'dark' : 'light')
   }
 
   return (
-    <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
-        {/* Header */}
-        <Header
-          user={user}
-          onMenuToggle={handleMenuToggle}
-          isDarkMode={isDarkMode}
-          onThemeToggle={handleThemeToggle}
-          onNotificationsClick={onNotificationsClick}
-          onProfileClick={onProfileClick}
-          onSettingsClick={onSettingsClick}
-          onLogout={onLogout}
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 transition-colors">
+      {/* Header */}
+      <Header
+        user={user}
+        onMenuToggle={handleMenuToggle}
+        isDarkMode={isDarkMode}
+        onThemeToggle={handleThemeToggle}
+        onNotificationsClick={onNotificationsClick}
+        onNavigate={onNavigate}
+        onLogout={onLogout}
+      />
+
+      <div className="flex">
+        {/* Sidebar */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={handleSidebarClose}
+          currentPath={currentPath}
+          userRole={user?.role}
+          onNavigate={(path) => {
+            onNavigate?.(path)
+            handleSidebarClose()
+          }}
         />
 
-        <div className="flex">
-          {/* Sidebar */}
-          <Sidebar
-            isOpen={sidebarOpen}
-            onClose={handleSidebarClose}
-            currentPath={currentPath}
-            userRole={user?.role}
-            onNavigate={(path) => {
-              onNavigate?.(path)
-              handleSidebarClose()
-            }}
-            onLogout={onLogout}
-          />
-
-          {/* Main content */}
-          <main className="flex-1 lg:ml-0">
-            <div className="p-4 lg:p-6">
-              {children}
-            </div>
-          </main>
-        </div>
+        {/* Main content */}
+        <main className="flex-1 lg:ml-0">
+          <div className="p-4 lg:p-6">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   )

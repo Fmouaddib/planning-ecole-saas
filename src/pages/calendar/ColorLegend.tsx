@@ -24,9 +24,9 @@ export function ColorLegend({ activeTypes, onToggleType }: ColorLegendProps) {
   const [expanded, setExpanded] = useState(true)
 
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 shadow-soft mb-4 no-print">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft mb-4 no-print">
       <button
-        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors rounded-xl"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors rounded-xl"
         onClick={() => setExpanded(!expanded)}
       >
         <span>Légende des couleurs</span>
@@ -34,7 +34,7 @@ export function ColorLegend({ activeTypes, onToggleType }: ColorLegendProps) {
       </button>
 
       {expanded && (
-        <div className="px-4 pb-3 flex flex-wrap gap-3 border-t border-neutral-100 pt-2.5">
+        <div className="px-4 pb-3 flex flex-wrap gap-3 border-t border-neutral-100 dark:border-neutral-800 pt-2.5">
           {/* Par type */}
           {Object.entries(BOOKING_TYPE_COLORS).map(([type, color]) => {
             const isActive = activeTypes.length === 0 || activeTypes.includes(type)
@@ -43,8 +43,8 @@ export function ColorLegend({ activeTypes, onToggleType }: ColorLegendProps) {
                 key={type}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
                   isActive
-                    ? 'border-neutral-300 bg-white text-neutral-700 shadow-sm'
-                    : 'border-transparent bg-neutral-100 text-neutral-400'
+                    ? 'border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 shadow-sm'
+                    : 'border-transparent bg-neutral-100 dark:bg-neutral-800/50 text-neutral-400'
                 }`}
                 onClick={() => onToggleType(type)}
                 title={`Filtrer par ${typeLabels[type] || type}`}

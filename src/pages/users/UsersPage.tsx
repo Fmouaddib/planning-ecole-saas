@@ -160,8 +160,8 @@ function UsersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Gestion des utilisateurs</h1>
-          <p className="text-neutral-500 mt-1">{users.length} utilisateur{users.length > 1 ? 's' : ''} au total</p>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Gestion des utilisateurs</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{users.length} utilisateur{users.length > 1 ? 's' : ''} au total</p>
         </div>
         {canCreateUsers && (
           <Button leftIcon={Plus} onClick={openCreate} className="mt-4 sm:mt-0">
@@ -199,11 +199,11 @@ function UsersPage() {
         />
       ) : (
         <>
-          <div className="bg-white rounded-xl border border-neutral-200 shadow-soft overflow-hidden">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Email</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Rôle</th>
@@ -212,14 +212,14 @@ function UsersPage() {
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {paginatedData.map(u => (
-                    <tr key={u.id} className="hover:bg-neutral-50 transition-colors">
+                    <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-neutral-900">{u.firstName} {u.lastName}</span>
+                        <span className="font-medium text-neutral-900 dark:text-neutral-100">{u.firstName} {u.lastName}</span>
                         <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{u.email}</span>
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">{u.email}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{u.email}</td>
                       <td className="px-4 py-3">
                         <Badge variant={roleBadgeVariant[u.role] || 'neutral'} size="sm">
                           {roleLabels[u.role] || u.role}
@@ -230,7 +230,7 @@ function UsersPage() {
                           {u.isActive ? 'Actif' : 'Inactif'}
                         </Badge>
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600">
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                         {u.createdAt ? formatDate(u.createdAt) : '-'}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -340,7 +340,7 @@ function UsersPage() {
         title="Supprimer l'utilisateur"
         size="sm"
       >
-        <p className="text-neutral-600">
+        <p className="text-neutral-600 dark:text-neutral-400">
           Êtes-vous sûr de vouloir supprimer l'utilisateur <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> ?
           Cette action est irréversible.
         </p>

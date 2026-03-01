@@ -5,15 +5,13 @@ import {
   Users,
   Building2,
   BarChart3,
-  Settings,
-  HelpCircle,
-  LogOut,
   Home,
   Clock,
   Shield,
   GraduationCap
 } from 'lucide-react'
 import type { UserRole } from '@/types'
+import { SidebarCalendar } from './SidebarCalendar'
 
 interface NavigationItem {
   icon: React.ComponentType<any>
@@ -31,7 +29,6 @@ interface SidebarProps {
   currentPath?: string
   userRole?: UserRole
   onNavigate?: (path: string) => void
-  onLogout?: () => void
   className?: string
 }
 
@@ -41,7 +38,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentPath = '/',
   userRole = 'teacher',
   onNavigate,
-  onLogout,
   className
 }) => {
   const mainNavigation: NavigationItem[] = [
@@ -93,26 +89,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   ]
 
-  const secondaryNavigation: NavigationItem[] = [
-    {
-      icon: Settings,
-      label: 'Paramètres',
-      href: '/settings',
-      active: currentPath === '/settings'
-    },
-    {
-      icon: HelpCircle,
-      label: 'Aide & Support',
-      href: '/help',
-      active: currentPath === '/help'
-    },
-    {
-      icon: LogOut,
-      label: 'Déconnexion',
-      onClick: onLogout
-    }
-  ]
-
   const handleItemClick = (item: NavigationItem) => {
     if (item.onClick) {
       item.onClick()
@@ -130,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={onClose}
         />
@@ -140,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div
         className={clsx(
           'fixed lg:static inset-y-0 left-0 z-50',
-          'w-64 bg-white border-r border-neutral-200',
+          'w-64 bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800',
           'transform transition-transform duration-300 ease-in-out lg:transform-none',
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           'flex flex-col h-full',
@@ -148,18 +124,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       >
         {/* Sidebar header - Mobile only */}
-        <div className="lg:hidden flex items-center justify-between p-4 border-b border-neutral-200">
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-800">
           <div className="flex items-center space-x-2">
             <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm text-white" style={{ background: 'linear-gradient(135deg, #FF5B46, #FBA625)' }}>
               A
             </div>
-            <span className="font-display font-semibold text-lg text-neutral-900">
+            <span className="font-display font-semibold text-lg text-neutral-900 dark:text-neutral-100">
               AntiPlanning
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-neutral-100 transition-colors duration-200"
+            className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
           >
             ×
           </button>
@@ -169,8 +145,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="flex-1 p-4 space-y-2">
           {/* Main navigation */}
           <div>
-            <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">
-              Navigation principale
+            <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">
+              Navigation
             </h3>
             <div className="space-y-1">
               {mainNavigation
@@ -186,28 +162,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
-          {/* Secondary navigation */}
-          <div className="pt-6">
-            <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">
-              Système
-            </h3>
-            <div className="space-y-1">
-              {secondaryNavigation
-                .filter(item => item.label !== 'Déconnexion')
-                .map((item, index) => (
-                  <NavItem
-                    key={index}
-                    item={item}
-                    onClick={() => handleItemClick(item)}
-                  />
-                ))
-              }
-
-              {/* Super Admin - avant Déconnexion */}
-              {(userRole === 'admin' || userRole === 'super_admin') && (
+          {/* Administration - visible uniquement pour admin/super_admin */}
+          {(userRole === 'admin' || userRole === 'super_admin') && (
+            <div className="pt-6">
+              <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">
+                Administration
+              </h3>
+              <div className="space-y-1">
                 <button
                   onClick={() => { window.location.hash = '#/super-admin'; }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100"
                 >
                   <div className="flex items-center space-x-3">
                     <Shield size={18} className="text-red-500 group-hover:text-red-600 transition-colors duration-200" />
@@ -215,29 +179,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                   <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">SA</span>
                 </button>
-              )}
-
-              {/* Déconnexion toujours en dernier */}
-              {secondaryNavigation
-                .filter(item => item.label === 'Déconnexion')
-                .map((item, index) => (
-                  <NavItem
-                    key={`logout-${index}`}
-                    item={item}
-                    onClick={() => handleItemClick(item)}
-                  />
-                ))
-              }
+              </div>
             </div>
-          </div>
+          )}
         </nav>
 
-        {/* Mini-calendar slot (filled by CalendarPage via portal) */}
-        <div id="sidebar-mini-calendar" className="px-4" />
+        {/* Mini calendar — always visible */}
+        <div className="px-4 pb-2">
+          <SidebarCalendar onNavigate={onNavigate} />
+        </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-neutral-200">
-          <div className="text-xs text-neutral-500">
+        <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="text-xs text-neutral-500 dark:text-neutral-400">
             <p className="font-medium">AntiPlanning v1.0</p>
             <p>Gestion premium pour établissements</p>
           </div>
@@ -262,21 +216,21 @@ const NavItem: React.FC<NavItemProps> = ({ item, onClick }) => {
         'w-full flex items-center justify-between px-3 py-2.5 rounded-lg',
         'text-left transition-all duration-200 ease-out group',
         active
-          ? 'bg-primary-50 text-primary-700 font-medium border-l-4 border-primary-600'
-          : 'text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900'
+          ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 font-medium border-l-4 border-primary-600'
+          : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'
       )}
     >
       <div className="flex items-center space-x-3">
-        <Icon 
-          size={18} 
+        <Icon
+          size={18}
           className={clsx(
             'transition-colors duration-200',
-            active ? 'text-primary-600' : 'text-neutral-500 group-hover:text-neutral-700'
-          )} 
+            active ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200'
+          )}
         />
         <span className="text-sm">{label}</span>
       </div>
-      
+
       {badge && (
         <span className="bg-primary-100 text-primary-800 text-xs font-medium px-2 py-0.5 rounded-full">
           {badge}

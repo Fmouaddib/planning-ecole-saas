@@ -92,50 +92,50 @@ function AnalyticsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-neutral-900">Statistiques</h1>
-        <p className="text-neutral-500 mt-1">Vue d'ensemble de l'activité</p>
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Statistiques</h1>
+        <p className="text-neutral-500 dark:text-neutral-400 mt-1">Vue d'ensemble de l'activité</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-neutral-500">Total séances</p>
-              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 mt-1">{stats.totalBookings}</p>
+              <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Total séances</p>
+              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{stats.totalBookings}</p>
             </div>
             <div className="p-3 bg-primary-100 rounded-xl">
               <CalendarCheck size={22} className="text-primary-600" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-neutral-500">Taux d'occupation</p>
-              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 mt-1">{stats.occupancyRate}%</p>
+              <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Taux d'occupation</p>
+              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{stats.occupancyRate}%</p>
             </div>
             <div className="p-3 bg-success-100 rounded-xl">
               <TrendingUp size={22} className="text-success-600" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-neutral-500">Salles</p>
-              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 mt-1">{rooms.length}</p>
+              <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Salles</p>
+              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{rooms.length}</p>
             </div>
             <div className="p-3 bg-warning-100 rounded-xl">
               <Building2 size={22} className="text-warning-600" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-neutral-500">Utilisateurs</p>
-              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 mt-1">{users.length}</p>
+              <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Utilisateurs</p>
+              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{users.length}</p>
             </div>
             <div className="p-3 bg-error-100 rounded-xl">
               <Users size={22} className="text-error-600" />
@@ -146,16 +146,16 @@ function AnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* By Type */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Séances par type</h3>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Séances par type</h3>
           <div className="space-y-3">
             {Object.entries(stats.byType).map(([type, count]) => (
               <div key={type}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-neutral-600">{bookingTypeLabels[type] || type}</span>
-                  <span className="font-medium text-neutral-900">{count}</span>
+                  <span className="text-neutral-600 dark:text-neutral-400">{bookingTypeLabels[type] || type}</span>
+                  <span className="font-medium text-neutral-900 dark:text-neutral-100">{count}</span>
                 </div>
-                <div className="w-full bg-neutral-100 rounded-full h-2.5">
+                <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2.5">
                   <div
                     className={`h-2.5 rounded-full ${typeColors[type] || 'bg-blue-500'}`}
                     style={{ width: `${(count / maxByType) * 100}%` }}
@@ -170,16 +170,16 @@ function AnalyticsPage() {
         </div>
 
         {/* By Status */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Séances par statut</h3>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Séances par statut</h3>
           <div className="space-y-3">
             {Object.entries(stats.byStatus).map(([status, count]) => (
               <div key={status}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-neutral-600">{statusLabels[status] || status}</span>
-                  <span className="font-medium text-neutral-900">{count}</span>
+                  <span className="text-neutral-600 dark:text-neutral-400">{statusLabels[status] || status}</span>
+                  <span className="font-medium text-neutral-900 dark:text-neutral-100">{count}</span>
                 </div>
-                <div className="w-full bg-neutral-100 rounded-full h-2.5">
+                <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2.5">
                   <div
                     className={`h-2.5 rounded-full ${statusColors[status] || 'bg-blue-500'}`}
                     style={{ width: `${(count / maxByStatus) * 100}%` }}
@@ -196,8 +196,8 @@ function AnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Room Usage */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Utilisation des salles</h3>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Utilisation des salles</h3>
           <div className="space-y-3">
             {Object.entries(stats.roomUsage)
               .sort(([, a], [, b]) => b - a)
@@ -205,10 +205,10 @@ function AnalyticsPage() {
               .map(([room, count]) => (
                 <div key={room}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-neutral-600">{room}</span>
-                    <span className="font-medium text-neutral-900">{count} séance{count > 1 ? 's' : ''}</span>
+                    <span className="text-neutral-600 dark:text-neutral-400">{room}</span>
+                    <span className="font-medium text-neutral-900 dark:text-neutral-100">{count} séance{count > 1 ? 's' : ''}</span>
                   </div>
-                  <div className="w-full bg-neutral-100 rounded-full h-2.5">
+                  <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2.5">
                     <div
                       className="h-2.5 rounded-full bg-primary-500"
                       style={{ width: `${(count / maxRoomUsage) * 100}%` }}
@@ -223,16 +223,16 @@ function AnalyticsPage() {
         </div>
 
         {/* Users by Role */}
-        <div className="bg-white rounded-xl border border-neutral-200 shadow-soft p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Utilisateurs par rôle</h3>
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Utilisateurs par rôle</h3>
           <div className="space-y-3">
             {Object.entries(userStats.byRole).map(([role, count]) => (
               <div key={role}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-neutral-600">{roleLabels[role] || role}</span>
-                  <span className="font-medium text-neutral-900">{count}</span>
+                  <span className="text-neutral-600 dark:text-neutral-400">{roleLabels[role] || role}</span>
+                  <span className="font-medium text-neutral-900 dark:text-neutral-100">{count}</span>
                 </div>
-                <div className="w-full bg-neutral-100 rounded-full h-2.5">
+                <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2.5">
                   <div
                     className="h-2.5 rounded-full bg-indigo-500"
                     style={{ width: `${(count / Math.max(users.length, 1)) * 100}%` }}

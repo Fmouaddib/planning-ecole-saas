@@ -328,6 +328,8 @@ export type DateString = string
 export interface AuthUser {
   id: string
   email: string
+  firstName: string
+  lastName: string
   role: UserRole
   establishmentId: string
 }

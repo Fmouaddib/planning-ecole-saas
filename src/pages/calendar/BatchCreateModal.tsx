@@ -62,7 +62,7 @@ const frequencyOptions = [
   { value: 'monthly', label: 'Mensuel' },
 ]
 
-const cellInput = 'w-full border border-neutral-200 rounded px-1.5 py-1 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none bg-white'
+const cellInput = 'w-full border border-neutral-200 dark:border-neutral-700 rounded px-1.5 py-1 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none bg-white dark:bg-neutral-900 dark:text-neutral-100'
 const cellSelect = `${cellInput} appearance-none cursor-pointer pr-5`
 
 function BatchCreateModal({
