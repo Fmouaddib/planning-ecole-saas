@@ -57,6 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({
           onNotificationsClick={onNotificationsClick}
           onProfileClick={onProfileClick}
           onSettingsClick={onSettingsClick}
+          onLogout={onLogout}
         />
 
         <div className="flex">

@@ -407,6 +407,8 @@ export default function App() {
       currentPath={currentPath}
       onNavigate={handleNavigate}
       onLogout={handleLogout}
+      onProfileClick={() => handleNavigate('/profile')}
+      onSettingsClick={() => handleNavigate('/settings')}
     >
       <Suspense
         fallback={

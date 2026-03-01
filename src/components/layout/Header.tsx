@@ -1,16 +1,27 @@
-import React from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
-import { 
-  Bell, 
-  Settings, 
-  User, 
-  Moon, 
-  Sun, 
+import {
+  Bell,
+  Settings,
+  User,
+  Moon,
+  Sun,
   ChevronDown,
   Search,
-  Menu
+  Menu,
+  LogOut,
 } from 'lucide-react'
 import { User as UserType } from '@/types'
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrateur',
+  super_admin: 'Super Admin',
+  teacher: 'Enseignant',
+  trainer: 'Formateur',
+  student: 'Étudiant',
+  staff: 'Personnel',
+  coordinator: 'Coordinateur',
+}
 
 interface HeaderProps {
   user?: UserType | null
@@ -20,6 +31,7 @@ interface HeaderProps {
   onNotificationsClick?: () => void
   onProfileClick?: () => void
   onSettingsClick?: () => void
+  onLogout?: () => void
   className?: string
 }
 
@@ -31,8 +43,24 @@ export const Header: React.FC<HeaderProps> = ({
   onNotificationsClick,
   onProfileClick,
   onSettingsClick,
+  onLogout,
   className
 }) => {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Fermer le menu au clic extérieur
+  useEffect(() => {
+    if (!menuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
+
   return (
     <header 
       className={clsx(
@@ -117,18 +145,18 @@ export const Header: React.FC<HeaderProps> = ({
           <Settings size={20} className="text-neutral-600" />
         </button>
 
-        {/* User menu */}
+        {/* User menu with dropdown */}
         {user && (
-          <div className="flex items-center space-x-2 pl-2 border-l border-neutral-200">
+          <div ref={menuRef} className="relative flex items-center space-x-2 pl-2 border-l border-neutral-200">
             <button
-              onClick={onProfileClick}
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-neutral-100 
+              onClick={() => setMenuOpen(prev => !prev)}
+              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-neutral-100
                        transition-colors duration-200"
             >
               <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center">
                 {user.avatar ? (
-                  <img 
-                    src={user.avatar} 
+                  <img
+                    src={user.avatar}
                     alt={`${user.firstName} ${user.lastName}`}
                     className="h-8 w-8 rounded-full object-cover"
                   />
@@ -136,18 +164,60 @@ export const Header: React.FC<HeaderProps> = ({
                   <User size={16} className="text-primary-600" />
                 )}
               </div>
-              
+
               <div className="hidden sm:block text-left">
                 <p className="text-sm font-medium text-neutral-900">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-xs text-neutral-500 capitalize">
-                  {user.role}
+                <p className="text-xs text-neutral-500">
+                  {ROLE_LABELS[user.role] || user.role}
                 </p>
               </div>
-              
-              <ChevronDown size={16} className="text-neutral-400" />
+
+              <ChevronDown size={16} className={clsx('text-neutral-400 transition-transform', menuOpen && 'rotate-180')} />
             </button>
+
+            {/* Dropdown menu */}
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl border border-neutral-200 shadow-lg py-1 z-50">
+                {/* User info header */}
+                <div className="px-4 py-3 border-b border-neutral-100">
+                  <p className="text-sm font-semibold text-neutral-900 truncate">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-xs text-neutral-500 truncate">{user.email}</p>
+                </div>
+
+                {/* Menu items */}
+                <div className="py-1">
+                  <button
+                    onClick={() => { setMenuOpen(false); onProfileClick?.() }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    <User size={16} className="text-neutral-400" />
+                    Mon profil
+                  </button>
+                  <button
+                    onClick={() => { setMenuOpen(false); onSettingsClick?.() }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    <Settings size={16} className="text-neutral-400" />
+                    Paramètres
+                  </button>
+                </div>
+
+                {/* Logout */}
+                <div className="border-t border-neutral-100 py-1">
+                  <button
+                    onClick={() => { setMenuOpen(false); onLogout?.() }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-error-600 hover:bg-error-50 transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Se déconnecter
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
