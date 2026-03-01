@@ -175,11 +175,11 @@ export default function LandingPage() {
               {t('hero.subtitle')}
             </p>
             <div className="landing-hero-buttons landing-hero-animate-delay-2">
-              <a href="#/signup" className="landing-btn-coral landing-btn-coral-lg">
+              <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
                 {t('hero.cta.primary')}
               </a>
-              <a href="#features" className="landing-hero-btn-secondary">
-                {t('hero.cta.secondary')}
+              <a href="#/signup" className="landing-hero-btn-secondary">
+                {t('hero.cta.secondary.join')}
               </a>
             </div>
           </div>
@@ -305,7 +305,7 @@ export default function LandingPage() {
         <div className="landing-cta-inner" ref={reveal}>
           <h2>{t('cta.title')}</h2>
           <p>{t('cta.subtitle')}</p>
-          <a href="#/signup" className="landing-btn-coral landing-btn-coral-lg">
+          <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
             {t('cta.button')}
           </a>
         </div>

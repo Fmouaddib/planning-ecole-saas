@@ -12,6 +12,7 @@ import { exportToCSV } from '@/utils/csv-export';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
 import type { CreateCenterData, SuperAdminCenter } from '@/types/super-admin';
+import { centerDisplayName, formatCenterAddress } from '@/utils/helpers';
 
 export const SACentersPage = () => {
   const [search, setSearch] = useState('');
@@ -46,7 +47,10 @@ export const SACentersPage = () => {
     const form = new FormData(e.currentTarget);
     const data: CreateCenterData = {
       name: form.get('name') as string,
+      acronym: form.get('acronym') as string || undefined,
       address: form.get('address') as string || undefined,
+      postal_code: form.get('postal_code') as string || undefined,
+      city: form.get('city') as string || undefined,
       phone: form.get('phone') as string || undefined,
       email: form.get('email') as string || undefined,
       website: form.get('website') as string || undefined,
@@ -62,8 +66,10 @@ export const SACentersPage = () => {
   const handleExportCSV = () => {
     exportToCSV(allCenters, [
       { header: 'Nom', accessor: (c) => c.name },
+      { header: 'Acronyme', accessor: (c) => c.acronym || '' },
+      { header: 'Code', accessor: (c) => c.enrollment_code || '' },
       { header: 'Email', accessor: (c) => c.email || '' },
-      { header: 'Adresse', accessor: (c) => c.address || '' },
+      { header: 'Adresse', accessor: (c) => formatCenterAddress(c) },
       { header: 'Utilisateurs', accessor: (c) => c._count?.users || 0 },
       { header: 'Sessions', accessor: (c) => c._count?.sessions || 0 },
       { header: 'Plan', accessor: (c) => c.subscription?.plan?.name || 'Aucun' },
@@ -111,16 +117,26 @@ export const SACentersPage = () => {
               <div key={center.id} className="sa-plan-card" style={{ borderColor: center.is_active ? 'var(--sa-border-medium)' : '#fca5a5' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
-                    <div className="sa-plan-name">{center.name}</div>
+                    <div className="sa-plan-name">{centerDisplayName(center)}</div>
+                    {center.acronym && (
+                      <div className="sa-text-muted" style={{ fontSize: '0.75rem' }}>{center.name}</div>
+                    )}
                     <div className="sa-text-muted" style={{ fontSize: '0.8rem' }}>{center.email || 'Pas d\'email'}</div>
                   </div>
-                  <span className={`sa-status ${center.is_active ? 'active' : 'inactive'}`}>
-                    {center.is_active ? 'Actif' : 'Inactif'}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                    <span className={`sa-status ${center.is_active ? 'active' : 'inactive'}`}>
+                      {center.is_active ? 'Actif' : 'Inactif'}
+                    </span>
+                    {center.enrollment_code && (
+                      <span style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--sa-text-secondary)', background: 'var(--sa-bg-subtle)', padding: '2px 6px', borderRadius: '4px' }}>
+                        {center.enrollment_code}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {center.address && (
-                  <p className="sa-text-muted" style={{ fontSize: '0.8rem', marginBottom: '12px' }}>{center.address}</p>
+                {(center.address || center.city) && (
+                  <p className="sa-text-muted" style={{ fontSize: '0.8rem', marginBottom: '12px' }}>{formatCenterAddress(center)}</p>
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '12px' }}>
@@ -187,7 +203,7 @@ export const SACentersPage = () => {
       {toggleConfirm && (
         <SAConfirmModal
           title={toggleConfirm.is_active ? 'Desactiver le centre' : 'Activer le centre'}
-          message={`Etes-vous sur de vouloir ${toggleConfirm.is_active ? 'desactiver' : 'activer'} le centre "${toggleConfirm.name}" ?`}
+          message={`Etes-vous sur de vouloir ${toggleConfirm.is_active ? 'desactiver' : 'activer'} le centre "${centerDisplayName(toggleConfirm)}" ?`}
           confirmLabel={toggleConfirm.is_active ? 'Desactiver' : 'Activer'}
           variant={toggleConfirm.is_active ? 'danger' : 'primary'}
           isLoading={toggleActive.isPending}
@@ -205,7 +221,7 @@ export const SACentersPage = () => {
       {deleteConfirm && (
         <SAConfirmModal
           title="Supprimer le centre"
-          message={`Etes-vous sur de vouloir supprimer definitivement le centre "${deleteConfirm.name}" ? Cette action est irreversible.`}
+          message={`Etes-vous sur de vouloir supprimer definitivement le centre "${centerDisplayName(deleteConfirm)}" ? Cette action est irreversible.`}
           confirmLabel="Supprimer"
           variant="danger"
           isLoading={deleteCenter.isPending}
@@ -229,12 +245,26 @@ export const SACentersPage = () => {
                 <input name="name" className="sa-form-input" required defaultValue={editingCenter?.name || ''} />
               </div>
               <div className="sa-form-group">
+                <label className="sa-form-label">Acronyme / Sigle <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)' }}>(optionnel)</span></label>
+                <input name="acronym" className="sa-form-input" placeholder="Ex: ISP" defaultValue={editingCenter?.acronym || ''} />
+              </div>
+              <div className="sa-form-group">
                 <label className="sa-form-label">Email</label>
                 <input name="email" type="email" className="sa-form-input" defaultValue={editingCenter?.email || ''} />
               </div>
               <div className="sa-form-group">
                 <label className="sa-form-label">Adresse</label>
-                <input name="address" className="sa-form-input" defaultValue={editingCenter?.address || ''} />
+                <input name="address" className="sa-form-input" placeholder="Rue, numéro" defaultValue={editingCenter?.address || ''} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                <div className="sa-form-group">
+                  <label className="sa-form-label">Code postal</label>
+                  <input name="postal_code" className="sa-form-input" placeholder="75001" defaultValue={editingCenter?.postal_code || ''} />
+                </div>
+                <div className="sa-form-group">
+                  <label className="sa-form-label">Ville</label>
+                  <input name="city" className="sa-form-input" placeholder="Paris" defaultValue={editingCenter?.city || ''} />
+                </div>
               </div>
               <div className="sa-form-group">
                 <label className="sa-form-label">Telephone</label>

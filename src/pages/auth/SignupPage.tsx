@@ -208,12 +208,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({
               <Input
                 type="text"
                 label="Code établissement"
-                placeholder="Ex: SUPINFO-PARIS"
+                placeholder="Ex: IS-PARIS"
                 value={formData.schoolCode}
                 onChange={handleInputChange('schoolCode')}
                 error={errors.schoolCode}
                 leftIcon={Building2}
-                helper="Contactez votre administration pour obtenir ce code"
+                helper="Demandez ce code à l'administrateur de votre établissement"
                 disabled={isLoading}
               />
 
@@ -316,17 +316,26 @@ export const SignupPage: React.FC<SignupPageProps> = ({
             </form>
 
             {/* Lien vers connexion */}
-            <div className="mt-6 pt-6 border-t border-neutral-200 text-center">
+            <div className="mt-6 pt-6 border-t border-neutral-200 text-center space-y-3">
               <p className="text-sm text-neutral-600">
                 Déjà un compte ?{' '}
                 <button
                   onClick={onSwitchToLogin}
-                  className="text-primary-600 hover:text-primary-700 font-medium 
+                  className="text-primary-600 hover:text-primary-700 font-medium
                            transition-colors duration-200"
                   disabled={isLoading}
                 >
                   Se connecter
                 </button>
+              </p>
+              <p className="text-sm text-neutral-600">
+                Vous êtes administrateur ?{' '}
+                <a
+                  href="#/onboarding"
+                  className="text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200"
+                >
+                  Créer votre établissement
+                </a>
               </p>
             </div>
           </CardContent>

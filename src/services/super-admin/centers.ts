@@ -12,7 +12,7 @@ export class SACentersService {
         .order('created_at', { ascending: false });
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,acronym.ilike.%${search}%,email.ilike.%${search}%`);
       }
 
       const { data, error } = await query;
@@ -46,7 +46,7 @@ export class SACentersService {
     try {
       const { data: center, error } = await supabase
         .from('training_centers')
-        .insert({ name: data.name, address: data.address, phone: data.phone, email: data.email, website: data.website, owner_id: data.owner_id, is_active: true })
+        .insert({ name: data.name, acronym: data.acronym, address: data.address, postal_code: data.postal_code, city: data.city, phone: data.phone, email: data.email, website: data.website, owner_id: data.owner_id, is_active: true })
         .select()
         .single();
 

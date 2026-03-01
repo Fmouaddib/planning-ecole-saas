@@ -13,6 +13,7 @@ import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { exportToCSV } from '@/utils/csv-export';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import type { CenterSubscription } from '@/types/super-admin';
+import { centerDisplayName } from '@/utils/helpers';
 
 /** Calculer le prix Enterprise en fonction du nombre d'etudiants */
 const computeEnterprisePrice = (maxStudents: number): number => {
@@ -57,6 +58,7 @@ export const SASubscriptionsPage = () => {
     if (subSearch) {
       const s = subSearch.toLowerCase();
       result = result.filter(sub =>
+        centerDisplayName(sub.center).toLowerCase().includes(s) ||
         (sub.center?.name || '').toLowerCase().includes(s) ||
         (sub.plan?.name || '').toLowerCase().includes(s)
       );
@@ -110,7 +112,7 @@ export const SASubscriptionsPage = () => {
 
   const handleExportSubsCSV = () => {
     exportToCSV(filteredSubs, [
-      { header: 'Centre', accessor: (s) => s.center?.name || s.center_id || '' },
+      { header: 'Centre', accessor: (s) => centerDisplayName(s.center) || s.center_id || '' },
       { header: 'Plan', accessor: (s) => s.plan?.name || s.plan_id || '' },
       { header: 'Statut', accessor: (s) => s.status },
       { header: 'Cycle', accessor: (s) => s.billing_cycle || '' },
@@ -122,7 +124,7 @@ export const SASubscriptionsPage = () => {
   const handleExportBillingCSV = () => {
     exportToCSV(billing || [], [
       { header: 'Date', accessor: (e) => formatDate(e.created_at) },
-      { header: 'Centre', accessor: (e) => e.center?.name || e.center_id || '' },
+      { header: 'Centre', accessor: (e) => centerDisplayName(e.center) || e.center_id || '' },
       { header: 'Type', accessor: (e) => e.event_type },
       { header: 'Montant', accessor: (e) => e.amount != null ? `${e.amount}\u20AC` : '' },
       { header: 'Description', accessor: (e) => e.description || '' },
@@ -206,7 +208,7 @@ export const SASubscriptionsPage = () => {
                     {subsPagination.paginatedData.map((sub) => (
                       <tr key={sub.id}>
                         <td>
-                          <div style={{ fontWeight: 600 }}>{sub.center?.name || sub.center_id}</div>
+                          <div style={{ fontWeight: 600 }}>{centerDisplayName(sub.center) || sub.center_id}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.center?.email || ''}</div>
                         </td>
                         <td>
@@ -295,7 +297,7 @@ export const SASubscriptionsPage = () => {
                   {billingPagination.paginatedData.map((event) => (
                     <tr key={event.id}>
                       <td style={{ fontSize: '0.8rem' }}>{formatDate(event.created_at)}</td>
-                      <td>{event.center?.name || event.center_id || '-'}</td>
+                      <td>{centerDisplayName(event.center) || event.center_id || '-'}</td>
                       <td><span className="sa-status active">{event.event_type}</span></td>
                       <td style={{ fontWeight: 600 }}>{event.amount != null ? `${event.amount}\u20AC` : '-'}</td>
                       <td style={{ fontSize: '0.85rem', color: 'var(--sa-text-secondary)' }}>{event.description || '-'}</td>
@@ -350,7 +352,7 @@ export const SASubscriptionsPage = () => {
           <div className="sa-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <h2 className="sa-modal-title">Modifier l'abonnement</h2>
             <p className="sa-text-muted" style={{ marginBottom: '16px' }}>
-              Centre : <strong>{editingSub.center?.name || editingSub.center_id}</strong>
+              Centre : <strong>{centerDisplayName(editingSub.center) || editingSub.center_id}</strong>
             </p>
             <div className="sa-form-group">
               <label className="sa-form-label">Plan</label>
@@ -388,7 +390,7 @@ export const SASubscriptionsPage = () => {
                 <select name="center_id" className="sa-form-select" required>
                   <option value="">Selectionner un centre...</option>
                   {(centers || []).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>{centerDisplayName(c)}</option>
                   ))}
                 </select>
               </div>

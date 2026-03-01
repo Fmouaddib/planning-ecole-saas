@@ -7,9 +7,13 @@ const SuperAdminApp = lazy(() => import('@/components/super-admin/SuperAdminApp'
 import { ROUTES } from '@/utils/constants'
 import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
+import { OnboardingService } from '@/services/onboardingService'
 import toast, { Toaster } from 'react-hot-toast'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
+const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
 
 // Lazy-loaded pages
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'))
@@ -143,6 +147,8 @@ export default function App() {
               })
               setAppState('authenticated')
             }
+          } else if (event === 'PASSWORD_RECOVERY') {
+            window.location.hash = '#/reset-password'
           } else if (event === 'SIGNED_OUT') {
             setUser(null)
             setAppState('unauthenticated')
@@ -263,8 +269,9 @@ export default function App() {
         localStorage.setItem('isAuthenticated', 'true')
       } else {
         // Mode réel : inscription Supabase
-        const { error } = await supabase.auth.signUp({
-          email: userData.email,
+        const cleanEmail = userData.email.trim().toLowerCase().replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+        const { data: authData, error } = await supabase.auth.signUp({
+          email: cleanEmail,
           password: userData.password,
           options: {
             data: {
@@ -273,7 +280,30 @@ export default function App() {
             },
           },
         })
-        if (error) throw error
+        if (error) {
+          if (error.message.includes('rate') || error.status === 429) {
+            throw new Error('Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.')
+          }
+          if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+            throw new Error('Cette adresse email est déjà utilisée.')
+          }
+          throw error
+        }
+        if (!authData.user) throw new Error('Échec de la création du compte')
+
+        // Vérifier si l'email est déjà enregistré (identities vide = doublon)
+        if (authData.user.identities?.length === 0) {
+          throw new Error('Cette adresse email est déjà utilisée.')
+        }
+
+        // Si un code établissement est fourni, rejoindre le centre
+        if (userData.schoolCode?.trim()) {
+          const profileReady = await OnboardingService.waitForProfile(authData.user.id)
+          if (!profileReady) throw new Error('Timeout lors de la création du profil')
+
+          await OnboardingService.joinCenterByCode(userData.schoolCode, userData.role || 'student')
+          toast.success('Inscription réussie ! Bienvenue dans votre établissement.')
+        }
         // Le onAuthStateChange va mettre à jour l'état
       }
     } catch (error) {
@@ -298,12 +328,6 @@ export default function App() {
     setCurrentPath(path)
   }
 
-  const _handleForgotPassword = (_email: string) => {
-    console.log(`Mot de passe oublié pour: ${_email}`)
-  }
-
-  void _handleForgotPassword
-
   // Le thème est appliqué par le script inline dans index.html (pas de FOUC)
 
   // États de chargement et d'erreur
@@ -312,6 +336,22 @@ export default function App() {
       <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
         <LoadingState size="lg" text="Chargement de l'application..." />
       </div>
+    )
+  }
+
+  // Route reset-password accessible avec ou sans session (recovery token crée une session)
+  if (hash === '#/reset-password') {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+            <LoadingState size="lg" text="Chargement..." />
+          </div>
+        }
+      >
+        <Toaster position="top-center" />
+        <ResetPasswordPage />
+      </Suspense>
     )
   }
 
@@ -339,6 +379,34 @@ export default function App() {
           isLoading={isLoading}
           error={authError}
         />
+      )
+    }
+
+    if (hash === '#/forgot-password') {
+      return (
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+              <LoadingState size="lg" text="Chargement..." />
+            </div>
+          }
+        >
+          <ForgotPasswordPage />
+        </Suspense>
+      )
+    }
+
+    if (hash === '#/onboarding') {
+      return (
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+              <LoadingState size="lg" text="Chargement..." />
+            </div>
+          }
+        >
+          <OnboardingPage />
+        </Suspense>
       )
     }
 

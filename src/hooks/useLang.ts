@@ -15,8 +15,9 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'La plateforme intelligente qui simplifie la planification des cours, la gestion des salles et la coordination des équipes pour votre établissement.',
     en: 'The intelligent platform that simplifies course scheduling, room management and team coordination for your institution.',
   },
-  'hero.cta.primary': { fr: 'Commencer gratuitement', en: 'Start for free' },
+  'hero.cta.primary': { fr: 'Créer mon établissement', en: 'Create my institution' },
   'hero.cta.secondary': { fr: 'Voir les fonctionnalités', en: 'See features' },
+  'hero.cta.secondary.join': { fr: 'Rejoindre un établissement', en: 'Join an institution' },
 
   // Features
   'features.section': { fr: 'Fonctionnalités', en: 'Features' },
@@ -91,7 +92,7 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'Rejoignez des centaines d\'établissements qui font confiance à AntiPlanning.',
     en: 'Join hundreds of institutions that trust AntiPlanning.',
   },
-  'cta.button': { fr: 'Commencer gratuitement', en: 'Start for free' },
+  'cta.button': { fr: 'Créer mon établissement', en: 'Create my institution' },
 
   // Footer
   'footer.tagline': {

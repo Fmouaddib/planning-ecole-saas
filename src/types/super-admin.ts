@@ -44,6 +44,7 @@ export interface CenterSubscription {
   center?: {
     id: string;
     name: string;
+    acronym?: string;
     email?: string;
   };
 }
@@ -65,6 +66,7 @@ export interface BillingEvent {
   center?: {
     id: string;
     name: string;
+    acronym?: string;
   };
 }
 
@@ -120,11 +122,15 @@ export interface SuperAdminUserProfile {
 export interface SuperAdminCenter {
   id: string;
   name: string;
+  acronym?: string;
   address?: string;
+  postal_code?: string;
+  city?: string;
   phone?: string;
   email?: string;
   website?: string;
   logo_url?: string;
+  enrollment_code?: string;
   settings: Record<string, unknown>;
   stripe_customer_id?: string;
   owner_id?: string;
@@ -164,11 +170,15 @@ export interface CreatePlanData {
 
 export interface CreateCenterData {
   name: string;
+  acronym?: string;
   address?: string;
+  postal_code?: string;
+  city?: string;
   phone?: string;
   email?: string;
   website?: string;
   owner_id?: string;
+  is_active?: boolean;
 }
 
 export interface CreateUserData {

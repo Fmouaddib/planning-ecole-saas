@@ -270,3 +270,20 @@ export function getErrorMessage(error: unknown): string {
 export function formatDateTime(date: string | Date, formatString: string = 'dd/MM/yyyy HH:mm'): string {
   return formatDate(date, formatString)
 }
+
+/**
+ * Retourne le nom d'affichage d'un centre : acronyme si disponible, sinon nom complet.
+ * Accepte n'importe quel objet avec { name, acronym? }.
+ */
+export function centerDisplayName(center: { name: string; acronym?: string | null } | null | undefined): string {
+  if (!center) return ''
+  return center.acronym?.trim() || center.name
+}
+
+/**
+ * Formate l'adresse complète d'un centre à partir de ses composants.
+ */
+export function formatCenterAddress(center: { address?: string | null; postal_code?: string | null; city?: string | null }): string {
+  const parts = [center.address, [center.postal_code, center.city].filter(Boolean).join(' ')].filter(Boolean)
+  return parts.join(', ')
+}

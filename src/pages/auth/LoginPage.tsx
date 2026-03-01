@@ -101,6 +101,7 @@ function LoginPage({ onLogin, onSwitchToSignup, isLoading = false, error }: Logi
                 </label>
                 <button
                   type="button"
+                  onClick={() => { window.location.hash = '#/forgot-password' }}
                   className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200"
                 >
                   Mot de passe oublié ?

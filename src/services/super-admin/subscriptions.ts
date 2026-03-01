@@ -56,7 +56,7 @@ export class SASubscriptionsService {
     try {
       const { data, error } = await supabase
         .from('center_subscriptions')
-        .select('*, plan:subscription_plans(*), center:training_centers(id, name, email)')
+        .select('*, plan:subscription_plans(*), center:training_centers(id, name, acronym, email)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []) as CenterSubscription[];
@@ -96,7 +96,7 @@ export class SASubscriptionsService {
         .from('center_subscriptions')
         .update(data)
         .eq('id', id)
-        .select('*, plan:subscription_plans(*), center:training_centers(id, name, email)')
+        .select('*, plan:subscription_plans(*), center:training_centers(id, name, acronym, email)')
         .single();
       if (error) throw error;
       return sub as CenterSubscription;
@@ -123,7 +123,7 @@ export class SASubscriptionsService {
     try {
       let query = supabase
         .from('billing_events')
-        .select('*, center:training_centers(id, name)')
+        .select('*, center:training_centers(id, name, acronym)')
         .order('created_at', { ascending: false })
         .limit(50);
       if (centerId) query = query.eq('center_id', centerId);
