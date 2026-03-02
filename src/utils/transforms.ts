@@ -3,7 +3,7 @@
  * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
-import type { Booking, Room, User } from '@/types'
+import type { Booking, Room, User, Program } from '@/types'
 
 // ==================== BOOKING (from training_sessions) ====================
 
@@ -89,6 +89,25 @@ export function transformRoom(raw: Record<string, any>): Room {
     floor: undefined,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== PROGRAM (from programs) ====================
+
+export function transformProgram(raw: Record<string, any>): Program {
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    name: raw.name,
+    code: raw.code ?? undefined,
+    description: raw.description ?? undefined,
+    durationHours: raw.duration_hours ?? 0,
+    maxParticipants: raw.max_participants ?? 20,
+    color: raw.color ?? '#3B82F6',
+    isActive: raw.is_active ?? true,
+    createdAt: raw.created_at,
+    diplomaId: raw.diploma_id ?? undefined,
+    diploma: raw.diploma ?? undefined,
   }
 }
 

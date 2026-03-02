@@ -89,6 +89,7 @@ function CalendarPage() {
     allClassOptions,
     teachers,
     getTeachersBySubject,
+    getClassById,
   } = useAcademicData()
   const [view, setView] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -713,6 +714,7 @@ function CalendarPage() {
         diplomaOptions={diplomaOptions}
         classOptionsByDiploma={classOptionsByDiploma}
         subjectOptionsByClass={subjectOptionsByClass}
+        getClassById={getClassById}
       />
 
       {/* Batch Create Modal */}
@@ -731,6 +733,7 @@ function CalendarPage() {
             classOptionsByDiploma={classOptionsByDiploma}
             subjectOptionsByClass={subjectOptionsByClass}
             getTeachersBySubject={getTeachersBySubject}
+            getClassById={getClassById}
           />
         </Suspense>
       )}

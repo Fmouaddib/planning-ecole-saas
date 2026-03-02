@@ -9,10 +9,11 @@
 import { useState, useMemo, useCallback } from 'react'
 import { format } from 'date-fns'
 import { Modal, ModalFooter, Button, Badge } from '@/components/ui'
-import { Plus, X, AlertTriangle, Check, Calendar, Search, Copy, Trash2, Clock } from 'lucide-react'
-import type { BookingType, BatchCreateSessionInput } from '@/types'
+import { Plus, X, AlertTriangle, Check, Calendar, Search, Copy, Trash2, Clock, CalendarOff, FileText } from 'lucide-react'
+import type { BookingType, BatchCreateSessionInput, Class } from '@/types'
 import { generateRecurrenceDates } from '@/utils/recurrence'
 import type { RecurrenceConfig } from '@/utils/recurrence'
+import { isClassDay, getExamPeriod } from '@/utils/scheduleUtils'
 
 interface BatchCreateModalProps {
   isOpen: boolean
@@ -27,6 +28,7 @@ interface BatchCreateModalProps {
   classOptionsByDiploma: (diplomaId: string) => { value: string; label: string }[]
   subjectOptionsByClass: (classId: string) => { value: string; label: string }[]
   getTeachersBySubject?: (subjectId: string) => { id: string; firstName: string; lastName: string }[]
+  getClassById?: (classId: string) => Class | undefined
 }
 
 type ConflictStatus = 'unchecked' | 'ok' | 'room_conflict' | 'trainer_conflict' | 'both_conflict' | 'checking'
@@ -77,6 +79,7 @@ function BatchCreateModal({
   diplomaOptions,
   classOptionsByDiploma,
   subjectOptionsByClass,
+  getClassById,
 }: BatchCreateModalProps) {
   const [rows, setRows] = useState<RowData[]>([])
   const [showRecurrence, setShowRecurrence] = useState(false)
@@ -287,6 +290,40 @@ function BatchCreateModal({
     return { total, conflicts, selected, creatable }
   }, [rows, ignoreConflicts, isRowComplete])
 
+  // === Schedule warnings (hors planning classe) ===
+
+  const offScheduleSet = useMemo(() => {
+    if (!classId || !getClassById) return new Set<string>()
+    const cls = getClassById(classId)
+    if (!cls) return new Set<string>()
+    const offIds = new Set<string>()
+    for (const r of rows) {
+      if (!r.date) continue
+      const result = isClassDay(cls, r.date)
+      if (!result.isPresent) offIds.add(r.id)
+    }
+    return offIds
+  }, [rows, classId, getClassById])
+
+  const offScheduleCount = offScheduleSet.size
+
+  // === Exam period detection ===
+
+  const examPeriodMap = useMemo(() => {
+    if (!classId || !getClassById) return new Map<string, string>()
+    const cls = getClassById(classId)
+    if (!cls) return new Map<string, string>()
+    const map = new Map<string, string>()
+    for (const r of rows) {
+      if (!r.date) continue
+      const period = getExamPeriod(cls, r.date)
+      if (period) map.set(r.id, period.name)
+    }
+    return map
+  }, [rows, classId, getClassById])
+
+  const examPeriodCount = examPeriodMap.size
+
   // === Hours per trainer ===
 
   const hoursByTrainer = useMemo(() => {
@@ -436,6 +473,12 @@ function BatchCreateModal({
               <span>{stats.total} ligne{stats.total > 1 ? 's' : ''}</span>
               {stats.conflicts > 0 && (
                 <Badge variant="error" size="sm">{stats.conflicts} conflit{stats.conflicts > 1 ? 's' : ''}</Badge>
+              )}
+              {offScheduleCount > 0 && (
+                <Badge variant="warning" size="sm">{offScheduleCount} hors planning</Badge>
+              )}
+              {examPeriodCount > 0 && (
+                <Badge variant="info" size="sm">{examPeriodCount} en examen</Badge>
               )}
             </>
           )}
@@ -642,7 +685,19 @@ function BatchCreateModal({
                       </select>
                     </td>
                     <td className="px-1.5 py-1 text-center">
-                      {conflictBadge(r.conflict)}
+                      <div className="flex items-center justify-center gap-1">
+                        {conflictBadge(r.conflict)}
+                        {offScheduleSet.has(r.id) && (
+                          <span title="Hors planning classe" className="text-warning-500">
+                            <CalendarOff size={13} />
+                          </span>
+                        )}
+                        {examPeriodMap.has(r.id) && (
+                          <span title={`Période d'examen : ${examPeriodMap.get(r.id)}`} className="text-info-500">
+                            <FileText size={13} />
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-1.5 py-1">
                       <div className="flex items-center gap-0.5">
@@ -678,6 +733,20 @@ function BatchCreateModal({
         <p className="text-[11px] text-warning-600 mt-1 flex items-center gap-1">
           <AlertTriangle size={12} />
           Certaines lignes sont incomplètes (date, matière, salle ou professeur manquant)
+        </p>
+      )}
+
+      {offScheduleCount > 0 && (
+        <p className="text-[11px] text-warning-600 mt-1 flex items-center gap-1">
+          <CalendarOff size={12} />
+          {offScheduleCount} séance{offScheduleCount > 1 ? 's' : ''} hors planning classe (la création reste possible)
+        </p>
+      )}
+
+      {examPeriodCount > 0 && (
+        <p className="text-[11px] text-info-600 mt-1 flex items-center gap-1">
+          <FileText size={12} />
+          {examPeriodCount} séance{examPeriodCount > 1 ? 's' : ''} en période d'examen
         </p>
       )}
 

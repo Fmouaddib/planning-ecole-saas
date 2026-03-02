@@ -2,7 +2,9 @@ import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Modal, ModalFooter, Button, Input, Select, Textarea } from '@/components/ui'
-import type { BookingType } from '@/types'
+import { AlertTriangle, FileText } from 'lucide-react'
+import type { BookingType, Class } from '@/types'
+import { isClassDay, getExamPeriod } from '@/utils/scheduleUtils'
 
 interface CreateBookingModalProps {
   isOpen: boolean
@@ -23,6 +25,7 @@ interface CreateBookingModalProps {
   diplomaOptions?: { value: string; label: string }[]
   classOptionsByDiploma?: (diplomaId: string) => { value: string; label: string }[]
   subjectOptionsByClass?: (classId: string) => { value: string; label: string }[]
+  getClassById?: (classId: string) => Class | undefined
 }
 
 const typeOptions = [
@@ -43,6 +46,7 @@ export function CreateBookingModal({
   diplomaOptions = [],
   classOptionsByDiploma,
   subjectOptionsByClass,
+  getClassById,
 }: CreateBookingModalProps) {
   const dateStr = prefilledDate ? format(prefilledDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   const startH = prefilledHour != null ? prefilledHour : 8
@@ -73,6 +77,28 @@ export function CreateBookingModal({
   )
 
   const hasDiplomaData = diplomaOptions.length > 0
+
+  // Avertissement planning classe
+  const scheduleWarning = useMemo(() => {
+    if (!classId || !date || !getClassById) return null
+    const cls = getClassById(classId)
+    if (!cls) return null
+    const result = isClassDay(cls, date)
+    if (result.isPresent) return null
+    const className = classOptions.find(c => c.value === classId)?.label || cls.name
+    return { className, reason: result.reason || '' }
+  }, [classId, date, getClassById, classOptions])
+
+  // Info période d'examen
+  const examPeriodInfo = useMemo(() => {
+    if (!classId || !date || !getClassById) return null
+    const cls = getClassById(classId)
+    if (!cls) return null
+    const period = getExamPeriod(cls, date)
+    if (!period) return null
+    const className = classOptions.find(c => c.value === classId)?.label || cls.name
+    return { className, periodName: period.name }
+  }, [classId, date, getClassById, classOptions])
 
   const handleDiplomaChange = (newDiplomaId: string) => {
     setDiplomaId(newDiplomaId)
@@ -243,6 +269,26 @@ export function CreateBookingModal({
             error={errors.endTime}
           />
         </div>
+
+        {/* Avertissement hors planning classe */}
+        {scheduleWarning && (
+          <div className="flex items-start gap-2 bg-warning-50 dark:bg-warning-950/30 border border-warning-200 dark:border-warning-800 rounded-lg px-3 py-2.5">
+            <AlertTriangle size={16} className="text-warning-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-warning-700 dark:text-warning-400">
+              La classe <strong>{scheduleWarning.className}</strong> n'a pas cours ce jour. {scheduleWarning.reason}
+            </p>
+          </div>
+        )}
+
+        {/* Info période d'examen */}
+        {examPeriodInfo && (
+          <div className="flex items-start gap-2 bg-info-50 dark:bg-info-950/30 border border-info-200 dark:border-info-800 rounded-lg px-3 py-2.5">
+            <FileText size={16} className="text-info-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-info-700 dark:text-info-400">
+              Période d'examen <strong>{examPeriodInfo.periodName}</strong> pour la classe {examPeriodInfo.className}
+            </p>
+          </div>
+        )}
 
         <Textarea
           label="Description (optionnel)"

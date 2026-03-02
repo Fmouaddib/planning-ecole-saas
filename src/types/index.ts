@@ -238,15 +238,46 @@ export interface CalendarEvent {
   teacher?: string
 }
 
+export interface Program {
+  id: string
+  centerId: string
+  name: string
+  code?: string
+  description?: string
+  durationHours: number
+  maxParticipants: number
+  color: string
+  isActive: boolean
+  createdAt: string
+  diplomaId?: string
+  diploma?: { id: string; title: string }
+}
+
 export interface Diploma {
   id: string
   title: string
   description: string
   durationYears: number
-  programId?: string
   isActive: boolean
   centerId: string
   createdAt: string
+}
+
+export interface AlternanceConfig {
+  schoolWeeks: number
+  companyWeeks: number
+  referenceDate: string
+}
+
+export interface ScheduleExceptions {
+  schoolDays: string[]   // dates ISO où la classe a cours (override "pas cours")
+  companyDays: string[]  // dates ISO où la classe n'a PAS cours (override "cours")
+}
+
+export interface ExamPeriod {
+  name: string       // ex: "Semestre 1", "Partiels Mars"
+  startDate: string  // ISO date
+  endDate: string    // ISO date
 }
 
 export interface Class {
@@ -257,6 +288,11 @@ export interface Class {
   academicYear: string
   startDate?: string
   endDate?: string
+  scheduleType: string
+  attendanceDays: number[]
+  alternanceConfig?: AlternanceConfig
+  scheduleExceptions?: ScheduleExceptions
+  examPeriods?: ExamPeriod[]
   isActive: boolean
   createdAt: string
   diploma?: { id: string; title: string }
@@ -268,8 +304,8 @@ export interface Subject {
   code: string
   description?: string
   category?: string
-  diplomaId?: string
-  diploma?: { id: string; title: string }
+  programId?: string
+  program?: { id: string; name: string }
   isActive: boolean
   centerId: string
   createdAt: string

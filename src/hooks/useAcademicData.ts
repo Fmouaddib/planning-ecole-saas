@@ -1,19 +1,20 @@
 /**
- * Hook pour charger les données académiques (diplômes, classes, matières)
+ * Hook pour charger les données académiques (programmes, diplômes, classes, matières)
  * et fournir des helpers de cascade pour les formulaires + CRUD complet
  *
  * Schéma DB réel :
- * - diplomas: id, center_id, title, description, program_id, template_url, is_active, duration_years, created_at, updated_at
+ * - programs: id, center_id, name, code, description, duration_hours, max_participants, color, is_active, diploma_id (FK → diplomas), created_at, updated_at
+ * - diplomas: id, center_id, title, description, template_url, is_active, duration_years, created_at, updated_at
  * - classes: id, center_id, name, diploma_id, academic_year, start_date, end_date, is_active, created_at, updated_at
- * - subjects: id, center_id, name, code, description, category, is_active, created_at, updated_at
+ * - subjects: id, center_id, name, code, description, category, is_active, program_id (FK → programs), created_at, updated_at
  * - class_subjects: id, class_id, subject_id, trainer_id, hours_planned
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { Diploma, Class, Subject, User } from '@/types'
+import type { Program, Diploma, Class, Subject, User } from '@/types'
 import { supabase, isDemoMode, isolatedClient } from '@/lib/supabase'
 import { useAuth } from './useAuth'
-import { transformUser } from '@/utils/transforms'
+import { transformUser, transformProgram } from '@/utils/transforms'
 import toast from 'react-hot-toast'
 
 interface ClassSubjectLink {
@@ -27,6 +28,7 @@ interface TeacherSubjectLink {
 }
 
 export function useAcademicData() {
+  const [programs, setPrograms] = useState<Program[]>([])
   const [diplomas, setDiplomas] = useState<Diploma[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -45,7 +47,12 @@ export function useAcademicData() {
     try {
       setIsLoading(true)
 
-      const [diplomasRes, classesRes, subjectsRes, teachersRes] = await Promise.all([
+      const [programsRes, diplomasRes, classesRes, subjectsRes, teachersRes] = await Promise.all([
+        supabase
+          .from('programs')
+          .select('*, diploma:diplomas(id, title)')
+          .eq('center_id', user.establishmentId)
+          .order('name'),
         supabase
           .from('diplomas')
           .select('*')
@@ -58,7 +65,7 @@ export function useAcademicData() {
           .order('name'),
         supabase
           .from('subjects')
-          .select('*, diploma:diplomas(id, title)')
+          .select('*, program:programs(id, name)')
           .eq('center_id', user.establishmentId)
           .order('name'),
         supabase
@@ -71,17 +78,19 @@ export function useAcademicData() {
       ])
 
       // Afficher les erreurs RLS/query individuellement
+      if (programsRes.error) toast.error('Erreur programmes: ' + programsRes.error.message)
       if (diplomasRes.error) toast.error('Erreur diplômes: ' + diplomasRes.error.message)
       if (classesRes.error) toast.error('Erreur classes: ' + classesRes.error.message)
       if (subjectsRes.error) toast.error('Erreur matières: ' + subjectsRes.error.message)
       if (teachersRes.error) toast.error('Erreur professeurs: ' + teachersRes.error.message)
+
+      setPrograms((programsRes.data || []).map(transformProgram))
 
       const transformedDiplomas: Diploma[] = (diplomasRes.data || []).map((d: any) => ({
         id: d.id,
         title: d.title,
         description: d.description || '',
         durationYears: d.duration_years || 0,
-        programId: d.program_id || undefined,
         isActive: d.is_active ?? true,
         centerId: d.center_id,
         createdAt: d.created_at,
@@ -95,6 +104,11 @@ export function useAcademicData() {
         academicYear: c.academic_year || '',
         startDate: c.start_date || undefined,
         endDate: c.end_date || undefined,
+        scheduleType: c.schedule_type || 'initial',
+        attendanceDays: c.attendance_days || [1, 2, 3, 4, 5],
+        alternanceConfig: c.alternance_config || undefined,
+        scheduleExceptions: c.schedule_exceptions || undefined,
+        examPeriods: c.exam_periods || undefined,
         isActive: c.is_active ?? true,
         createdAt: c.created_at,
         diploma: c.diploma || undefined,
@@ -106,8 +120,8 @@ export function useAcademicData() {
         code: s.code || '',
         description: s.description ?? undefined,
         category: s.category ?? undefined,
-        diplomaId: s.diploma_id || undefined,
-        diploma: s.diploma || undefined,
+        programId: s.program_id || undefined,
+        program: s.program || undefined,
         isActive: s.is_active ?? true,
         centerId: s.center_id,
         createdAt: s.created_at,
@@ -162,6 +176,57 @@ export function useAcademicData() {
     }
   }, [user?.establishmentId, fetchAll])
 
+  // ==================== CRUD Programs ====================
+
+  const createProgram = useCallback(async (data: { name: string; code?: string; description?: string; durationHours?: number; maxParticipants?: number; color?: string; diplomaId?: string }) => {
+    if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
+    const { data: row, error } = await supabase
+      .from('programs')
+      .insert({
+        name: data.name,
+        code: data.code || null,
+        description: data.description || null,
+        duration_hours: data.durationHours ?? 0,
+        max_participants: data.maxParticipants ?? 20,
+        color: data.color || '#3B82F6',
+        diploma_id: data.diplomaId || null,
+        center_id: user.establishmentId,
+      })
+      .select('*, diploma:diplomas(id, title)')
+      .single()
+    if (error) { toast.error('Erreur création programme: ' + error.message); throw error }
+    const newProgram = transformProgram(row)
+    setPrograms(prev => [...prev, newProgram].sort((a, b) => a.name.localeCompare(b.name)))
+    toast.success('Programme créé')
+    return newProgram
+  }, [user?.establishmentId])
+
+  const updateProgram = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; durationHours?: number; maxParticipants?: number; color?: string; diplomaId?: string }) => {
+    const payload: any = {}
+    if (data.name !== undefined) payload.name = data.name
+    if (data.code !== undefined) payload.code = data.code || null
+    if (data.description !== undefined) payload.description = data.description || null
+    if (data.durationHours !== undefined) payload.duration_hours = data.durationHours
+    if (data.maxParticipants !== undefined) payload.max_participants = data.maxParticipants
+    if (data.color !== undefined) payload.color = data.color
+    if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId || null
+    const { data: row, error } = await supabase.from('programs').update(payload).eq('id', id).select('*, diploma:diplomas(id, title)').single()
+    if (error) { toast.error('Erreur modification programme: ' + error.message); throw error }
+    const updated = transformProgram(row)
+    setPrograms(prev => prev.map(p => p.id === id ? updated : p))
+    toast.success('Programme modifié')
+    return updated
+  }, [])
+
+  const deleteProgram = useCallback(async (id: string) => {
+    const { error } = await supabase.from('programs').delete().eq('id', id)
+    if (error) { toast.error('Erreur suppression programme: ' + error.message); throw error }
+    setPrograms(prev => prev.filter(p => p.id !== id))
+    // Nettoyer program_id des matières orphelines localement
+    setSubjects(prev => prev.map(s => s.programId === id ? { ...s, programId: undefined, program: undefined } : s))
+    toast.success('Programme supprimé')
+  }, [])
+
   // ==================== CRUD Diplomas ====================
 
   const createDiploma = useCallback(async (data: { title: string; description?: string; durationYears?: number }) => {
@@ -192,7 +257,8 @@ export function useAcademicData() {
     if (data.title !== undefined) payload.title = data.title
     if (data.description !== undefined) payload.description = data.description || null
     if (data.durationYears !== undefined) payload.duration_years = data.durationYears || 1
-    const { data: row, error } = await supabase.from('diplomas').update(payload).eq('id', id).select('*').single()
+    const { data: row, error } = await supabase.from('diplomas').update(payload).eq('id', id)
+      .select('*').single()
     if (error) { toast.error('Erreur modification diplôme: ' + error.message); throw error }
     const updated: Diploma = {
       id: row.id, title: row.title, description: row.description || '',
@@ -208,12 +274,14 @@ export function useAcademicData() {
     const { error } = await supabase.from('diplomas').delete().eq('id', id)
     if (error) { toast.error('Erreur suppression diplôme: ' + error.message); throw error }
     setDiplomas(prev => prev.filter(d => d.id !== id))
+    // Nettoyer diploma_id des programmes orphelins localement
+    setPrograms(prev => prev.map(p => p.diplomaId === id ? { ...p, diplomaId: undefined, diploma: undefined } : p))
     toast.success('Diplôme supprimé')
   }, [])
 
   // ==================== CRUD Classes ====================
 
-  const createClass = useCallback(async (data: { name: string; diplomaId: string; academicYear?: string; startDate?: string; endDate?: string }) => {
+  const createClass = useCallback(async (data: { name: string; diplomaId: string; academicYear?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string }; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] }; examPeriods?: { name: string; startDate: string; endDate: string }[] }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('classes')
@@ -223,6 +291,11 @@ export function useAcademicData() {
         academic_year: data.academicYear || null,
         start_date: data.startDate || null,
         end_date: data.endDate || null,
+        schedule_type: data.scheduleType || 'initial',
+        attendance_days: data.attendanceDays || [1, 2, 3, 4, 5],
+        alternance_config: data.alternanceConfig || null,
+        schedule_exceptions: data.scheduleExceptions || null,
+        exam_periods: data.examPeriods || null,
         center_id: user.establishmentId,
       })
       .select('*, diploma:diplomas(id, title)')
@@ -232,6 +305,11 @@ export function useAcademicData() {
       id: row.id, name: row.name, diplomaId: row.diploma_id,
       centerId: row.center_id, academicYear: row.academic_year || '',
       startDate: row.start_date || undefined, endDate: row.end_date || undefined,
+      scheduleType: row.schedule_type || 'initial',
+      attendanceDays: row.attendance_days || [1, 2, 3, 4, 5],
+      alternanceConfig: row.alternance_config || undefined,
+      scheduleExceptions: row.schedule_exceptions || undefined,
+      examPeriods: row.exam_periods || undefined,
       isActive: row.is_active ?? true, createdAt: row.created_at,
       diploma: row.diploma || undefined,
     }
@@ -240,13 +318,18 @@ export function useAcademicData() {
     return newClass
   }, [user?.establishmentId])
 
-  const updateClass = useCallback(async (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; startDate?: string; endDate?: string }) => {
+  const updateClass = useCallback(async (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string } | null; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] } | null; examPeriods?: { name: string; startDate: string; endDate: string }[] | null }) => {
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId
     if (data.academicYear !== undefined) payload.academic_year = data.academicYear || null
     if (data.startDate !== undefined) payload.start_date = data.startDate || null
     if (data.endDate !== undefined) payload.end_date = data.endDate || null
+    if (data.scheduleType !== undefined) payload.schedule_type = data.scheduleType
+    if (data.attendanceDays !== undefined) payload.attendance_days = data.attendanceDays
+    if (data.alternanceConfig !== undefined) payload.alternance_config = data.alternanceConfig
+    if (data.scheduleExceptions !== undefined) payload.schedule_exceptions = data.scheduleExceptions
+    if (data.examPeriods !== undefined) payload.exam_periods = data.examPeriods
     const { data: row, error } = await supabase.from('classes').update(payload).eq('id', id)
       .select('*, diploma:diplomas(id, title)').single()
     if (error) { toast.error('Erreur modification classe: ' + error.message); throw error }
@@ -254,6 +337,11 @@ export function useAcademicData() {
       id: row.id, name: row.name, diplomaId: row.diploma_id,
       centerId: row.center_id, academicYear: row.academic_year || '',
       startDate: row.start_date || undefined, endDate: row.end_date || undefined,
+      scheduleType: row.schedule_type || 'initial',
+      attendanceDays: row.attendance_days || [1, 2, 3, 4, 5],
+      alternanceConfig: row.alternance_config || undefined,
+      scheduleExceptions: row.schedule_exceptions || undefined,
+      examPeriods: row.exam_periods || undefined,
       isActive: row.is_active ?? true, createdAt: row.created_at,
       diploma: row.diploma || undefined,
     }
@@ -272,7 +360,7 @@ export function useAcademicData() {
 
   // ==================== CRUD Subjects ====================
 
-  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; diplomaId?: string }) => {
+  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; programId?: string }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('subjects')
@@ -281,16 +369,16 @@ export function useAcademicData() {
         code: data.code || null,
         description: data.description || null,
         category: data.category || null,
-        diploma_id: data.diplomaId || null,
+        program_id: data.programId || null,
         center_id: user.establishmentId,
       })
-      .select('*, diploma:diplomas(id, title)')
+      .select('*, program:programs(id, name)')
       .single()
     if (error) { toast.error('Erreur création matière: ' + error.message); throw error }
     const newSubject: Subject = {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
-      category: row.category ?? undefined, diplomaId: row.diploma_id || undefined,
-      diploma: row.diploma || undefined, isActive: row.is_active ?? true,
+      category: row.category ?? undefined, programId: row.program_id || undefined,
+      program: row.program || undefined, isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
     setSubjects(prev => [...prev, newSubject].sort((a, b) => a.name.localeCompare(b.name)))
@@ -298,20 +386,20 @@ export function useAcademicData() {
     return newSubject
   }, [user?.establishmentId])
 
-  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; diplomaId?: string }) => {
+  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string }) => {
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.code !== undefined) payload.code = data.code || null
     if (data.description !== undefined) payload.description = data.description || null
     if (data.category !== undefined) payload.category = data.category || null
-    if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId || null
+    if (data.programId !== undefined) payload.program_id = data.programId || null
     const { data: row, error } = await supabase.from('subjects').update(payload).eq('id', id)
-      .select('*, diploma:diplomas(id, title)').single()
+      .select('*, program:programs(id, name)').single()
     if (error) { toast.error('Erreur modification matière: ' + error.message); throw error }
     const updated: Subject = {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
-      category: row.category ?? undefined, diplomaId: row.diploma_id || undefined,
-      diploma: row.diploma || undefined, isActive: row.is_active ?? true,
+      category: row.category ?? undefined, programId: row.program_id || undefined,
+      program: row.program || undefined, isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
     setSubjects(prev => prev.map(s => s.id === id ? updated : s))
@@ -506,6 +594,11 @@ export function useAcademicData() {
 
   // Options pour <Select>
 
+  const programOptions = useMemo(
+    () => programs.map(p => ({ value: p.id, label: p.name })),
+    [programs],
+  )
+
   const diplomaOptions = useMemo(
     () => diplomas.map(d => ({ value: d.id, label: d.title })),
     [diplomas],
@@ -532,6 +625,13 @@ export function useAcademicData() {
     [classes],
   )
 
+  const getClassById = useCallback(
+    (classId: string): Class | undefined => {
+      return classes.find(c => c.id === classId)
+    },
+    [classes],
+  )
+
   // Options "flat" pour les filtres calendrier
   const allSubjectOptions = useMemo(
     () => subjects.map(s => ({ value: s.name, label: s.name })),
@@ -553,7 +653,39 @@ export function useAcademicData() {
     return teachers.filter(t => teacherIds.includes(t.id))
   }, [teacherSubjects, teachers])
 
+  // Programmes d'un diplôme
+  const getProgramsByDiploma = useCallback(
+    (diplomaId: string) => programs.filter(p => p.diplomaId === diplomaId),
+    [programs],
+  )
+
+  // Matières d'un diplôme (via ses programmes) — pour ClassesTab
+  const getSubjectsByDiploma = useCallback(
+    (diplomaId: string) => {
+      const pIds = programs.filter(p => p.diplomaId === diplomaId).map(p => p.id)
+      return subjects.filter(s => s.programId && pIds.includes(s.programId))
+    },
+    [programs, subjects],
+  )
+
+  // Options Select
+  const programOptionsByDiploma = useCallback(
+    (diplomaId: string) => getProgramsByDiploma(diplomaId).map(p => ({ value: p.id, label: p.name })),
+    [getProgramsByDiploma],
+  )
+
+  const subjectOptionsByProgram = useCallback(
+    (programId: string) => subjects.filter(s => s.programId === programId).map(s => ({ value: s.id, label: `${s.name}${s.code ? ` (${s.code})` : ''}` })),
+    [subjects],
+  )
+
+  const subjectOptionsByDiploma = useCallback(
+    (diplomaId: string) => getSubjectsByDiploma(diplomaId).map(s => ({ value: s.id, label: `${s.name}${s.code ? ` (${s.code})` : ''}` })),
+    [getSubjectsByDiploma],
+  )
+
   return {
+    programs,
     diplomas,
     classes,
     subjects,
@@ -563,14 +695,25 @@ export function useAcademicData() {
     // Cascade helpers
     getClassesByDiploma,
     getSubjectsByClass,
+    getProgramsByDiploma,
+    getSubjectsByDiploma,
+    programOptions,
     diplomaOptions,
     classOptionsByDiploma,
     subjectOptionsByClass,
+    programOptionsByDiploma,
+    subjectOptionsByProgram,
+    subjectOptionsByDiploma,
     getDiplomaIdByClass,
+    getClassById,
     allSubjectOptions,
     allDiplomaOptions,
     allClassOptions,
     getTeachersBySubject,
+    // CRUD Programs
+    createProgram,
+    updateProgram,
+    deleteProgram,
     // CRUD Diplomas
     createDiploma,
     updateDiploma,
