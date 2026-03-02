@@ -73,6 +73,36 @@ export class SACentersService {
       throw error;
     }
 
+    // Assigner automatiquement le plan gratuit
+    try {
+      const { data: freePlan } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('slug', 'free')
+        .eq('is_active', true)
+        .single();
+
+      if (freePlan) {
+        const now = new Date();
+        const periodEnd = new Date(now);
+        periodEnd.setFullYear(periodEnd.getFullYear() + 100);
+
+        await supabase.from('center_subscriptions').upsert({
+          center_id: center.id,
+          plan_id: freePlan.id,
+          billing_cycle: 'monthly',
+          status: 'active',
+          current_period_start: now.toISOString(),
+          current_period_end: periodEnd.toISOString(),
+          cancel_at_period_end: false,
+        }, { onConflict: 'center_id' });
+      } else {
+        console.warn('[SACenters] Plan gratuit introuvable — aucun abonnement assigne');
+      }
+    } catch (subErr) {
+      console.warn('[SACenters] Erreur assignation plan gratuit:', subErr);
+    }
+
     return { ...center, settings: center.settings || {}, is_active: true, _count: { users: 0, sessions: 0, rooms: 0, programs: 0 } };
   }
 
