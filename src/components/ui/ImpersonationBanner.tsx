@@ -23,7 +23,12 @@ export function ImpersonationBanner() {
       <div className="flex items-center gap-2">
         <Eye className="w-4 h-4 shrink-0" />
         <span>
-          Vue en tant que : <strong>{data.centerName}</strong>
+          Vue en tant que :{' '}
+          <strong>
+            {data.userName
+              ? `${data.userName} (${data.centerName})`
+              : data.centerName}
+          </strong>
         </span>
       </div>
       <button

@@ -10,6 +10,10 @@ export const IMPERSONATION_EVENT = 'impersonation-changed'
 export interface ImpersonationData {
   centerId: string
   centerName: string
+  // Champs optionnels pour impersonation utilisateur
+  userId?: string
+  userName?: string
+  userRole?: string
 }
 
 export function getImpersonation(): ImpersonationData | null {

@@ -10,6 +10,7 @@ import {
 import { useSuperAdminCenters } from '@/hooks/super-admin/useSuperAdminCenters';
 import { usePagination } from '@/hooks/usePagination';
 import { exportToCSV } from '@/utils/csv-export';
+import { setImpersonation } from '@/utils/impersonation';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
 import type { CreateUserData, SuperAdminUserProfile } from '@/types/super-admin';
@@ -242,7 +243,7 @@ export const SAUsersPage = () => {
                       {new Date(user.created_at).toLocaleDateString('fr-FR')}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         <button className="sa-btn sa-btn-secondary" onClick={() => openEdit(user)}>Modifier</button>
                         <button
                           className={`sa-btn ${user.is_active ? 'sa-btn-danger' : 'sa-btn-success'}`}
@@ -256,6 +257,24 @@ export const SAUsersPage = () => {
                         >
                           Reset MDP
                         </button>
+                        {user.center_id && user.role !== 'super_admin' && (
+                          <button
+                            className="sa-btn sa-btn-primary"
+                            onClick={() => {
+                              const centerName = (centers || []).find(c => c.id === user.center_id)?.name || 'Centre inconnu';
+                              setImpersonation({
+                                centerId: user.center_id!,
+                                centerName,
+                                userId: user.id,
+                                userName: user.full_name,
+                                userRole: user.role,
+                              });
+                              window.location.hash = '';
+                            }}
+                          >
+                            Voir en tant que
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

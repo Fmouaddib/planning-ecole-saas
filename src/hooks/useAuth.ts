@@ -310,7 +310,11 @@ export function useAuth(): UseAuthReturn {
     const imp = getImpersonation()
     if (!imp) return user
 
-    return { ...user, establishmentId: imp.centerId }
+    return {
+      ...user,
+      establishmentId: imp.centerId,
+      ...(imp.userRole && { role: imp.userRole as AuthUser['role'] }),
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, _impersonationTick])
 
