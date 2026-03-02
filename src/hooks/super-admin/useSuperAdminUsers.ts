@@ -116,12 +116,13 @@ export const useDeleteSAUser = () => {
 
 export const useResetSAUserPassword = () => {
   return useMutation({
-    mutationFn: (email: string) => SAUsersService.resetPassword(email),
-    onSuccess: () => toast.success('Email de reinitialisation envoye'),
+    mutationFn: ({ userId, newPassword }: { userId: string; newPassword: string }) =>
+      SAUsersService.resetPassword(userId, newPassword),
+    onSuccess: () => toast.success('Mot de passe modifie avec succes'),
     onError: (err: unknown) => {
       const msg = extractErrorMessage(err);
       console.error('[useResetSAUserPassword]', err);
-      toast.error(`Erreur envoi email : ${msg}`);
+      toast.error(`Erreur reset MDP : ${msg}`);
     },
   });
 };

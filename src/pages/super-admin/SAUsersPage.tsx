@@ -22,6 +22,8 @@ export const SAUsersPage = () => {
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ type: 'toggle' | 'bulk'; id?: string; isActive?: boolean } | null>(null);
+  const [resetTarget, setResetTarget] = useState<SuperAdminUserProfile | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   const { data: users, isLoading } = useSuperAdminUsers(search || undefined);
   const { data: centers } = useSuperAdminCenters();
@@ -253,7 +255,7 @@ export const SAUsersPage = () => {
                         </button>
                         <button
                           className="sa-btn sa-btn-secondary"
-                          onClick={() => resetPassword.mutate(user.email)}
+                          onClick={() => { setResetTarget(user); setNewPassword(''); }}
                         >
                           Reset MDP
                         </button>
@@ -313,6 +315,51 @@ export const SAUsersPage = () => {
           onConfirm={handleConfirmAction}
           onCancel={() => setConfirmAction(null)}
         />
+      )}
+
+      {/* Reset Password Modal */}
+      {resetTarget && (
+        <div className="sa-modal-overlay" onClick={() => setResetTarget(null)}>
+          <div className="sa-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <h2 className="sa-modal-title">Reset mot de passe</h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--sa-text-secondary)', marginBottom: '16px' }}>
+              Definir un nouveau mot de passe pour <strong>{resetTarget.full_name}</strong> ({resetTarget.email})
+            </p>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              resetPassword.mutate(
+                { userId: resetTarget.id, newPassword },
+                { onSuccess: () => { setResetTarget(null); setNewPassword(''); } }
+              );
+            }}>
+              <div className="sa-form-group">
+                <label className="sa-form-label">Nouveau mot de passe</label>
+                <input
+                  type="password"
+                  className="sa-form-input"
+                  placeholder="Minimum 8 caracteres"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  minLength={8}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button type="button" className="sa-btn sa-btn-secondary" onClick={() => setResetTarget(null)}>
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="sa-btn sa-btn-primary"
+                  disabled={newPassword.length < 8 || resetPassword.isPending}
+                >
+                  {resetPassword.isPending ? 'En cours...' : 'Confirmer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Modal */}

@@ -103,12 +103,15 @@ export class SAUsersService {
     }
   }
 
-  static async resetPassword(email: string): Promise<void> {
-    if (isDemoMode) { console.log(`Mode simulation - Reset password envoye a ${email}`); return; }
+  static async resetPassword(userId: string, newPassword: string): Promise<void> {
+    if (isDemoMode) { console.log(`Demo: reset password for ${userId}`); return; }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.rpc('sa_reset_user_password', {
+      p_user_id: userId,
+      p_new_password: newPassword,
+    });
     if (error) {
-      console.error('[SAUsers] resetPassword error:', error.message);
+      console.error('[SAUsers] resetPassword RPC error:', error.message);
       throw error;
     }
   }
