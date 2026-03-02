@@ -84,7 +84,7 @@ const DEMO_TEACHER_BARS = [
 function AnalyticsPage() {
   const { bookings, isLoading: bookingsLoading } = useBookings()
   const { rooms, isLoading: roomsLoading } = useRooms()
-  const { users, userStats, isLoading: usersLoading } = useUsers()
+  const { users, isLoading: usersLoading } = useUsers()
 
   const isLoading = bookingsLoading || roomsLoading || usersLoading
 
