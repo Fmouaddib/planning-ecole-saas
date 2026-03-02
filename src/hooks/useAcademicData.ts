@@ -15,6 +15,7 @@ import type { Program, Diploma, Class, Subject, User } from '@/types'
 import { supabase, isDemoMode, isolatedClient } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { transformUser, transformProgram } from '@/utils/transforms'
+import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
 
 interface ClassSubjectLink {
@@ -198,6 +199,7 @@ export function useAcademicData() {
     const newProgram = transformProgram(row)
     setPrograms(prev => [...prev, newProgram].sort((a, b) => a.name.localeCompare(b.name)))
     toast.success('Programme créé')
+    if (user) AuditService.logCrud('created', 'program', newProgram.id, user.id, user.establishmentId, { name: newProgram.name })
     return newProgram
   }, [user?.establishmentId])
 
@@ -215,8 +217,9 @@ export function useAcademicData() {
     const updated = transformProgram(row)
     setPrograms(prev => prev.map(p => p.id === id ? updated : p))
     toast.success('Programme modifié')
+    if (user) AuditService.logCrud('updated', 'program', id, user.id, user.establishmentId, { name: updated.name })
     return updated
-  }, [])
+  }, [user])
 
   const deleteProgram = useCallback(async (id: string) => {
     const { error } = await supabase.from('programs').delete().eq('id', id)
@@ -225,7 +228,8 @@ export function useAcademicData() {
     // Nettoyer program_id des matières orphelines localement
     setSubjects(prev => prev.map(s => s.programId === id ? { ...s, programId: undefined, program: undefined } : s))
     toast.success('Programme supprimé')
-  }, [])
+    if (user) AuditService.logCrud('deleted', 'program', id, user.id, user.establishmentId)
+  }, [user])
 
   // ==================== CRUD Diplomas ====================
 
@@ -249,6 +253,7 @@ export function useAcademicData() {
     }
     setDiplomas(prev => [...prev, newDiploma].sort((a, b) => a.title.localeCompare(b.title)))
     toast.success('Diplôme créé')
+    if (user) AuditService.logCrud('created', 'diploma', newDiploma.id, user.id, user.establishmentId, { name: newDiploma.title })
     return newDiploma
   }, [user?.establishmentId])
 
@@ -267,8 +272,9 @@ export function useAcademicData() {
     }
     setDiplomas(prev => prev.map(d => d.id === id ? updated : d))
     toast.success('Diplôme modifié')
+    if (user) AuditService.logCrud('updated', 'diploma', id, user.id, user.establishmentId, { name: updated.title })
     return updated
-  }, [])
+  }, [user])
 
   const deleteDiploma = useCallback(async (id: string) => {
     const { error } = await supabase.from('diplomas').delete().eq('id', id)
@@ -277,7 +283,8 @@ export function useAcademicData() {
     // Nettoyer diploma_id des programmes orphelins localement
     setPrograms(prev => prev.map(p => p.diplomaId === id ? { ...p, diplomaId: undefined, diploma: undefined } : p))
     toast.success('Diplôme supprimé')
-  }, [])
+    if (user) AuditService.logCrud('deleted', 'diploma', id, user.id, user.establishmentId)
+  }, [user])
 
   // ==================== CRUD Classes ====================
 
@@ -315,6 +322,7 @@ export function useAcademicData() {
     }
     setClasses(prev => [...prev, newClass].sort((a, b) => a.name.localeCompare(b.name)))
     toast.success('Classe créée')
+    if (user) AuditService.logCrud('created', 'class', newClass.id, user.id, user.establishmentId, { name: newClass.name })
     return newClass
   }, [user?.establishmentId])
 
@@ -347,8 +355,9 @@ export function useAcademicData() {
     }
     setClasses(prev => prev.map(c => c.id === id ? updated : c))
     toast.success('Classe modifiée')
+    if (user) AuditService.logCrud('updated', 'class', id, user.id, user.establishmentId, { name: updated.name })
     return updated
-  }, [])
+  }, [user])
 
   const deleteClass = useCallback(async (id: string) => {
     const { error } = await supabase.from('classes').delete().eq('id', id)
@@ -356,7 +365,8 @@ export function useAcademicData() {
     setClasses(prev => prev.filter(c => c.id !== id))
     setClassSubjects(prev => prev.filter(cs => cs.class_id !== id))
     toast.success('Classe supprimée')
-  }, [])
+    if (user) AuditService.logCrud('deleted', 'class', id, user.id, user.establishmentId)
+  }, [user])
 
   // ==================== CRUD Subjects ====================
 
@@ -383,6 +393,7 @@ export function useAcademicData() {
     }
     setSubjects(prev => [...prev, newSubject].sort((a, b) => a.name.localeCompare(b.name)))
     toast.success('Matière créée')
+    if (user) AuditService.logCrud('created', 'subject', newSubject.id, user.id, user.establishmentId, { name: newSubject.name })
     return newSubject
   }, [user?.establishmentId])
 
@@ -404,8 +415,9 @@ export function useAcademicData() {
     }
     setSubjects(prev => prev.map(s => s.id === id ? updated : s))
     toast.success('Matière modifiée')
+    if (user) AuditService.logCrud('updated', 'subject', id, user.id, user.establishmentId, { name: updated.name })
     return updated
-  }, [])
+  }, [user])
 
   const deleteSubject = useCallback(async (id: string) => {
     const { error } = await supabase.from('subjects').delete().eq('id', id)
@@ -414,7 +426,8 @@ export function useAcademicData() {
     setClassSubjects(prev => prev.filter(cs => cs.subject_id !== id))
     setTeacherSubjects(prev => prev.filter(ts => ts.subject_id !== id))
     toast.success('Matière supprimée')
-  }, [])
+    if (user) AuditService.logCrud('deleted', 'subject', id, user.id, user.establishmentId)
+  }, [user])
 
   // ==================== CRUD Teachers ====================
   // Approche RPC : appelle create_teacher_profile() (SECURITY DEFINER)
@@ -441,6 +454,7 @@ export function useAcademicData() {
         `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
       ))
       toast.success(`Professeur ajouté — connexion via "Mot de passe oublié"`)
+      if (user) AuditService.logCrud('created', 'teacher', newTeacher.id, user.id, user.establishmentId, { name: fullName, email: data.email })
       return newTeacher
     }
 
@@ -470,6 +484,7 @@ export function useAcademicData() {
         `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
       ))
       toast.success(`Professeur ajouté — connexion via "Mot de passe oublié"`)
+      if (user) AuditService.logCrud('created', 'teacher', newTeacher.id, user.id, user.establishmentId, { name: fullName, email: data.email })
       return newTeacher
     }
 
@@ -492,8 +507,9 @@ export function useAcademicData() {
     const updated = transformUser(row)
     setTeachers(prev => prev.map(t => t.id === id ? updated : t))
     toast.success('Professeur modifié')
+    if (user) AuditService.logCrud('updated', 'teacher', id, user.id, user.establishmentId, { name: payload.full_name })
     return updated
-  }, [teachers])
+  }, [teachers, user])
 
   const deleteTeacher = useCallback(async (id: string) => {
     const { error } = await supabase.from('profiles').update({ is_active: false }).eq('id', id)
@@ -501,7 +517,8 @@ export function useAcademicData() {
     setTeachers(prev => prev.filter(t => t.id !== id))
     setTeacherSubjects(prev => prev.filter(ts => ts.teacher_id !== id))
     toast.success('Professeur retiré')
-  }, [])
+    if (user) AuditService.logCrud('deleted', 'teacher', id, user.id, user.establishmentId)
+  }, [user])
 
   // ==================== Liens class_subjects ====================
 

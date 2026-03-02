@@ -156,6 +156,7 @@ function ActivityRow({ entry }: { entry: AuditLogEntry }) {
 function formatActionInfo(action: string): { icon: string; label: string; color: string } {
   const map: Record<string, { icon: string; label: string; color: string }> = {
     'user.login':               { icon: '\u{1F511}', label: 'Connexion',         color: '#6b7280' },
+    'user.logout':              { icon: '\u{1F6AA}', label: 'Deconnexion',       color: '#6b7280' },
     'user.created':             { icon: '\u{2795}',  label: 'Utilisateur cree',  color: '#16a34a' },
     'user.updated':             { icon: '\u{270F}',  label: 'Utilisateur modifie', color: '#2563eb' },
     'user.deleted':             { icon: '\u{1F5D1}', label: 'Utilisateur supprime', color: '#dc2626' },
@@ -169,9 +170,30 @@ function formatActionInfo(action: string): { icon: string; label: string; color:
     'session.created':          { icon: '\u{1F4C5}', label: 'Session creee',     color: '#16a34a' },
     'session.updated':          { icon: '\u{270F}',  label: 'Session modifiee',  color: '#2563eb' },
     'session.deleted':          { icon: '\u{1F5D1}', label: 'Session supprimee', color: '#dc2626' },
+    'room.created':             { icon: '\u{1F3E0}', label: 'Salle creee',       color: '#16a34a' },
+    'room.updated':             { icon: '\u{270F}',  label: 'Salle modifiee',    color: '#2563eb' },
+    'room.deleted':             { icon: '\u{1F5D1}', label: 'Salle supprimee',   color: '#dc2626' },
+    'program.created':          { icon: '\u{1F4DA}', label: 'Programme cree',    color: '#16a34a' },
+    'program.updated':          { icon: '\u{270F}',  label: 'Programme modifie', color: '#2563eb' },
+    'program.deleted':          { icon: '\u{1F5D1}', label: 'Programme supprime', color: '#dc2626' },
+    'diploma.created':          { icon: '\u{1F393}', label: 'Diplome cree',      color: '#16a34a' },
+    'diploma.updated':          { icon: '\u{270F}',  label: 'Diplome modifie',   color: '#2563eb' },
+    'diploma.deleted':          { icon: '\u{1F5D1}', label: 'Diplome supprime',  color: '#dc2626' },
+    'class.created':            { icon: '\u{1F465}', label: 'Classe creee',      color: '#16a34a' },
+    'class.updated':            { icon: '\u{270F}',  label: 'Classe modifiee',   color: '#2563eb' },
+    'class.deleted':            { icon: '\u{1F5D1}', label: 'Classe supprimee',  color: '#dc2626' },
+    'subject.created':          { icon: '\u{1F4D6}', label: 'Matiere creee',     color: '#16a34a' },
+    'subject.updated':          { icon: '\u{270F}',  label: 'Matiere modifiee',  color: '#2563eb' },
+    'subject.deleted':          { icon: '\u{1F5D1}', label: 'Matiere supprimee', color: '#dc2626' },
+    'teacher.created':          { icon: '\u{1F9D1}', label: 'Professeur ajoute', color: '#16a34a' },
+    'teacher.updated':          { icon: '\u{270F}',  label: 'Professeur modifie', color: '#2563eb' },
+    'teacher.deleted':          { icon: '\u{1F5D1}', label: 'Professeur retire', color: '#dc2626' },
     'plan.created':             { icon: '\u{2795}',  label: 'Plan cree',         color: '#16a34a' },
     'plan.updated':             { icon: '\u{270F}',  label: 'Plan modifie',      color: '#2563eb' },
     'plan.deleted':             { icon: '\u{1F5D1}', label: 'Plan supprime',     color: '#dc2626' },
+    'booking.created':          { icon: '\u{1F4C5}', label: 'Reservation creee', color: '#16a34a' },
+    'booking.updated':          { icon: '\u{270F}',  label: 'Reservation modifiee', color: '#2563eb' },
+    'booking.deleted':          { icon: '\u{1F5D1}', label: 'Reservation supprimee', color: '#dc2626' },
   };
   return map[action] || { icon: '\u{1F4CB}', label: action, color: '#6b7280' };
 }

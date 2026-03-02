@@ -22,8 +22,9 @@ export const useCreateSAPlan = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreatePlanData) => SASubscriptionsService.createPlan(data),
-    onSuccess: () => {
+    onSuccess: (plan) => {
       queryClient.invalidateQueries({ queryKey: SA_KEYS.plans });
+      SAAuditService.logAction({ action: 'plan.created', entityType: 'plan', entityId: plan.id, details: { name: plan.name } });
       toast.success('Plan cree avec succes');
     },
     onError: () => toast.error('Erreur lors de la creation du plan'),
@@ -34,8 +35,9 @@ export const useUpdateSAPlan = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreatePlanData> }) => SASubscriptionsService.updatePlan(id, data),
-    onSuccess: () => {
+    onSuccess: (plan) => {
       queryClient.invalidateQueries({ queryKey: SA_KEYS.plans });
+      SAAuditService.logAction({ action: 'plan.updated', entityType: 'plan', entityId: plan.id, details: { name: plan.name } });
       toast.success('Plan mis a jour');
     },
     onError: () => toast.error('Erreur lors de la mise a jour du plan'),

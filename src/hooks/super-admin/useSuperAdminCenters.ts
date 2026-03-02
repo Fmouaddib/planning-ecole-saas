@@ -51,8 +51,9 @@ export const useUpdateSACenter = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateCenterData> }) => SACentersService.updateCenter(id, data),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'centers'] });
+      SAAuditService.logAction({ action: 'center.updated', entityType: 'center', entityId: vars.id, details: { name: vars.data.name } });
       toast.success('Centre mis a jour');
     },
     onError: (err: unknown) => {
