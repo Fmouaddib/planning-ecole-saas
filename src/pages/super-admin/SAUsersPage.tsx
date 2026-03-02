@@ -69,6 +69,22 @@ export const SAUsersPage = () => {
 
   const getCenterName = (id?: string) => id ? (centerMap.get(id) || 'Centre inconnu') : '';
 
+  // Map centerId → isPaid (basé sur subscription.plan)
+  const centerPaidMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    (centers || []).forEach(c => {
+      const plan = c.subscription?.plan;
+      const isPaid = plan ? (plan.price_monthly > 0 || (plan.slug !== 'free')) : false;
+      map.set(c.id, isPaid);
+    });
+    return map;
+  }, [centers]);
+
+  const getCenterEmoji = (centerId?: string) => {
+    if (!centerId) return '';
+    return centerPaidMap.get(centerId) ? '\u2B50' : '\u26A1'; // ⭐ payant, ⚡ free
+  };
+
   const filteredUsers = useMemo(() => {
     let result = users || [];
     if (roleFilter) result = result.filter(u => u.role === roleFilter);
@@ -220,7 +236,7 @@ export const SAUsersPage = () => {
               }}
             >
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: AVATAR_COLORS[Math.abs([...c.id].reduce((h, ch) => ((h << 5) - h + ch.charCodeAt(0)) | 0, 0)) % AVATAR_COLORS.length], flexShrink: 0 }} />
-              <span>{c.name}</span>
+              <span>{getCenterEmoji(c.id)} {c.name}</span>
               <span style={{
                 background: active ? '#3b82f6' : '#e5e7eb',
                 color: active ? '#fff' : '#6b7280',
@@ -250,6 +266,10 @@ export const SAUsersPage = () => {
             }}>{centerStats.get('__none__') || 0}</span>
           </button>
         )}
+        <span style={{ fontSize: '0.65rem', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '4px' }}>
+          <span>\u2B50 Payant</span>
+          <span>\u26A1 Gratuit</span>
+        </span>
       </div>
 
       {/* Search & Role Filters */}
@@ -383,9 +403,11 @@ export const SAUsersPage = () => {
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             padding: '3px 10px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 500,
-                            background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d022',
+                            background: centerPaidMap.get(user.center_id!) ? '#fffbeb' : '#f0fdf4',
+                            color: centerPaidMap.get(user.center_id!) ? '#92400e' : '#166534',
+                            border: `1px solid ${centerPaidMap.get(user.center_id!) ? '#fde68a44' : '#bbf7d022'}`,
                           }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
+                            <span style={{ fontSize: '0.7rem' }}>{getCenterEmoji(user.center_id)}</span>
                             {cName}
                           </span>
                         ) : (
