@@ -6,6 +6,7 @@ import {
   useToggleSAUserActive,
   useResetSAUserPassword,
   useBulkToggleSAUserActive,
+  useDeleteSAUser,
 } from '@/hooks/super-admin/useSuperAdminUsers';
 import { useSuperAdminCenters } from '@/hooks/super-admin/useSuperAdminCenters';
 import { usePagination } from '@/hooks/usePagination';
@@ -22,6 +23,7 @@ export const SAUsersPage = () => {
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ type: 'toggle' | 'bulk'; id?: string; isActive?: boolean } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SuperAdminUserProfile | null>(null);
   const [resetTarget, setResetTarget] = useState<SuperAdminUserProfile | null>(null);
   const [newPassword, setNewPassword] = useState('');
 
@@ -31,6 +33,7 @@ export const SAUsersPage = () => {
   const updateUser = useUpdateSAUser();
   const toggleActive = useToggleSAUserActive();
   const resetPassword = useResetSAUserPassword();
+  const deleteUser = useDeleteSAUser();
   const bulkToggle = useBulkToggleSAUserActive();
 
   const filteredUsers = roleFilter
@@ -259,6 +262,14 @@ export const SAUsersPage = () => {
                         >
                           Reset MDP
                         </button>
+                        {user.role !== 'super_admin' && (
+                          <button
+                            className="sa-btn sa-btn-danger"
+                            onClick={() => setDeleteTarget(user)}
+                          >
+                            Supprimer
+                          </button>
+                        )}
                         {user.center_id && user.role !== 'super_admin' && (
                           <button
                             className="sa-btn sa-btn-primary"
@@ -359,6 +370,44 @@ export const SAUsersPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="sa-modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="sa-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <h2 className="sa-modal-title" style={{ color: '#dc2626' }}>Supprimer l'utilisateur</h2>
+            <div style={{
+              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px',
+              padding: '12px 16px', marginBottom: '16px',
+            }}>
+              <p style={{ fontSize: '0.85rem', color: '#991b1b', fontWeight: 600, marginBottom: '6px' }}>
+                Attention : cette action est irreversible
+              </p>
+              <p style={{ fontSize: '0.8rem', color: '#b91c1c', lineHeight: 1.5 }}>
+                L'utilisateur <strong>{deleteTarget.full_name}</strong> ({deleteTarget.email}) sera
+                definitivement supprime. Toutes ses donnees (profil, seances, affectations) seront perdues
+                et ne pourront pas etre recuperees.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="sa-btn sa-btn-secondary" onClick={() => setDeleteTarget(null)} disabled={deleteUser.isPending}>
+                Annuler
+              </button>
+              <button
+                className="sa-btn sa-btn-danger"
+                disabled={deleteUser.isPending}
+                onClick={() => {
+                  deleteUser.mutate(deleteTarget.id, {
+                    onSuccess: () => setDeleteTarget(null),
+                  });
+                }}
+              >
+                {deleteUser.isPending ? 'Suppression...' : 'Supprimer definitivement'}
+              </button>
+            </div>
           </div>
         </div>
       )}
