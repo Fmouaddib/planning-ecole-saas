@@ -16,8 +16,8 @@ const plans = [
   },
   {
     nameKey: 'plan.pro',
-    price: 49,
-    priceAnnual: 39,
+    price: 99,
+    priceAnnual: 79,
     features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
     ctaKey: 'pricing.cta.pro',
     popular: false,
@@ -68,7 +68,7 @@ export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0) }, [])
 
   const compareRows: CompareRow[] = [
-    { labelKey: 'pricingPage.row.teachers', values: ['3', '15', '15', t('plan.enterprise.f1').split(' ')[0]] },
+    { labelKey: 'pricingPage.row.teachers', values: ['3', '50', '15', t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.students', values: ['—', '—', '200', t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.rooms', values: ['3', t('plan.pro.f2').split(' ')[0], t('plan.pro.f2').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.sessions', values: ['50', t('plan.pro.f3').split(' ')[0], t('plan.ecole.f4').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
@@ -78,7 +78,7 @@ export default function PricingPage() {
     { labelKey: 'pricingPage.row.export', values: [false, true, true, true] },
     { labelKey: 'pricingPage.row.academic', values: [false, true, true, true] },
     { labelKey: 'pricingPage.row.visio', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.studentAccess', values: [false, false, true, true] },
+    { labelKey: 'pricingPage.row.studentAccess', values: [false, false, false, true] },
     { labelKey: 'pricingPage.row.multiCampus', values: [false, false, false, true] },
     { labelKey: 'pricingPage.row.api', values: [false, false, false, true] },
     { labelKey: 'pricingPage.row.sso', values: [false, false, false, true] },

@@ -38,8 +38,8 @@ export default function LandingPage() {
     },
     {
       nameKey: 'plan.pro',
-      price: 49,
-      priceAnnual: 39,
+      price: 99,
+      priceAnnual: 79,
       features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
       ctaKey: 'pricing.cta.pro',
       popular: false,

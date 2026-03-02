@@ -27,3 +27,11 @@ ON CONFLICT (slug) DO NOTHING;
 UPDATE subscription_plans SET sort_order = 1 WHERE slug = 'free';
 UPDATE subscription_plans SET sort_order = 2 WHERE slug = 'pro';
 UPDATE subscription_plans SET sort_order = 4 WHERE slug = 'enterprise';
+
+-- 4. Mettre à jour le plan Pro : 99€/mois, 50 profs
+UPDATE subscription_plans
+SET price_monthly = 99,
+    price_yearly = 79,
+    max_users = 50,
+    features = '["50 professeurs", "Salles illimitées", "Séances illimitées", "Détection de conflits", "Intégration Teams & Zoom", "Support prioritaire"]'
+WHERE slug = 'pro';
