@@ -493,8 +493,8 @@ export default function App() {
   // Render the current page based on path
   const renderPage = () => {
     // Route guards : les professeurs n'ont pas accès aux pages admin
-    const teacherForbiddenRoutes = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS]
-    if (isTeacherRole(effectiveUser?.role) && teacherForbiddenRoutes.includes(currentPath as typeof ROUTES[keyof typeof ROUTES])) {
+    const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS]
+    if (isTeacherRole(effectiveUser?.role) && teacherForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />
     }
