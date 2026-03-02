@@ -5,7 +5,7 @@
 ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS meeting_url TEXT;
 
 -- 2. Insérer le plan "École en ligne"
-INSERT INTO subscription_plans (name, slug, description, max_users, max_rooms, max_bookings_per_month, price_monthly, price_yearly, features, sort_order, is_active, max_students)
+INSERT INTO subscription_plans (name, slug, description, max_users, max_rooms, max_sessions, max_programs, max_students, price_monthly, price_yearly, features, sort_order, is_active)
 VALUES (
   'École en ligne',
   'ecole-en-ligne',
@@ -13,12 +13,13 @@ VALUES (
   15,
   999999,
   999999,
+  999999,
+  200,
   59,
   47,
   '["15 professeurs", "200 étudiants", "Intégration Teams & Zoom", "Salles illimitées", "Séances illimitées", "Support prioritaire"]',
   3,
-  true,
-  200
+  true
 )
 ON CONFLICT (slug) DO NOTHING;
 
