@@ -144,7 +144,6 @@ export const SAAuditPage = () => {
   const [endDate, setEndDate] = useState('');
   const [searchText, setSearchText] = useState('');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [rawEntries, setRawEntries] = useState<AuditLogEntry[]>([]);
   const [enrichedEntries, setEnrichedEntries] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -162,7 +161,6 @@ export const SAAuditPage = () => {
         Object.keys(filters).length > 0 ? filters as { action?: string; startDate?: string; endDate?: string } : undefined
       );
       if (cancelled) return;
-      setRawEntries(data);
 
       const enriched = await enrichEntries(data);
       if (cancelled) return;
