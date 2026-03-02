@@ -376,70 +376,78 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         ))}
       </div>
 
-      {/* Occupation + Quotas (masqués en mode démo) */}
-      {!isDemoMode && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-          {/* Taux d'occupation moyen */}
-          {globalOccupation !== null && (
-            <div className="card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-primary-50 rounded-lg">
-                  <Gauge size={20} className="text-primary-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Taux d'occupation moyen</h3>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">Semaine en cours (Lu-Ve, 8h-18h)</p>
+      {/* Taux d'occupation moyen */}
+      <div className="mb-8">
+        <div className="card">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-primary-50 rounded-lg">
+              <Gauge size={20} className="text-primary-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Taux d'occupation moyen</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Semaine en cours (Lu-Ve, 8h-18h)</p>
+            </div>
+          </div>
+          {!isDemoMode && globalOccupation !== null ? (
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      globalOccupation > 80 ? 'bg-error-500' : globalOccupation > 50 ? 'bg-warning-500' : 'bg-success-500'
+                    }`}
+                    style={{ width: `${globalOccupation}%` }}
+                  />
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+              <span className={`text-lg font-bold ${
+                globalOccupation > 80 ? 'text-error-600' : globalOccupation > 50 ? 'text-warning-600' : 'text-success-600'
+              }`}>
+                {globalOccupation}%
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-primary-500 transition-all" style={{ width: '62%' }} />
+                </div>
+              </div>
+              <span className="text-lg font-bold text-primary-600">62%</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quotas d'utilisation (masqués en mode démo) */}
+      {!isDemoMode && quotaItems && (
+        <div className="mb-8">
+          <div className="card">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-primary-50 rounded-lg">
+                <BarChart3 size={20} className="text-primary-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Quotas d'utilisation</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {quotaItems.map(item => (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-neutral-600 dark:text-neutral-400">{item.label}</span>
+                    <span className="font-medium text-neutral-900 dark:text-neutral-100">
+                      {item.current} / {item.isUnlimited ? 'Illimité' : item.max}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${
-                        globalOccupation > 80 ? 'bg-error-500' : globalOccupation > 50 ? 'bg-warning-500' : 'bg-success-500'
-                      }`}
-                      style={{ width: `${globalOccupation}%` }}
+                      className={`h-full rounded-full transition-all ${item.colorClass}`}
+                      style={{ width: item.isUnlimited ? '10%' : `${Math.min(item.pct, 100)}%` }}
                     />
                   </div>
                 </div>
-                <span className={`text-lg font-bold ${
-                  globalOccupation > 80 ? 'text-error-600' : globalOccupation > 50 ? 'text-warning-600' : 'text-success-600'
-                }`}>
-                  {globalOccupation}%
-                </span>
-              </div>
+              ))}
             </div>
-          )}
-
-          {/* Quotas d'utilisation */}
-          {quotaItems && (
-            <div className="card">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-primary-50 rounded-lg">
-                  <BarChart3 size={20} className="text-primary-600" />
-                </div>
-                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Quotas d'utilisation</h3>
-              </div>
-              <div className="space-y-3">
-                {quotaItems.map(item => (
-                  <div key={item.label}>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-neutral-600 dark:text-neutral-400">{item.label}</span>
-                      <span className="font-medium text-neutral-900 dark:text-neutral-100">
-                        {item.current} / {item.isUnlimited ? 'Illimité' : item.max}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${item.colorClass}`}
-                        style={{ width: item.isUnlimited ? '10%' : `${Math.min(item.pct, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
