@@ -490,6 +490,7 @@ export function useBookings(): UseBookingsReturn {
       matiere: booking.matiere,
       diplome: booking.diplome,
       niveau: booking.niveau,
+      classId: booking.classId,
     }))
   }, [bookings])
 

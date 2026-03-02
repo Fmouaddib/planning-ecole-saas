@@ -28,6 +28,11 @@ interface TeacherSubjectLink {
   subject_id: string
 }
 
+interface ClassStudentLink {
+  student_id: string
+  class_id: string
+}
+
 export function useAcademicData() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [diplomas, setDiplomas] = useState<Diploma[]>([])
@@ -36,6 +41,7 @@ export function useAcademicData() {
   const [teachers, setTeachers] = useState<User[]>([])
   const [classSubjects, setClassSubjects] = useState<ClassSubjectLink[]>([])
   const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubjectLink[]>([])
+  const [classStudents, setClassStudents] = useState<ClassStudentLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
 
@@ -161,6 +167,20 @@ export function useAcademicData() {
         }
       } else {
         setTeacherSubjects([])
+      }
+
+      // Charger les liens class_students (pour la vue étudiant)
+      if (classIds.length > 0) {
+        const { data: cstuData, error: cstuError } = await supabase
+          .from('class_students')
+          .select('student_id, class_id')
+          .in('class_id', classIds)
+
+        if (!cstuError && cstuData) {
+          setClassStudents(cstuData)
+        }
+      } else {
+        setClassStudents([])
       }
     } catch (error: any) {
       toast.error('Erreur chargement référentiel: ' + (error?.message || 'Erreur inconnue'))
@@ -590,6 +610,37 @@ export function useAcademicData() {
     [teacherSubjects],
   )
 
+  // ==================== Liens class_students ====================
+
+  const setStudentClass = useCallback(async (studentId: string, classId: string | null) => {
+    // Supprimer les affectations existantes
+    const { error: delError } = await supabase
+      .from('class_students')
+      .delete()
+      .eq('student_id', studentId)
+    if (delError) { toast.error('Erreur suppression classe: ' + delError.message); throw delError }
+
+    // Mettre à jour le state local
+    setClassStudents(prev => prev.filter(cs => cs.student_id !== studentId))
+
+    // Insérer la nouvelle affectation si classId est fourni
+    if (classId) {
+      const { error: insError } = await supabase
+        .from('class_students')
+        .insert({ student_id: studentId, class_id: classId })
+      if (insError) { toast.error('Erreur affectation classe: ' + insError.message); throw insError }
+      setClassStudents(prev => [...prev, { student_id: studentId, class_id: classId }])
+    }
+  }, [])
+
+  const getClassIdForStudent = useCallback(
+    (studentId: string): string | null => {
+      const link = classStudents.find(cs => cs.student_id === studentId)
+      return link?.class_id ?? null
+    },
+    [classStudents],
+  )
+
   // Helpers de cascade
 
   const getClassesByDiploma = useCallback(
@@ -665,6 +716,13 @@ export function useAcademicData() {
     [classes],
   )
 
+  const getClassIdsForStudent = useCallback(
+    (studentId: string): string[] => {
+      return classStudents.filter(cs => cs.student_id === studentId).map(cs => cs.class_id)
+    },
+    [classStudents],
+  )
+
   const getTeachersBySubject = useCallback((subjectId: string) => {
     const teacherIds = teacherSubjects.filter(ts => ts.subject_id === subjectId).map(ts => ts.teacher_id)
     return teachers.filter(t => teacherIds.includes(t.id))
@@ -708,6 +766,8 @@ export function useAcademicData() {
     subjects,
     teachers,
     classSubjects,
+    classStudents,
+    teacherSubjects,
     isLoading,
     // Cascade helpers
     getClassesByDiploma,
@@ -755,6 +815,10 @@ export function useAcademicData() {
     // Teacher-Subject links
     setTeacherSubjectLinks,
     getSubjectIdsForTeacher,
+    // Class-Student links
+    getClassIdsForStudent,
+    getClassIdForStudent,
+    setStudentClass,
     // Refresh
     refreshAll: fetchAll,
   }

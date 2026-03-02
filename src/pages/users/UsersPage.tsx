@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useUsers } from '@/hooks/useUsers'
+import { useAcademicData } from '@/hooks/useAcademicData'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { USER_ROLES } from '@/utils/constants'
@@ -32,6 +33,7 @@ interface UserFormData {
   email: string
   password: string
   role: UserRole
+  classId: string
 }
 
 const emptyForm: UserFormData = {
@@ -40,6 +42,7 @@ const emptyForm: UserFormData = {
   email: '',
   password: '',
   role: 'student',
+  classId: '',
 }
 
 function UsersPage() {
@@ -47,6 +50,11 @@ function UsersPage() {
     users, isLoading, error, createUser, updateUser, deleteUser, refreshUsers,
     canCreateUsers, canUpdateUser, canDeleteUser,
   } = useUsers()
+  const { classes, getClassIdForStudent, setStudentClass } = useAcademicData()
+  const classOptions = useMemo(
+    () => classes.map(c => ({ value: c.id, label: c.name })),
+    [classes],
+  )
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
@@ -81,6 +89,7 @@ function UsersPage() {
       email: user.email,
       password: '',
       role: user.role,
+      classId: user.role === 'student' ? (getClassIdForStudent(user.id) || '') : '',
     })
     setModalMode('edit')
   }
@@ -99,7 +108,7 @@ function UsersPage() {
     setSubmitting(true)
     try {
       if (modalMode === 'create') {
-        await createUser({
+        const newUser = await createUser({
           firstName: form.firstName,
           lastName: form.lastName,
           email: form.email,
@@ -107,6 +116,10 @@ function UsersPage() {
           role: form.role,
           establishmentId: '',  // Le hook utilise le center_id de l'admin connecté
         })
+        // Affecter la classe si étudiant
+        if (form.role === 'student' && form.classId) {
+          await setStudentClass(newUser.id, form.classId)
+        }
       } else if (modalMode === 'edit' && selectedUser) {
         await updateUser(selectedUser.id, {
           firstName: form.firstName,
@@ -114,6 +127,10 @@ function UsersPage() {
           email: form.email,
           role: form.role,
         })
+        // Mettre à jour la classe si étudiant
+        if (form.role === 'student') {
+          await setStudentClass(selectedUser.id, form.classId || null)
+        }
       }
       closeModal()
     } catch {
@@ -207,6 +224,7 @@ function UsersPage() {
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Email</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Rôle</th>
+                    <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Classe</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Statut</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Créé le</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
@@ -224,6 +242,12 @@ function UsersPage() {
                         <Badge variant={roleBadgeVariant[u.role] || 'neutral'} size="sm">
                           {roleLabels[u.role] || u.role}
                         </Badge>
+                      </td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                        {u.role === 'student'
+                          ? (classes.find(c => c.id === getClassIdForStudent(u.id))?.name || '—')
+                          : '—'
+                        }
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant={u.isActive ? 'success' : 'neutral'} size="sm">
@@ -318,8 +342,16 @@ function UsersPage() {
             label="Rôle"
             options={roleOptions}
             value={form.role}
-            onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}
+            onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole, classId: e.target.value !== 'student' ? '' : f.classId }))}
           />
+          {form.role === 'student' && (
+            <Select
+              label="Classe"
+              options={[{ value: '', label: 'Aucune classe' }, ...classOptions]}
+              value={form.classId}
+              onChange={e => setForm(f => ({ ...f, classId: e.target.value }))}
+            />
+          )}
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>

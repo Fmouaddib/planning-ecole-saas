@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useBookings } from '@/hooks/useBookings'
 import { useAuth } from '@/hooks/useAuth'
-import { isTeacherRole } from '@/utils/helpers'
+import { useAcademicData } from '@/hooks/useAcademicData'
+import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { MiniCalendar } from '@/pages/calendar/MiniCalendar'
 
 /** Custom event name for sidebar → CalendarPage date sync */
@@ -14,14 +15,23 @@ interface SidebarCalendarProps {
 export function SidebarCalendar({ onNavigate }: SidebarCalendarProps) {
   const { calendarEvents } = useBookings()
   const { user } = useAuth()
+  const { getClassIdsForStudent } = useAcademicData()
 
   // Pour les profs, ne montrer que leurs propres séances sur le mini calendrier
+  // Pour les étudiants, filtrer par classe
   const visibleEvents = useMemo(() => {
+    if (isStudentRole(user?.role) && user?.id) {
+      const classIds = getClassIdsForStudent(user.id)
+      if (classIds.length > 0) {
+        return calendarEvents.filter(e => e.classId && classIds.includes(e.classId))
+      }
+      return []
+    }
     if (isTeacherRole(user?.role) && user?.id) {
       return calendarEvents.filter(e => e.userId === user.id)
     }
     return calendarEvents
-  }, [calendarEvents, user?.role, user?.id])
+  }, [calendarEvents, user?.role, user?.id, getClassIdsForStudent])
 
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [miniMonth, setMiniMonth] = useState(new Date())

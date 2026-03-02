@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   useSuperAdminUsers,
   useCreateSAUser,
@@ -14,6 +14,7 @@ import { exportToCSV } from '@/utils/csv-export';
 import { setImpersonation } from '@/utils/impersonation';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
+import { supabase } from '@/lib/supabase';
 import type { CreateUserData, SuperAdminUserProfile } from '@/types/super-admin';
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -51,6 +52,56 @@ export const SAUsersPage = () => {
   const [deleteTarget, setDeleteTarget] = useState<SuperAdminUserProfile | null>(null);
   const [resetTarget, setResetTarget] = useState<SuperAdminUserProfile | null>(null);
   const [newPassword, setNewPassword] = useState('');
+
+  // Suivi rôle/centre dans le modal pour afficher le sélecteur de classe
+  const [modalRole, setModalRole] = useState('');
+  const [modalCenterId, setModalCenterId] = useState('');
+
+  // Classe pour étudiants
+  const [modalClassId, setModalClassId] = useState('');
+  const [centerClasses, setCenterClasses] = useState<{ id: string; name: string }[]>([]);
+
+  // Charger les classes du centre quand le modal s'ouvre ou le centre change
+  const loadClassesForCenter = useCallback(async (centerId: string | undefined) => {
+    if (!centerId) { setCenterClasses([]); return; }
+    const { data, error } = await supabase
+      .from('classes')
+      .select('id, name')
+      .eq('center_id', centerId)
+      .order('name');
+    if (error) console.error('[SA] Erreur chargement classes:', error.message);
+    setCenterClasses(data || []);
+  }, []);
+
+  // Recharger les classes quand le centre change dans le modal
+  useEffect(() => {
+    if (showModal && modalCenterId) {
+      loadClassesForCenter(modalCenterId);
+    } else if (showModal) {
+      setCenterClasses([]);
+    }
+  }, [showModal, modalCenterId, loadClassesForCenter]);
+
+  // Charger la classe actuelle d'un étudiant
+  const loadStudentClass = useCallback(async (studentId: string) => {
+    const { data, error } = await supabase
+      .from('class_students')
+      .select('class_id')
+      .eq('student_id', studentId)
+      .limit(1);
+    if (error) console.error('[SA] Erreur chargement classe étudiant:', error.message);
+    setModalClassId(data?.[0]?.class_id || '');
+  }, []);
+
+  // Sauvegarder la classe d'un étudiant
+  const saveStudentClass = useCallback(async (studentId: string, classId: string | null) => {
+    const { error: delError } = await supabase.from('class_students').delete().eq('student_id', studentId);
+    if (delError) console.error('[SA] Erreur suppression classe:', delError.message);
+    if (classId) {
+      const { error: insError } = await supabase.from('class_students').insert({ student_id: studentId, class_id: classId });
+      if (insError) console.error('[SA] Erreur affectation classe:', insError.message);
+    }
+  }, []);
 
   const { data: users, isLoading } = useSuperAdminUsers(search || undefined);
   const { data: centers } = useSuperAdminCenters();
@@ -121,19 +172,44 @@ export const SAUsersPage = () => {
     };
 
     if (editingUser) {
-      updateUser.mutate({ id: editingUser.id, data }, { onSuccess: () => { setShowModal(false); setEditingUser(null); } });
+      updateUser.mutate({ id: editingUser.id, data }, {
+        onSuccess: async () => {
+          // Sauvegarder la classe si étudiant
+          if (data.role === 'student') {
+            await saveStudentClass(editingUser.id, modalClassId || null);
+          }
+          setShowModal(false);
+          setEditingUser(null);
+        },
+      });
     } else {
-      createUser.mutate(data, { onSuccess: () => { setShowModal(false); } });
+      createUser.mutate(data, {
+        onSuccess: async (user) => {
+          // Affecter la classe si étudiant
+          if (data.role === 'student' && modalClassId) {
+            await saveStudentClass(user.id, modalClassId);
+          }
+          setShowModal(false);
+        },
+      });
     }
   };
 
   const openEdit = (user: SuperAdminUserProfile) => {
     setEditingUser(user);
+    setModalRole(user.role);
+    setModalCenterId(user.center_id || '');
+    setModalClassId('');
     setShowModal(true);
+    if (user.role === 'student') loadStudentClass(user.id);
   };
 
   const openCreate = () => {
     setEditingUser(null);
+    setModalRole('trainer');
+    setModalCenterId('');
+    setModalClassId('');
+    setCenterClasses([]);
     setShowModal(true);
   };
 
@@ -623,7 +699,12 @@ export const SAUsersPage = () => {
               )}
               <div className="sa-form-group">
                 <label className="sa-form-label">Role</label>
-                <select name="role" className="sa-form-select" defaultValue={editingUser?.role || 'trainer'}>
+                <select
+                  name="role"
+                  className="sa-form-select"
+                  value={modalRole}
+                  onChange={(e) => setModalRole(e.target.value)}
+                >
                   <option value="admin">Admin</option>
                   <option value="trainer">Formateur</option>
                   <option value="coordinator">Coordinateur</option>
@@ -634,13 +715,33 @@ export const SAUsersPage = () => {
               </div>
               <div className="sa-form-group">
                 <label className="sa-form-label">Centre</label>
-                <select name="center_id" className="sa-form-select" defaultValue={editingUser?.center_id || ''}>
+                <select
+                  name="center_id"
+                  className="sa-form-select"
+                  value={modalCenterId}
+                  onChange={(e) => { setModalCenterId(e.target.value); setModalClassId(''); }}
+                >
                   <option value="">Aucun centre</option>
                   {(centers || []).map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>
+              {modalRole === 'student' && modalCenterId && (
+                <div className="sa-form-group">
+                  <label className="sa-form-label">Classe</label>
+                  <select
+                    className="sa-form-select"
+                    value={modalClassId}
+                    onChange={(e) => setModalClassId(e.target.value)}
+                  >
+                    <option value="">Aucune classe</option>
+                    {centerClasses.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="sa-form-group">
                 <label className="sa-form-label">Telephone</label>
                 <input name="phone" className="sa-form-input" defaultValue={editingUser?.phone || ''} />

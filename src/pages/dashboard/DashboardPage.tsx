@@ -22,7 +22,7 @@ import { useRooms } from '@/hooks/useRooms'
 import { useUsers } from '@/hooks/useUsers'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { useAcademicData } from '@/hooks/useAcademicData'
-import { isTeacherRole } from '@/utils/helpers'
+import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingState } from '@/components/ui'
 import type { UsageSummary } from '@/types'
@@ -116,12 +116,13 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   const displayName = user?.firstName || user?.email?.split('@')[0] || 'utilisateur'
 
   const isTeacher = isTeacherRole(user?.role)
+  const isStudent = isStudentRole(user?.role)
 
   // Hooks données réelles
   const { bookings, isLoading: bookingsLoading, upcomingBookings, bookingsByStatus } = useBookings()
   const { rooms, isLoading: roomsLoading, totalCapacity } = useRooms()
   const { userStats, isLoading: usersLoading, teachers } = useUsers()
-  const { subjects, classes, classSubjects, getSubjectIdsForTeacher } = useAcademicData()
+  const { subjects, classes, classSubjects, getSubjectIdsForTeacher, getClassIdsForStudent, teacherSubjects, teachers: academicTeachers } = useAcademicData()
 
   // Quotas d'utilisation
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null)
@@ -318,6 +319,62 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
     })
   }, [usageSummary])
 
+  // ==================== DONNÉES ÉTUDIANT ====================
+
+  const studentData = useMemo(() => {
+    if (!isStudent || !user?.id) return null
+
+    // Classes de l'étudiant
+    const myClassIds = getClassIdsForStudent(user.id)
+    const myClasses = classes.filter(c => myClassIds.includes(c.id))
+
+    // Matières de l'étudiant (via class_subjects filtrées par ses classes)
+    const mySubjectIds = new Set<string>()
+    for (const cs of classSubjects) {
+      if (myClassIds.includes(cs.class_id)) {
+        mySubjectIds.add(cs.subject_id)
+      }
+    }
+    const mySubjects = subjects.filter(s => mySubjectIds.has(s.id))
+
+    // Séances de l'étudiant (filtrées par classId)
+    const myBookings = bookings.filter(b => b.classId && myClassIds.includes(b.classId))
+
+    // Professeurs (via teacherSubjects liés aux matières de l'étudiant)
+    const myTeacherIds = new Set<string>()
+    for (const ts of teacherSubjects) {
+      if (mySubjectIds.has(ts.subject_id)) {
+        myTeacherIds.add(ts.teacher_id)
+      }
+    }
+    const myTeachers = academicTeachers.filter(t => myTeacherIds.has(t.id))
+
+    // Stats semaine courante
+    const now = new Date()
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
+
+    const weekBookings = myBookings.filter(b => {
+      if (!b.startDateTime) return false
+      const d = new Date(b.startDateTime)
+      return d >= weekStart && d <= weekEnd && b.status !== 'cancelled'
+    })
+
+    // Prochaines séances (futures, triées)
+    const upcoming = myBookings
+      .filter(b => b.startDateTime && new Date(b.startDateTime) >= now && b.status !== 'cancelled')
+      .sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime())
+
+    return {
+      myClasses,
+      mySubjects,
+      myTeachers,
+      weekSessionCount: weekBookings.length,
+      upcoming,
+      nextSession: upcoming[0] || null,
+    }
+  }, [isStudent, user?.id, classes, subjects, classSubjects, bookings, teacherSubjects, academicTeachers, getClassIdsForStudent])
+
   // ==================== DONNÉES PROFESSEUR ====================
 
   const teacherData = useMemo(() => {
@@ -369,6 +426,186 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
       nextSession: upcoming[0] || null,
     }
   }, [isTeacher, user?.id, subjects, classes, classSubjects, bookings, getSubjectIdsForTeacher])
+
+  // ==================== RENDU ÉTUDIANT ====================
+
+  if (isStudent && studentData) {
+    if (isLoading && !isDemoMode) {
+      return (
+        <div className="flex items-center justify-center py-20">
+          <LoadingState size="lg" text="Chargement du tableau de bord..." />
+        </div>
+      )
+    }
+
+    const className = studentData.myClasses.map(c => c.name).join(', ') || 'Aucune classe'
+
+    return (
+      <div>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+              Bonjour, {displayName}
+            </h1>
+            <p className="text-neutral-500 dark:text-neutral-400 mt-1 capitalize">{today}</p>
+            <p className="text-sm font-medium text-primary-600 mt-1">{className}</p>
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Séances cette semaine</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{studentData.weekSessionCount}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-primary-100">
+                <CalendarCheck size={22} className="text-primary-600" />
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Mes matières</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{studentData.mySubjects.length}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-success-100">
+                <BookOpen size={22} className="text-success-600" />
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Mes professeurs</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{studentData.myTeachers.length}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-error-100">
+                <Users size={22} className="text-error-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Prochaine séance mise en avant */}
+        {studentData.nextSession && (
+          <div className="card border-l-4 border-l-primary-600 mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <GraduationCap size={20} className="text-primary-600" />
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaine séance</h2>
+            </div>
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{studentData.nextSession.title}</p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {studentData.nextSession.room?.name || 'Salle non définie'}
+                </p>
+              </div>
+              <div className="text-right ml-auto">
+                <p className="text-sm font-semibold text-primary-600">
+                  {format(new Date(studentData.nextSession.startDateTime), "EEEE d MMM", { locale: fr })}
+                </p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {format(new Date(studentData.nextSession.startDateTime), 'HH:mm')} - {format(new Date(studentData.nextSession.endDateTime), 'HH:mm')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Two columns: upcoming + subjects/teachers */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Prochaines séances */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaines séances</h2>
+            </div>
+            <div className="space-y-3">
+              {studentData.upcoming.length === 0 ? (
+                <p className="text-sm text-neutral-400 text-center py-6">Aucune séance à venir</p>
+              ) : (
+                studentData.upcoming.slice(0, 5).map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 w-14 shrink-0">
+                      {format(new Date(b.startDateTime), 'HH:mm')}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{b.title}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        {b.room?.name || 'Salle inconnue'} · {format(new Date(b.startDateTime), 'EEE d MMM', { locale: fr })}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${
+                      STATUS_COLORS[b.status] || 'bg-neutral-100 text-neutral-700'
+                    }`}>
+                      {STATUS_LABELS[b.status] || b.status}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Matières & Professeurs */}
+          <div className="space-y-6">
+            <div className="card">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-3">Mes matières</h2>
+              {studentData.mySubjects.length === 0 ? (
+                <p className="text-sm text-neutral-400">Aucune matière assignée</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {studentData.mySubjects.map(s => (
+                    <span key={s.id} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="card">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-3">Mes professeurs</h2>
+              {studentData.myTeachers.length === 0 ? (
+                <p className="text-sm text-neutral-400">Aucun professeur assigné</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {studentData.myTeachers.map(t => (
+                    <span key={t.id} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-300">
+                      {t.firstName} {t.lastName}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Accès rapide */}
+        <div>
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Accès rapides</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
+              onClick={() => onNavigate?.('/planning')}
+            >
+              <div className="p-3 bg-primary-50 rounded-xl">
+                <Calendar size={20} className="text-primary-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mon emploi du temps</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Voir le calendrier</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ==================== RENDU PROFESSEUR ====================
 

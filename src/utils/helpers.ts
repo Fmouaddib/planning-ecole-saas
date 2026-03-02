@@ -12,6 +12,13 @@ export function isTeacherRole(role?: string): boolean {
 }
 
 /**
+ * Vérifie si un rôle correspond à un étudiant
+ */
+export function isStudentRole(role?: string): boolean {
+  return role === 'student'
+}
+
+/**
  * Combine des classes CSS avec clsx
  */
 export function cn(...inputs: ClassValue[]) {

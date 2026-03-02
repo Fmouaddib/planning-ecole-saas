@@ -17,7 +17,7 @@ import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useAuth } from '@/hooks/useAuth'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
-import { formatTimeRange, isTeacherRole } from '@/utils/helpers'
+import { formatTimeRange, isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import type { CalendarEvent, ExportFormat, BookingType } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
@@ -90,6 +90,7 @@ function CalendarPage() {
     teachers,
     getTeachersBySubject,
     getClassById,
+    getClassIdsForStudent,
   } = useAcademicData()
   const [view, setView] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -113,12 +114,20 @@ function CalendarPage() {
   const [showBatchModal, setShowBatchModal] = useState(false)
   const { user } = useAuth()
   const isTeacher = isTeacherRole(user?.role)
+  const isStudent = isStudentRole(user?.role)
+  const isReadOnly = isTeacher || isStudent
   const [showOnlyMine, setShowOnlyMine] = useState(isTeacher ?? false)
 
   // Sync showOnlyMine quand user charge après le montage (useState n'update pas)
   useEffect(() => {
     if (isTeacher) setShowOnlyMine(true)
   }, [isTeacher])
+
+  // Class IDs for student filtering
+  const studentClassIds = useMemo(() => {
+    if (!isStudent || !user?.id) return []
+    return getClassIdsForStudent(user.id)
+  }, [isStudent, user?.id, getClassIdsForStudent])
 
   const teacherProfileOptions = useMemo(
     () => teachers.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}`.trim() })),
@@ -199,7 +208,14 @@ function CalendarPage() {
 
   const filteredEvents = useMemo(() => {
     let events = allEvents
-    if (showOnlyMine && user?.id) {
+    if (isStudent) {
+      // Étudiant : TOUJOURS filtré par sa classe (pas de toggle)
+      // Sans classe assignée → aucune séance visible
+      events = studentClassIds.length > 0
+        ? events.filter(e => e.classId && studentClassIds.includes(e.classId))
+        : []
+    } else if (showOnlyMine && user?.id) {
+      // Professeur : filtrer par userId
       events = events.filter(e => e.userId === user.id)
     }
     if (roomFilter) events = events.filter(e => e.roomId === roomFilter)
@@ -214,7 +230,7 @@ function CalendarPage() {
     }
     if (activeTypes.length) events = events.filter(e => e.type && activeTypes.includes(e.type))
     return events
-  }, [allEvents, showOnlyMine, user?.id, roomFilter, selectedMatieres, selectedDiplomes, selectedNiveaux, selectedTeachers, activeTypes])
+  }, [allEvents, showOnlyMine, isStudent, studentClassIds, user?.id, roomFilter, selectedMatieres, selectedDiplomes, selectedNiveaux, selectedTeachers, activeTypes])
 
   const totalRooms = useMemo(() => {
     if (roomFilter) return 1
@@ -293,7 +309,7 @@ function CalendarPage() {
 
   // Create event from calendar click
   const handleSlotClick = (date: Date, hour: number | null) => {
-    if (isTeacher) return
+    if (isReadOnly) return
     setCreateDate(date)
     setCreateHour(hour)
     setShowCreateModal(true)
@@ -327,7 +343,7 @@ function CalendarPage() {
 
   // Drag & drop handler — ouvre la modale de confirmation au lieu de sauvegarder directement
   const handleEventUpdate = (eventId: string, newStart: string, newEnd: string) => {
-    if (isTeacher) return
+    if (isReadOnly) return
     const event = filteredEvents.find(e => e.id === eventId)
     if (!event) return
     setPendingMove({ eventId, event, newStart, newEnd })
@@ -419,7 +435,7 @@ function CalendarPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            {(['day', 'week', 'month', ...(!isTeacher ? ['rooms'] : [])] as ViewMode[]).map(v => (
+            {(['day', 'week', 'month', ...(!isReadOnly ? ['rooms'] : [])] as ViewMode[]).map(v => (
               <button
                 key={v}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -460,7 +476,7 @@ function CalendarPage() {
             Imprimer
           </button>
 
-          {/* Teacher toggle: Mes cours / Tout le centre */}
+          {/* Teacher toggle: Mes cours / Tout le centre (pas pour étudiants) */}
           {isTeacher && (
             <button
               className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
@@ -475,7 +491,7 @@ function CalendarPage() {
           )}
 
           {/* Batch create button */}
-          {!isTeacher && (
+          {!isReadOnly && (
             <button
               className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
               onClick={() => setShowBatchModal(true)}

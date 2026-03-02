@@ -236,6 +236,7 @@ export interface CalendarEvent {
   niveau?: string
   recurrence?: RecurrenceRule
   teacher?: string
+  classId?: string
 }
 
 export interface Program {

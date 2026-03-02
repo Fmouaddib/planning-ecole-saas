@@ -12,7 +12,7 @@ import {
   Settings
 } from 'lucide-react'
 import type { UserRole } from '@/types'
-import { isTeacherRole } from '@/utils/helpers'
+import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { SidebarCalendar } from './SidebarCalendar'
 
 interface NavigationItem {
@@ -51,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       icon: Calendar,
-      label: isTeacherRole(userRole) ? 'Mon planning' : 'Planning',
+      label: isStudentRole(userRole) ? 'Mon emploi du temps' : isTeacherRole(userRole) ? 'Mon planning' : 'Planning',
       href: '/planning',
       active: currentPath === '/planning'
     },
@@ -107,6 +107,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }
 
   const shouldShowItem = (item: NavigationItem) => {
+    // Masquer "Séances" pour les étudiants
+    if (item.href === '/bookings' && isStudentRole(userRole)) return false
     if (!item.roles) return true
     return item.roles.includes(userRole)
   }

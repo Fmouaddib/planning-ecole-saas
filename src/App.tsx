@@ -5,7 +5,7 @@ import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
 const SuperAdminApp = lazy(() => import('@/components/super-admin/SuperAdminApp').then(m => ({ default: m.SuperAdminApp })))
 import { ROUTES } from '@/utils/constants'
-import { isTeacherRole } from '@/utils/helpers'
+import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
@@ -495,6 +495,13 @@ export default function App() {
     // Route guards : les professeurs n'ont pas accès aux pages admin
     const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS]
     if (isTeacherRole(effectiveUser?.role) && teacherForbiddenRoutes.includes(currentPath)) {
+      handleNavigate('/')
+      return <DashboardPage onNavigate={handleNavigate} />
+    }
+
+    // Route guards : les étudiants n'ont accès qu'au dashboard et au planning
+    const studentForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.BOOKINGS]
+    if (isStudentRole(effectiveUser?.role) && studentForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />
     }
