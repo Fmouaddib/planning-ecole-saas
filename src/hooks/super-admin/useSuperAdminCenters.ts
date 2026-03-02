@@ -8,6 +8,13 @@ const SA_KEYS = {
   centers: (search?: string) => ['super-admin', 'centers', search] as const,
 };
 
+// PostgrestError a .message mais n'est pas instanceof Error
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: unknown }).message);
+  return String(err);
+}
+
 export const useSuperAdminCenters = (search?: string) => {
   return useQuery({
     queryKey: SA_KEYS.centers(search),
@@ -27,9 +34,9 @@ export const useCreateSACenter = () => {
       toast.success('Centre cree avec succes');
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[useCreateSACenter]', msg);
-      toast.error(`Erreur création centre : ${msg}`);
+      const msg = extractErrorMessage(err);
+      console.error('[useCreateSACenter]', err);
+      toast.error(`Erreur creation centre : ${msg}`);
     },
   });
 };
@@ -42,7 +49,11 @@ export const useUpdateSACenter = () => {
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'centers'] });
       toast.success('Centre mis a jour');
     },
-    onError: (err: unknown) => toast.error(`Erreur mise à jour : ${err instanceof Error ? err.message : String(err)}`),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useUpdateSACenter]', err);
+      toast.error(`Erreur mise a jour : ${msg}`);
+    },
   });
 };
 
@@ -56,7 +67,11 @@ export const useDeleteSACenter = () => {
       SAAuditService.logAction({ action: 'center.deleted', entityType: 'center', entityId: id });
       toast.success('Centre supprime');
     },
-    onError: (err: unknown) => toast.error(`Erreur suppression : ${err instanceof Error ? err.message : String(err)}`),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useDeleteSACenter]', err);
+      toast.error(`Erreur suppression : ${msg}`);
+    },
   });
 };
 
@@ -70,6 +85,10 @@ export const useToggleSACenterActive = () => {
       SAAuditService.logAction({ action: 'center.updated', entityType: 'center', entityId: vars.id, details: { field: 'is_active', value: vars.isActive } });
       toast.success('Statut du centre mis a jour');
     },
-    onError: (err: unknown) => toast.error(`Erreur changement statut : ${err instanceof Error ? err.message : String(err)}`),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useToggleSACenterActive]', err);
+      toast.error(`Erreur changement statut : ${msg}`);
+    },
   });
 };

@@ -2,9 +2,9 @@ import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { SuperAdminCenter, CreateCenterData } from '@/types/super-admin';
 
-// Helper : retire les clés undefined pour éviter d'envoyer des colonnes inexistantes
+// Helper : retire les clés undefined/null pour éviter d'envoyer des colonnes inexistantes
 function defined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null)) as Partial<T>;
 }
 
 export class SACentersService {
