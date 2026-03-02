@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   useSuperAdminUsers,
   useCreateSAUser,
@@ -16,11 +16,36 @@ import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
 import type { CreateUserData, SuperAdminUserProfile } from '@/types/super-admin';
 
+const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  super_admin: { label: 'Super Admin', color: '#dc2626', bg: '#fef2f2' },
+  admin: { label: 'Admin', color: '#7c3aed', bg: '#f5f3ff' },
+  trainer: { label: 'Formateur', color: '#2563eb', bg: '#eff6ff' },
+  coordinator: { label: 'Coordinateur', color: '#0891b2', bg: '#ecfeff' },
+  staff: { label: 'Staff', color: '#059669', bg: '#ecfdf5' },
+  student: { label: 'Etudiant', color: '#6b7280', bg: '#f9fafb' },
+};
+
+const AVATAR_COLORS = [
+  '#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6',
+  '#ef4444', '#06b6d4', '#84cc16', '#f59e0b', '#6366f1',
+];
+
+function getInitials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+}
+
+function getAvatarColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 export const SAUsersPage = () => {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<SuperAdminUserProfile | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>('');
+  const [centerFilter, setCenterFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ type: 'toggle' | 'bulk'; id?: string; isActive?: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SuperAdminUserProfile | null>(null);
@@ -36,9 +61,31 @@ export const SAUsersPage = () => {
   const deleteUser = useDeleteSAUser();
   const bulkToggle = useBulkToggleSAUserActive();
 
-  const filteredUsers = roleFilter
-    ? (users || []).filter(u => u.role === roleFilter)
-    : (users || []);
+  const centerMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (centers || []).forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [centers]);
+
+  const getCenterName = (id?: string) => id ? (centerMap.get(id) || 'Centre inconnu') : '';
+
+  const filteredUsers = useMemo(() => {
+    let result = users || [];
+    if (roleFilter) result = result.filter(u => u.role === roleFilter);
+    if (centerFilter === '__none__') result = result.filter(u => !u.center_id);
+    else if (centerFilter) result = result.filter(u => u.center_id === centerFilter);
+    return result;
+  }, [users, roleFilter, centerFilter]);
+
+  // Stats par centre
+  const centerStats = useMemo(() => {
+    const map = new Map<string, number>();
+    (users || []).forEach(u => {
+      const key = u.center_id || '__none__';
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return map;
+  }, [users]);
 
   const {
     page, totalPages, totalItems, pageSize, paginatedData,
@@ -113,7 +160,7 @@ export const SAUsersPage = () => {
       { header: 'Nom', accessor: (u) => u.full_name },
       { header: 'Email', accessor: (u) => u.email },
       { header: 'Role', accessor: (u) => u.role },
-      { header: 'Centre', accessor: (u) => u.center_id ? (centers || []).find(c => c.id === u.center_id)?.name || u.center_id : '' },
+      { header: 'Centre', accessor: (u) => getCenterName(u.center_id) || '' },
       { header: 'Statut', accessor: (u) => u.is_active ? 'Actif' : 'Inactif' },
       { header: 'Date creation', accessor: (u) => new Date(u.created_at).toLocaleDateString('fr-FR') },
     ], 'utilisateurs');
@@ -124,7 +171,7 @@ export const SAUsersPage = () => {
       <div className="sa-page-header">
         <div>
           <h1 className="sa-page-title">Utilisateurs</h1>
-          <p className="sa-page-subtitle">{filteredUsers.length} utilisateur(s)</p>
+          <p className="sa-page-subtitle">{filteredUsers.length} utilisateur(s){centerFilter && centerFilter !== '__none__' ? ` — ${getCenterName(centerFilter)}` : ''}</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button className="sa-btn sa-btn-secondary" onClick={handleExportCSV}>Exporter CSV</button>
@@ -132,7 +179,80 @@ export const SAUsersPage = () => {
         </div>
       </div>
 
-      {/* Search & Filters */}
+      {/* Stats par centre */}
+      <div style={{
+        display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px',
+      }}>
+        <button
+          onClick={() => setCenterFilter('')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '8px 14px', borderRadius: '8px', border: '1px solid',
+            borderColor: !centerFilter ? '#3b82f6' : '#e5e7eb',
+            background: !centerFilter ? '#eff6ff' : '#fff',
+            cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
+            color: !centerFilter ? '#2563eb' : '#6b7280',
+            transition: 'all 0.15s',
+          }}
+        >
+          <span>Tous les centres</span>
+          <span style={{
+            background: !centerFilter ? '#3b82f6' : '#e5e7eb',
+            color: !centerFilter ? '#fff' : '#6b7280',
+            borderRadius: '10px', padding: '1px 8px', fontSize: '0.7rem', fontWeight: 700,
+          }}>{(users || []).length}</span>
+        </button>
+        {(centers || []).map(c => {
+          const count = centerStats.get(c.id) || 0;
+          const active = centerFilter === c.id;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setCenterFilter(active ? '' : c.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 14px', borderRadius: '8px', border: '1px solid',
+                borderColor: active ? '#3b82f6' : '#e5e7eb',
+                background: active ? '#eff6ff' : '#fff',
+                cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
+                color: active ? '#2563eb' : '#374151',
+                transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: AVATAR_COLORS[Math.abs([...c.id].reduce((h, ch) => ((h << 5) - h + ch.charCodeAt(0)) | 0, 0)) % AVATAR_COLORS.length], flexShrink: 0 }} />
+              <span>{c.name}</span>
+              <span style={{
+                background: active ? '#3b82f6' : '#e5e7eb',
+                color: active ? '#fff' : '#6b7280',
+                borderRadius: '10px', padding: '1px 8px', fontSize: '0.7rem', fontWeight: 700,
+              }}>{count}</span>
+            </button>
+          );
+        })}
+        {(centerStats.get('__none__') || 0) > 0 && (
+          <button
+            onClick={() => setCenterFilter(centerFilter === '__none__' ? '' : '__none__')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 14px', borderRadius: '8px', border: '1px dashed',
+              borderColor: centerFilter === '__none__' ? '#3b82f6' : '#d1d5db',
+              background: centerFilter === '__none__' ? '#eff6ff' : '#fafafa',
+              cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
+              color: centerFilter === '__none__' ? '#2563eb' : '#9ca3af',
+              transition: 'all 0.15s',
+            }}
+          >
+            <span>Sans centre</span>
+            <span style={{
+              background: centerFilter === '__none__' ? '#3b82f6' : '#e5e7eb',
+              color: centerFilter === '__none__' ? '#fff' : '#6b7280',
+              borderRadius: '10px', padding: '1px 8px', fontSize: '0.7rem', fontWeight: 700,
+            }}>{centerStats.get('__none__') || 0}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Search & Role Filters */}
       <div className="sa-search-bar">
         <input
           type="text"
@@ -146,8 +266,9 @@ export const SAUsersPage = () => {
             key={role}
             className={`sa-filter-btn ${roleFilter === role ? 'active' : ''}`}
             onClick={() => setRoleFilter(role)}
+            style={role && ROLE_CONFIG[role] && roleFilter === role ? { borderColor: ROLE_CONFIG[role].color, color: ROLE_CONFIG[role].color, background: ROLE_CONFIG[role].bg } : undefined}
           >
-            {role || 'Tous'}
+            {role ? (ROLE_CONFIG[role]?.label || role) : 'Tous'}
           </button>
         ))}
       </div>
@@ -210,89 +331,133 @@ export const SAUsersPage = () => {
                   <th>Role</th>
                   <th>Centre</th>
                   <th>Statut</th>
-                  <th>Date creation</th>
+                  <th>Inscription</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedData.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(user.id)}
-                        onChange={() => toggleSelect(user.id)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </td>
-                    <td>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{user.full_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{user.email}</div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`sa-status ${user.role === 'super_admin' ? 'active' : ''}`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>
-                      {user.center_id ? (centers || []).find(c => c.id === user.center_id)?.name || user.center_id : '-'}
-                    </td>
-                    <td>
-                      <span className={`sa-status ${user.is_active ? 'active' : 'inactive'}`}>
-                        {user.is_active ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>
-                      {new Date(user.created_at).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        <button className="sa-btn sa-btn-secondary" onClick={() => openEdit(user)}>Modifier</button>
-                        <button
-                          className={`sa-btn ${user.is_active ? 'sa-btn-danger' : 'sa-btn-success'}`}
-                          onClick={() => handleToggleActive(user.id, !user.is_active)}
-                        >
-                          {user.is_active ? 'Desactiver' : 'Activer'}
-                        </button>
-                        <button
-                          className="sa-btn sa-btn-secondary"
-                          onClick={() => { setResetTarget(user); setNewPassword(''); }}
-                        >
-                          Reset MDP
-                        </button>
-                        {user.role !== 'super_admin' && (
-                          <button
-                            className="sa-btn sa-btn-danger"
-                            onClick={() => setDeleteTarget(user)}
-                          >
-                            Supprimer
-                          </button>
+                {paginatedData.map((user) => {
+                  const roleConf = ROLE_CONFIG[user.role];
+                  const avatarBg = getAvatarColor(user.id);
+                  const cName = getCenterName(user.center_id);
+                  return (
+                    <tr key={user.id} style={{ opacity: user.is_active ? 1 : 0.55 }}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(user.id)}
+                          onChange={() => toggleSelect(user.id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '36px', height: '36px', borderRadius: '50%', background: avatarBg,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#fff', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
+                            letterSpacing: '0.5px',
+                          }}>
+                            {getInitials(user.full_name)}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.full_name}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--sa-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
+                            {user.phone && <div style={{ fontSize: '0.65rem', color: 'var(--sa-text-secondary)' }}>{user.phone}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{
+                          display: 'inline-block', padding: '3px 10px', borderRadius: '12px',
+                          fontSize: '0.7rem', fontWeight: 600,
+                          color: roleConf?.color || '#6b7280',
+                          background: roleConf?.bg || '#f9fafb',
+                          border: `1px solid ${roleConf?.color || '#d1d5db'}22`,
+                        }}>
+                          {roleConf?.label || user.role}
+                        </span>
+                      </td>
+                      <td>
+                        {cName ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            padding: '3px 10px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 500,
+                            background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d022',
+                          }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
+                            {cName}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#d1d5db' }}>—</span>
                         )}
-                        {user.center_id && user.role !== 'super_admin' && (
+                      </td>
+                      <td>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '5px',
+                          fontSize: '0.7rem', fontWeight: 600,
+                          color: user.is_active ? '#059669' : '#dc2626',
+                        }}>
+                          <span style={{
+                            width: '7px', height: '7px', borderRadius: '50%',
+                            background: user.is_active ? '#10b981' : '#ef4444',
+                          }} />
+                          {user.is_active ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>
+                        {new Date(user.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                          <button className="sa-btn sa-btn-secondary" style={{ fontSize: '0.7rem', padding: '3px 8px' }} onClick={() => openEdit(user)}>Modifier</button>
                           <button
-                            className="sa-btn sa-btn-primary"
-                            onClick={() => {
-                              const centerName = (centers || []).find(c => c.id === user.center_id)?.name || 'Centre inconnu';
-                              setImpersonation({
-                                centerId: user.center_id!,
-                                centerName,
-                                userId: user.id,
-                                userName: user.full_name,
-                                userEmail: user.email,
-                                userRole: user.role,
-                              });
-                              window.location.hash = '';
-                            }}
+                            className={`sa-btn ${user.is_active ? 'sa-btn-danger' : 'sa-btn-success'}`}
+                            style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                            onClick={() => handleToggleActive(user.id, !user.is_active)}
                           >
-                            Voir en tant que
+                            {user.is_active ? 'Desactiver' : 'Activer'}
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            className="sa-btn sa-btn-secondary"
+                            style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                            onClick={() => { setResetTarget(user); setNewPassword(''); }}
+                          >
+                            MDP
+                          </button>
+                          {user.role !== 'super_admin' && (
+                            <button
+                              className="sa-btn sa-btn-danger"
+                              style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                              onClick={() => setDeleteTarget(user)}
+                            >
+                              Suppr.
+                            </button>
+                          )}
+                          {user.center_id && user.role !== 'super_admin' && (
+                            <button
+                              className="sa-btn sa-btn-primary"
+                              style={{ fontSize: '0.7rem', padding: '3px 8px' }}
+                              onClick={() => {
+                                setImpersonation({
+                                  centerId: user.center_id!,
+                                  centerName: getCenterName(user.center_id),
+                                  userId: user.id,
+                                  userName: user.full_name,
+                                  userEmail: user.email,
+                                  userRole: user.role,
+                                });
+                                window.location.hash = '';
+                              }}
+                            >
+                              Voir
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             <SAPagination
