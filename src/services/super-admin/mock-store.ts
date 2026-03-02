@@ -322,18 +322,13 @@ export const MockStore = {
     const audit = load<AuditLogEntry>('audit');
 
     const activeSubs = subs.filter(s => s.status === 'active');
-    const mrr = activeSubs.reduce((sum, s) => {
+    let mrr = 0;
+    let paidCount = 0;
+    for (const s of activeSubs) {
       const plan = plans.find(p => p.id === s.plan_id);
-      return sum + (plan?.price_monthly || 0);
-    }, 0);
-
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    const now = new Date();
-    const mrrHistory = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const factor = 1 - (i * 0.12);
-      mrrHistory.push({ month: months[d.getMonth()], amount: Math.round(mrr * Math.max(factor, 0.3)) });
+      const price = plan?.price_monthly || 0;
+      mrr += price;
+      if (price > 0) paidCount++;
     }
 
     return {
@@ -342,9 +337,10 @@ export const MockStore = {
       totalUsers: users.length,
       activeUsers: users.filter(u => u.is_active).length,
       mrr,
-      activeSubscriptions: activeSubs.length,
+      activeSubscriptions: paidCount,
+      totalSubscriptions: activeSubs.length,
       recentActivity: audit.slice(0, 10),
-      mrrHistory,
+      mrrHistory: [],
     };
   },
 

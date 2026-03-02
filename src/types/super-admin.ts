@@ -96,6 +96,7 @@ export interface SuperAdminDashboardStats {
   activeUsers: number;
   mrr: number;
   activeSubscriptions: number;
+  totalSubscriptions: number;
   recentActivity: AuditLogEntry[];
   mrrHistory: { month: string; amount: number }[];
 }

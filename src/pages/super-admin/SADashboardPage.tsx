@@ -49,10 +49,8 @@ export const SADashboardPage = () => {
     { label: 'Centres', value: stats?.totalCenters || 0, sub: `${stats?.activeCenters || 0} actifs` },
     { label: 'Utilisateurs', value: stats?.totalUsers || 0, sub: `${stats?.activeUsers || 0} actifs` },
     { label: 'MRR', value: `${stats?.mrr || 0}\u20AC`, sub: 'Revenu mensuel recurrent' },
-    { label: 'Abonnements actifs', value: stats?.activeSubscriptions || 0, sub: 'Plans payes' },
+    { label: 'Abonnements', value: stats?.totalSubscriptions || 0, sub: stats?.activeSubscriptions ? `dont ${stats.activeSubscriptions} payant(s)` : 'Aucun plan payant' },
   ];
-
-  const maxMrr = Math.max(...(stats?.mrrHistory || []).map(m => m.amount), 1);
 
   return (
     <div className="p-6">
@@ -79,23 +77,6 @@ export const SADashboardPage = () => {
             <div className="sa-kpi-change">{kpi.sub}</div>
           </div>
         ))}
-      </div>
-
-      {/* MRR Chart */}
-      <div className="sa-chart-container">
-        <div className="sa-chart-title">Evolution du MRR (6 derniers mois)</div>
-        <div className="sa-chart-bars">
-          {(stats?.mrrHistory || []).map((m) => (
-            <div
-              key={m.month}
-              className="sa-chart-bar"
-              style={{ height: `${(m.amount / maxMrr) * 100}%` }}
-            >
-              <span className="sa-chart-bar-value">{m.amount}{'\u20AC'}</span>
-              <span className="sa-chart-bar-label">{m.month}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Recent Activity */}
