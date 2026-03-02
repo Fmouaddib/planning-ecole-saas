@@ -26,7 +26,11 @@ export const useCreateSACenter = () => {
       SAAuditService.logAction({ action: 'center.created', entityType: 'center', entityId: center.id, details: { name: center.name } });
       toast.success('Centre cree avec succes');
     },
-    onError: () => toast.error('Erreur lors de la creation du centre'),
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[useCreateSACenter]', msg);
+      toast.error(`Erreur création centre : ${msg}`);
+    },
   });
 };
 
@@ -38,7 +42,7 @@ export const useUpdateSACenter = () => {
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'centers'] });
       toast.success('Centre mis a jour');
     },
-    onError: () => toast.error('Erreur lors de la mise a jour'),
+    onError: (err: unknown) => toast.error(`Erreur mise à jour : ${err instanceof Error ? err.message : String(err)}`),
   });
 };
 
@@ -52,7 +56,7 @@ export const useDeleteSACenter = () => {
       SAAuditService.logAction({ action: 'center.deleted', entityType: 'center', entityId: id });
       toast.success('Centre supprime');
     },
-    onError: () => toast.error('Erreur lors de la suppression du centre'),
+    onError: (err: unknown) => toast.error(`Erreur suppression : ${err instanceof Error ? err.message : String(err)}`),
   });
 };
 
@@ -66,6 +70,6 @@ export const useToggleSACenterActive = () => {
       SAAuditService.logAction({ action: 'center.updated', entityType: 'center', entityId: vars.id, details: { field: 'is_active', value: vars.isActive } });
       toast.success('Statut du centre mis a jour');
     },
-    onError: () => toast.error('Erreur lors du changement de statut'),
+    onError: (err: unknown) => toast.error(`Erreur changement statut : ${err instanceof Error ? err.message : String(err)}`),
   });
 };
