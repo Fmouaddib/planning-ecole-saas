@@ -17,7 +17,7 @@ import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useAuth } from '@/hooks/useAuth'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
-import { formatTimeRange } from '@/utils/helpers'
+import { formatTimeRange, isTeacherRole } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import type { CalendarEvent, ExportFormat, BookingType } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
@@ -112,6 +112,8 @@ function CalendarPage() {
   // Batch create modal state
   const [showBatchModal, setShowBatchModal] = useState(false)
   const { user } = useAuth()
+  const isTeacher = isTeacherRole(user?.role)
+  const [showOnlyMine, setShowOnlyMine] = useState(isTeacher ?? false)
 
   const teacherProfileOptions = useMemo(
     () => teachers.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}`.trim() })),
@@ -192,6 +194,9 @@ function CalendarPage() {
 
   const filteredEvents = useMemo(() => {
     let events = allEvents
+    if (showOnlyMine && user?.id) {
+      events = events.filter(e => e.userId === user.id)
+    }
     if (roomFilter) events = events.filter(e => e.roomId === roomFilter)
     if (selectedMatieres.length) events = events.filter(e => e.matiere && selectedMatieres.includes(e.matiere))
     if (selectedDiplomes.length) events = events.filter(e => e.diplome && selectedDiplomes.includes(e.diplome))
@@ -204,7 +209,7 @@ function CalendarPage() {
     }
     if (activeTypes.length) events = events.filter(e => e.type && activeTypes.includes(e.type))
     return events
-  }, [allEvents, roomFilter, selectedMatieres, selectedDiplomes, selectedNiveaux, selectedTeachers, activeTypes])
+  }, [allEvents, showOnlyMine, user?.id, roomFilter, selectedMatieres, selectedDiplomes, selectedNiveaux, selectedTeachers, activeTypes])
 
   const totalRooms = useMemo(() => {
     if (roomFilter) return 1
@@ -283,6 +288,7 @@ function CalendarPage() {
 
   // Create event from calendar click
   const handleSlotClick = (date: Date, hour: number | null) => {
+    if (isTeacher) return
     setCreateDate(date)
     setCreateHour(hour)
     setShowCreateModal(true)
@@ -316,6 +322,7 @@ function CalendarPage() {
 
   // Drag & drop handler — ouvre la modale de confirmation au lieu de sauvegarder directement
   const handleEventUpdate = (eventId: string, newStart: string, newEnd: string) => {
+    if (isTeacher) return
     const event = filteredEvents.find(e => e.id === eventId)
     if (!event) return
     setPendingMove({ eventId, event, newStart, newEnd })
@@ -448,14 +455,30 @@ function CalendarPage() {
             Imprimer
           </button>
 
+          {/* Teacher toggle: Mes cours / Tout le centre */}
+          {isTeacher && (
+            <button
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                showOnlyMine
+                  ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                  : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+              }`}
+              onClick={() => setShowOnlyMine(v => !v)}
+            >
+              {showOnlyMine ? 'Mes cours' : 'Tout le centre'}
+            </button>
+          )}
+
           {/* Batch create button */}
-          <button
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
-            onClick={() => setShowBatchModal(true)}
-          >
-            <Repeat size={16} />
-            Saisie en lot
-          </button>
+          {!isTeacher && (
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+              onClick={() => setShowBatchModal(true)}
+            >
+              <Repeat size={16} />
+              Saisie en lot
+            </button>
+          )}
 
           {/* Export dropdown */}
           <div className="relative" ref={exportMenuRef}>

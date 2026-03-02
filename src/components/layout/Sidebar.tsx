@@ -8,9 +8,11 @@ import {
   Home,
   Clock,
   Shield,
-  GraduationCap
+  GraduationCap,
+  Settings
 } from 'lucide-react'
 import type { UserRole } from '@/types'
+import { isTeacherRole } from '@/utils/helpers'
 import { SidebarCalendar } from './SidebarCalendar'
 
 interface NavigationItem {
@@ -49,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       icon: Calendar,
-      label: 'Planning',
+      label: isTeacherRole(userRole) ? 'Mon planning' : 'Planning',
       href: '/planning',
       active: currentPath === '/planning'
     },
@@ -69,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       icon: Clock,
-      label: 'Séances',
+      label: isTeacherRole(userRole) ? 'Mes séances' : 'Séances',
       href: '/bookings',
       active: currentPath === '/bookings'
     },
@@ -86,6 +88,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/analytics',
       active: currentPath === '/analytics',
       roles: ['admin', 'staff']
+    },
+    {
+      icon: Settings,
+      label: 'Configuration',
+      href: '/settings',
+      active: currentPath === '/settings',
+      roles: ['admin']
     }
   ]
 
@@ -163,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Administration - visible uniquement pour admin/super_admin */}
-          {(userRole === 'admin' || userRole === 'super_admin') && (
+          {userRole === 'super_admin' && (
             <div className="pt-6">
               <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">
                 Administration

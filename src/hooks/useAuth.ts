@@ -310,11 +310,20 @@ export function useAuth(): UseAuthReturn {
     const imp = getImpersonation()
     if (!imp) return user
 
-    return {
-      ...user,
+    const overrides: Partial<AuthUser> = {
       establishmentId: imp.centerId,
-      ...(imp.userRole && { role: imp.userRole as AuthUser['role'] }),
     }
+    if (imp.userRole) overrides.role = imp.userRole as AuthUser['role']
+    if (imp.userId) {
+      overrides.id = imp.userId
+      if (imp.userName) {
+        const parts = imp.userName.trim().split(/\s+/)
+        overrides.firstName = parts[0] || ''
+        overrides.lastName = parts.slice(1).join(' ') || ''
+      }
+      if (imp.userEmail) overrides.email = imp.userEmail
+    }
+    return { ...user, ...overrides }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, _impersonationTick])
 

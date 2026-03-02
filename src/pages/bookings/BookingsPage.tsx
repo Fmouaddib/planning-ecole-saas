@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { BOOKING_TYPES, BOOKING_STATUS } from '@/utils/constants'
-import { filterBySearch, formatDate, formatTimeRange } from '@/utils/helpers'
+import { filterBySearch, formatDate, formatTimeRange, isTeacherRole } from '@/utils/helpers'
 import type { Booking, CreateBookingData, BookingType } from '@/types'
 import { Plus, Search, Pencil, Trash2, XCircle, CalendarCheck, RefreshCw, Repeat, ArrowUp, ArrowDown, ArrowUpDown, SlidersHorizontal, ChevronDown, ChevronUp, X } from 'lucide-react'
 
@@ -80,6 +80,7 @@ function BookingsPage() {
   const { bookings, isLoading, error, createBooking, updateBooking, deleteBooking, cancelBooking, refreshBookings, createBatchBookings, checkBookingConflict, checkTrainerConflict } = useBookings()
   const { rooms } = useRooms()
   const { user } = useAuth()
+  const isTeacher = isTeacherRole(user?.role)
   const {
     diplomaOptions,
     classOptionsByDiploma,
@@ -186,6 +187,9 @@ function BookingsPage() {
 
   const filtered = useMemo(() => {
     let result = bookings
+    if (isTeacher && user?.id) {
+      result = result.filter(b => b.userId === user.id)
+    }
     if (search) {
       result = filterBySearch(result, search, ['title'])
     }
@@ -216,7 +220,7 @@ function BookingsPage() {
       result = result.filter(b => b.classId && classIds.has(b.classId))
     }
     return result
-  }, [bookings, search, typeFilter, statusFilter, roomFilter, teacherFilter, dateFrom, dateTo, filterDiplomaId, filterClassId, filterSubjectId, filterClassOptions])
+  }, [bookings, isTeacher, user?.id, search, typeFilter, statusFilter, roomFilter, teacherFilter, dateFrom, dateTo, filterDiplomaId, filterClassId, filterSubjectId, filterClassOptions])
 
   const sorted = useMemo(() => {
     const list = [...filtered]
@@ -386,17 +390,25 @@ function BookingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Gestion des séances</h1>
-          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{bookings.length} séance{bookings.length > 1 ? 's' : ''} au total</p>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+            {isTeacher ? 'Mes séances' : 'Gestion des séances'}
+          </h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">
+            {isTeacher
+              ? `${filtered.length} séance${filtered.length > 1 ? 's' : ''} (mes cours)`
+              : `${bookings.length} séance${bookings.length > 1 ? 's' : ''} au total`}
+          </p>
         </div>
-        <div className="flex items-center gap-2 mt-4 sm:mt-0">
-          <Button variant="secondary" leftIcon={Repeat} onClick={() => setShowBatchModal(true)}>
-            Saisie en lot
-          </Button>
-          <Button leftIcon={Plus} onClick={openCreate}>
-            Nouvelle séance
-          </Button>
-        </div>
+        {!isTeacher && (
+          <div className="flex items-center gap-2 mt-4 sm:mt-0">
+            <Button variant="secondary" leftIcon={Repeat} onClick={() => setShowBatchModal(true)}>
+              Saisie en lot
+            </Button>
+            <Button leftIcon={Plus} onClick={openCreate}>
+              Nouvelle séance
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -538,7 +550,9 @@ function BookingsPage() {
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 transition-colors" onClick={() => toggleSort('status')}>
                       <span className="inline-flex items-center gap-1">Statut <SortIcon col="status" /></span>
                     </th>
-                    <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
+                    {!isTeacher && (
+                      <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -569,23 +583,25 @@ function BookingsPage() {
                           {bookingStatusLabels[booking.status] || booking.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {canEdit(booking) && (
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(booking)}>
-                              <Pencil size={14} />
+                      {!isTeacher && (
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {canEdit(booking) && (
+                              <Button variant="ghost" size="sm" onClick={() => openEdit(booking)}>
+                                <Pencil size={14} />
+                              </Button>
+                            )}
+                            {canCancelBooking(booking) && (
+                              <Button variant="ghost" size="sm" onClick={() => openCancel(booking)}>
+                                <XCircle size={14} className="text-warning-600" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={() => openDelete(booking)}>
+                              <Trash2 size={14} className="text-error-600" />
                             </Button>
-                          )}
-                          {canCancelBooking(booking) && (
-                            <Button variant="ghost" size="sm" onClick={() => openCancel(booking)}>
-                              <XCircle size={14} className="text-warning-600" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => openDelete(booking)}>
-                            <Trash2 size={14} className="text-error-600" />
-                          </Button>
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

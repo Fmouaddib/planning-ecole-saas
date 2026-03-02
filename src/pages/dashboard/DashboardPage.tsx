@@ -12,12 +12,17 @@ import {
   ChevronRight,
   Gauge,
   BarChart3,
+  GraduationCap,
+  BookOpen,
+  Layers,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useUsers } from '@/hooks/useUsers'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
+import { useAcademicData } from '@/hooks/useAcademicData'
+import { isTeacherRole } from '@/utils/helpers'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingState } from '@/components/ui'
 import type { UsageSummary } from '@/types'
@@ -108,12 +113,15 @@ interface DashboardPageProps {
 function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { user } = useAuthContext()
   const today = format(new Date(), "EEEE d MMMM yyyy", { locale: fr })
-  const displayName = user?.email?.split('@')[0] || 'utilisateur'
+  const displayName = user?.firstName || user?.email?.split('@')[0] || 'utilisateur'
+
+  const isTeacher = isTeacherRole(user?.role)
 
   // Hooks données réelles
   const { bookings, isLoading: bookingsLoading, upcomingBookings, bookingsByStatus } = useBookings()
   const { rooms, isLoading: roomsLoading, totalCapacity } = useRooms()
   const { userStats, isLoading: usersLoading, teachers } = useUsers()
+  const { subjects, classes, classSubjects, getSubjectIdsForTeacher } = useAcademicData()
 
   // Quotas d'utilisation
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null)
@@ -310,7 +318,265 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
     })
   }, [usageSummary])
 
-  // ==================== RENDU ====================
+  // ==================== DONNÉES PROFESSEUR ====================
+
+  const teacherData = useMemo(() => {
+    if (!isTeacher || !user?.id) return null
+
+    // Matières du professeur
+    const mySubjectIds = getSubjectIdsForTeacher(user.id)
+    const mySubjects = subjects.filter(s => mySubjectIds.includes(s.id))
+
+    // Classes du professeur (via class_subjects croisé avec ses matières)
+    const myClassIds = new Set<string>()
+    for (const cs of classSubjects) {
+      if (mySubjectIds.includes(cs.subject_id)) {
+        myClassIds.add(cs.class_id)
+      }
+    }
+    const myClasses = classes.filter(c => myClassIds.has(c.id))
+
+    // Séances du professeur (userId = trainer_id dans transforms.ts)
+    const myBookings = bookings.filter(b => b.userId === user.id)
+
+    // Stats semaine courante
+    const now = new Date()
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
+
+    const weekBookings = myBookings.filter(b => {
+      if (!b.startDateTime) return false
+      const d = new Date(b.startDateTime)
+      return d >= weekStart && d <= weekEnd && b.status !== 'cancelled'
+    })
+
+    const weekHours = weekBookings.reduce((acc, b) => {
+      if (!b.startDateTime || !b.endDateTime) return acc
+      return acc + differenceInMinutes(new Date(b.endDateTime), new Date(b.startDateTime))
+    }, 0)
+
+    // Prochaines séances (futures, triées)
+    const upcoming = myBookings
+      .filter(b => b.startDateTime && new Date(b.startDateTime) >= now && b.status !== 'cancelled')
+      .sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime())
+
+    return {
+      mySubjects,
+      myClasses,
+      weekSessionCount: weekBookings.length,
+      weekHours: Math.round(weekHours / 60 * 10) / 10,
+      upcoming,
+      nextSession: upcoming[0] || null,
+    }
+  }, [isTeacher, user?.id, subjects, classes, classSubjects, bookings, getSubjectIdsForTeacher])
+
+  // ==================== RENDU PROFESSEUR ====================
+
+  if (isTeacher && teacherData) {
+    if (isLoading && !isDemoMode) {
+      return (
+        <div className="flex items-center justify-center py-20">
+          <LoadingState size="lg" text="Chargement du tableau de bord..." />
+        </div>
+      )
+    }
+
+    return (
+      <div>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+              Bonjour, {displayName}
+            </h1>
+            <p className="text-neutral-500 dark:text-neutral-400 mt-1 capitalize">{today}</p>
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Séances cette semaine</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{teacherData.weekSessionCount}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-primary-100">
+                <CalendarCheck size={22} className="text-primary-600" />
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Heures cette semaine</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{teacherData.weekHours}h</p>
+              </div>
+              <div className="p-3 rounded-xl bg-warning-100">
+                <Clock size={22} className="text-warning-600" />
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Mes matières</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{teacherData.mySubjects.length}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-success-100">
+                <BookOpen size={22} className="text-success-600" />
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Mes classes</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{teacherData.myClasses.length}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-error-100">
+                <Layers size={22} className="text-error-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Prochaine séance mise en avant */}
+        {teacherData.nextSession && (
+          <div className="card border-l-4 border-l-primary-600 mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <GraduationCap size={20} className="text-primary-600" />
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaine séance</h2>
+            </div>
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="font-medium text-neutral-900 dark:text-neutral-100">{teacherData.nextSession.title}</p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {teacherData.nextSession.room?.name || 'Salle non définie'}
+                </p>
+              </div>
+              <div className="text-right ml-auto">
+                <p className="text-sm font-semibold text-primary-600">
+                  {format(new Date(teacherData.nextSession.startDateTime), "EEEE d MMM", { locale: fr })}
+                </p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {format(new Date(teacherData.nextSession.startDateTime), 'HH:mm')} - {format(new Date(teacherData.nextSession.endDateTime), 'HH:mm')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Two columns: upcoming + subjects/classes */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Prochaines séances */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaines séances</h2>
+              <button
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                onClick={() => onNavigate?.('/bookings')}
+              >
+                Voir tout <ChevronRight size={14} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {teacherData.upcoming.length === 0 ? (
+                <p className="text-sm text-neutral-400 text-center py-6">Aucune séance à venir</p>
+              ) : (
+                teacherData.upcoming.slice(0, 5).map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 w-14 shrink-0">
+                      {format(new Date(b.startDateTime), 'HH:mm')}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{b.title}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        {b.room?.name || 'Salle inconnue'} · {format(new Date(b.startDateTime), 'EEE d MMM', { locale: fr })}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${
+                      STATUS_COLORS[b.status] || 'bg-neutral-100 text-neutral-700'
+                    }`}>
+                      {STATUS_LABELS[b.status] || b.status}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Matières & Classes */}
+          <div className="space-y-6">
+            <div className="card">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-3">Mes matières</h2>
+              {teacherData.mySubjects.length === 0 ? (
+                <p className="text-sm text-neutral-400">Aucune matière assignée</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {teacherData.mySubjects.map(s => (
+                    <span key={s.id} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="card">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-3">Mes classes</h2>
+              {teacherData.myClasses.length === 0 ? (
+                <p className="text-sm text-neutral-400">Aucune classe assignée</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {teacherData.myClasses.map(c => (
+                    <span key={c.id} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-300">
+                      {c.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Accès rapides */}
+        <div>
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Accès rapides</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
+              onClick={() => onNavigate?.('/planning')}
+            >
+              <div className="p-3 bg-primary-50 rounded-xl">
+                <Calendar size={20} className="text-primary-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mon planning</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Voir le calendrier</p>
+              </div>
+            </button>
+            <button
+              className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
+              onClick={() => onNavigate?.('/bookings')}
+            >
+              <div className="p-3 bg-primary-50 rounded-xl">
+                <CalendarCheck size={20} className="text-primary-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mes séances</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Liste des séances</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ==================== RENDU ADMIN ====================
 
   // Données affichées (réelles ou démo)
   const displayBookings = nextSessions ?? DEMO_BOOKINGS

@@ -13,6 +13,7 @@ export interface ImpersonationData {
   // Champs optionnels pour impersonation utilisateur
   userId?: string
   userName?: string
+  userEmail?: string
   userRole?: string
 }
 

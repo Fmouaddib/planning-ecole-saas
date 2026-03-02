@@ -5,6 +5,7 @@ import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
 const SuperAdminApp = lazy(() => import('@/components/super-admin/SuperAdminApp').then(m => ({ default: m.SuperAdminApp })))
 import { ROUTES } from '@/utils/constants'
+import { isTeacherRole } from '@/utils/helpers'
 import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
@@ -72,7 +73,11 @@ export default function App() {
   // Impersonation : recalculer le user effectif quand l'impersonation change
   const [_impTick, setImpTick] = useState(0)
   useEffect(() => {
-    const onImp = () => setImpTick(t => t + 1)
+    const onImp = () => {
+      setImpTick(t => t + 1)
+      // Quand l'impersonation change, revenir au dashboard pour éviter d'atterrir sur une page interdite
+      setCurrentPath('/')
+    }
     window.addEventListener(IMPERSONATION_EVENT, onImp)
     return () => window.removeEventListener(IMPERSONATION_EVENT, onImp)
   }, [])
@@ -82,11 +87,20 @@ export default function App() {
     if (_user.role !== 'super_admin') return _user
     const imp = getImpersonation()
     if (!imp) return _user
-    return {
-      ..._user,
+    const overrides: Partial<User> = {
       establishmentId: imp.centerId,
-      ...(imp.userRole && { role: imp.userRole as User['role'] }),
     }
+    if (imp.userRole) overrides.role = imp.userRole as User['role']
+    if (imp.userId) {
+      overrides.id = imp.userId
+      if (imp.userName) {
+        const parts = imp.userName.trim().split(/\s+/)
+        overrides.firstName = parts[0] || ''
+        overrides.lastName = parts.slice(1).join(' ') || ''
+      }
+      if (imp.userEmail) overrides.email = imp.userEmail
+    }
+    return { ..._user, ...overrides }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_user, _impTick])
 
@@ -478,6 +492,13 @@ export default function App() {
 
   // Render the current page based on path
   const renderPage = () => {
+    // Route guards : les professeurs n'ont pas accès aux pages admin
+    const teacherForbiddenRoutes = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS]
+    if (isTeacherRole(effectiveUser?.role) && teacherForbiddenRoutes.includes(currentPath as typeof ROUTES[keyof typeof ROUTES])) {
+      handleNavigate('/')
+      return <DashboardPage onNavigate={handleNavigate} />
+    }
+
     if (currentPath === '/' || currentPath === ROUTES.HOME) {
       return <DashboardPage onNavigate={handleNavigate} />
     }

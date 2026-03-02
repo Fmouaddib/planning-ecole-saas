@@ -5,6 +5,13 @@ import { fr } from 'date-fns/locale'
 import { clsx, type ClassValue } from 'clsx'
 
 /**
+ * Vérifie si un rôle correspond à un professeur (teacher ou trainer dans la DB)
+ */
+export function isTeacherRole(role?: string): boolean {
+  return role === 'teacher' || role === 'trainer'
+}
+
+/**
  * Combine des classes CSS avec clsx
  */
 export function cn(...inputs: ClassValue[]) {

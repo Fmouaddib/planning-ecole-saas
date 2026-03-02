@@ -269,6 +269,7 @@ export const SAUsersPage = () => {
                                 centerName,
                                 userId: user.id,
                                 userName: user.full_name,
+                                userEmail: user.email,
                                 userRole: user.role,
                               });
                               window.location.hash = '';
