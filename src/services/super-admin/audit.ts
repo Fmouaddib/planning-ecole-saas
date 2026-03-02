@@ -2,6 +2,23 @@ import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { AuditLogEntry } from '@/types/super-admin';
 
+// Cache session pour eviter des appels auth repetitifs
+let cachedUser: { id: string; email: string } | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 60_000; // 1 min
+
+async function getCurrentUser(): Promise<{ id: string; email: string } | null> {
+  const now = Date.now();
+  if (cachedUser && now - cacheTimestamp < CACHE_TTL) return cachedUser;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    cachedUser = { id: user.id, email: user.email || '' };
+    cacheTimestamp = now;
+  }
+  return cachedUser;
+}
+
 export class SAAuditService {
   static async getAuditLog(filters?: {
     action?: string;
@@ -44,9 +61,22 @@ export class SAAuditService {
     userId?: string;
     userEmail?: string;
   }): Promise<void> {
+    // Auto-remplir user_id et user_email depuis la session
+    let userId = data.userId;
+    let userEmail = data.userEmail;
+
+    if (!userId || !userEmail) {
+      const user = isDemoMode ? null : await getCurrentUser();
+      if (user) {
+        userId = userId || user.id;
+        userEmail = userEmail || user.email;
+      }
+    }
+
     if (isDemoMode) {
       MockStore.addAuditEntry({
-        user_email: data.userEmail || 'superadmin@antiplanning.com',
+        user_id: userId,
+        user_email: userEmail || 'superadmin@antiplanning.com',
         action: data.action, entity_type: data.entityType,
         entity_id: data.entityId, details: data.details || {},
       });
@@ -56,22 +86,16 @@ export class SAAuditService {
       const { error } = await supabase
         .from('audit_log')
         .insert({
-          user_id: data.userId,
-          user_email: data.userEmail,
+          user_id: userId,
+          user_email: userEmail,
           action: data.action,
           entity_type: data.entityType,
           entity_id: data.entityId,
           details: data.details || {},
         });
-      if (error) throw error;
-    } catch {
-      MockStore.addAuditEntry({
-        user_email: data.userEmail || 'superadmin@antiplanning.com',
-        action: data.action,
-        entity_type: data.entityType,
-        entity_id: data.entityId,
-        details: data.details || {},
-      });
+      if (error) console.warn('[SAAudit] logAction error:', error.message);
+    } catch (err) {
+      console.warn('[SAAudit] logAction failed:', err);
     }
   }
 }
