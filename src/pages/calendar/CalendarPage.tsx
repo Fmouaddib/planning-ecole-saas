@@ -419,7 +419,7 @@ function CalendarPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            {(['day', 'week', 'month', 'rooms'] as ViewMode[]).map(v => (
+            {(['day', 'week', 'month', ...(!isTeacher ? ['rooms'] : [])] as ViewMode[]).map(v => (
               <button
                 key={v}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
