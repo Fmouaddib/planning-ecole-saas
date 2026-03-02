@@ -115,6 +115,11 @@ function CalendarPage() {
   const isTeacher = isTeacherRole(user?.role)
   const [showOnlyMine, setShowOnlyMine] = useState(isTeacher ?? false)
 
+  // Sync showOnlyMine quand user charge après le montage (useState n'update pas)
+  useEffect(() => {
+    if (isTeacher) setShowOnlyMine(true)
+  }, [isTeacher])
+
   const teacherProfileOptions = useMemo(
     () => teachers.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}`.trim() })),
     [teachers],
