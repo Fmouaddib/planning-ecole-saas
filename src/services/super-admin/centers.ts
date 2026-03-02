@@ -1,6 +1,7 @@
 import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
-import type { SuperAdminCenter, CreateCenterData } from '@/types/super-admin';
+import { SAUsersService } from './users';
+import type { SuperAdminCenter, CreateCenterData, CreateCenterWithAdminData } from '@/types/super-admin';
 
 // Helper : retire les clés undefined/null pour éviter d'envoyer des colonnes inexistantes
 function defined<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -101,6 +102,42 @@ export class SACentersService {
       console.error('[SACenters] toggleActive error:', error.message);
       throw error;
     }
+  }
+
+  static async createCenterWithAdmin(data: CreateCenterWithAdminData): Promise<SuperAdminCenter> {
+    // 1. Creer le centre
+    const center = await this.createCenter(data);
+
+    // 2. Si admin demande, le creer et rattacher
+    if (data.admin_email && data.admin_full_name) {
+      try {
+        const admin = await SAUsersService.createUser({
+          email: data.admin_email,
+          full_name: data.admin_full_name,
+          role: 'admin',
+          center_id: center.id,
+          phone: data.admin_phone,
+        });
+
+        // Mettre a jour owner_id du centre
+        const { error: ownerError } = await supabase
+          .from('training_centers')
+          .update({ owner_id: admin.id })
+          .eq('id', center.id);
+
+        if (ownerError) {
+          console.warn('[SACenters] update owner_id warning:', ownerError.message);
+        }
+      } catch (adminErr) {
+        const msg = adminErr instanceof Error ? adminErr.message
+          : (adminErr && typeof adminErr === 'object' && 'message' in adminErr) ? String((adminErr as { message: unknown }).message)
+          : String(adminErr);
+        console.error('[SACenters] createCenterWithAdmin admin error:', msg);
+        throw new Error(`Centre cree avec succes, mais erreur creation admin : ${msg}`);
+      }
+    }
+
+    return center;
   }
 
   static async deleteCenter(id: string): Promise<void> {

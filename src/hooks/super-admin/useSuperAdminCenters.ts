@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { SACentersService } from '@/services/super-admin/centers';
 import { SAAuditService } from '@/services/super-admin/audit';
-import type { CreateCenterData } from '@/types/super-admin';
+import type { CreateCenterData, CreateCenterWithAdminData } from '@/types/super-admin';
 
 const SA_KEYS = {
   centers: (search?: string) => ['super-admin', 'centers', search] as const,
@@ -26,7 +26,13 @@ export const useSuperAdminCenters = (search?: string) => {
 export const useCreateSACenter = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateCenterData) => SACentersService.createCenter(data),
+    mutationFn: (data: CreateCenterData | CreateCenterWithAdminData) => {
+      const withAdmin = data as CreateCenterWithAdminData;
+      if (withAdmin.admin_email && withAdmin.admin_full_name) {
+        return SACentersService.createCenterWithAdmin(withAdmin);
+      }
+      return SACentersService.createCenter(data);
+    },
     onSuccess: (center) => {
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'centers'] });
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'dashboard'] });

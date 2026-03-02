@@ -8,6 +8,13 @@ const SA_KEYS = {
   users: (search?: string) => ['super-admin', 'users', search] as const,
 };
 
+// PostgrestError a .message mais n'est pas instanceof Error
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: unknown }).message);
+  return String(err);
+}
+
 export const useSuperAdminUsers = (search?: string) => {
   return useQuery({
     queryKey: SA_KEYS.users(search),
@@ -28,7 +35,11 @@ export const useCreateSAUser = () => {
       SAAuditService.logAction({ action: 'user.created', entityType: 'user', entityId: user.id, details: { email: user.email, role: user.role } });
       toast.success('Utilisateur cree avec succes');
     },
-    onError: (error: Error) => toast.error(error.message || 'Erreur lors de la creation de l\'utilisateur'),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useCreateSAUser]', err);
+      toast.error(`Erreur creation utilisateur : ${msg}`);
+    },
   });
 };
 
@@ -41,7 +52,11 @@ export const useUpdateSAUser = () => {
       SAAuditService.logAction({ action: 'user.updated', entityType: 'user', entityId: user.id, details: { email: user.email } });
       toast.success('Utilisateur mis a jour');
     },
-    onError: () => toast.error('Erreur lors de la mise a jour'),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useUpdateSAUser]', err);
+      toast.error(`Erreur mise a jour : ${msg}`);
+    },
   });
 };
 
@@ -55,7 +70,11 @@ export const useToggleSAUserActive = () => {
       SAAuditService.logAction({ action: 'user.updated', entityType: 'user', entityId: vars.id, details: { field: 'is_active', value: vars.isActive } });
       toast.success('Statut mis a jour');
     },
-    onError: () => toast.error('Erreur lors du changement de statut'),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useToggleSAUserActive]', err);
+      toast.error(`Erreur changement statut : ${msg}`);
+    },
   });
 };
 
@@ -69,7 +88,11 @@ export const useBulkToggleSAUserActive = () => {
       SAAuditService.logAction({ action: 'user.bulk_updated', entityType: 'user', details: { count: vars.ids.length, is_active: vars.isActive } });
       toast.success(`${vars.ids.length} utilisateur(s) mis a jour`);
     },
-    onError: () => toast.error('Erreur lors de la mise a jour groupee'),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useBulkToggleSAUserActive]', err);
+      toast.error(`Erreur mise a jour groupee : ${msg}`);
+    },
   });
 };
 
@@ -83,7 +106,11 @@ export const useDeleteSAUser = () => {
       SAAuditService.logAction({ action: 'user.deleted', entityType: 'user', entityId: id });
       toast.success('Utilisateur supprime');
     },
-    onError: () => toast.error('Erreur lors de la suppression'),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useDeleteSAUser]', err);
+      toast.error(`Erreur suppression : ${msg}`);
+    },
   });
 };
 
@@ -91,6 +118,10 @@ export const useResetSAUserPassword = () => {
   return useMutation({
     mutationFn: (email: string) => SAUsersService.resetPassword(email),
     onSuccess: () => toast.success('Email de reinitialisation envoye'),
-    onError: () => toast.error('Erreur lors de l\'envoi'),
+    onError: (err: unknown) => {
+      const msg = extractErrorMessage(err);
+      console.error('[useResetSAUserPassword]', err);
+      toast.error(`Erreur envoi email : ${msg}`);
+    },
   });
 };

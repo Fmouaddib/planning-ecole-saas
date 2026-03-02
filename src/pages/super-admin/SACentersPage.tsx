@@ -11,7 +11,7 @@ import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { exportToCSV } from '@/utils/csv-export';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
 import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmModal';
-import type { CreateCenterData, SuperAdminCenter } from '@/types/super-admin';
+import type { CreateCenterData, CreateCenterWithAdminData, SuperAdminCenter } from '@/types/super-admin';
 import { centerDisplayName, formatCenterAddress } from '@/utils/helpers';
 import { setImpersonation } from '@/utils/impersonation';
 
@@ -21,6 +21,7 @@ export const SACentersPage = () => {
   const [editingCenter, setEditingCenter] = useState<SuperAdminCenter | null>(null);
   const [toggleConfirm, setToggleConfirm] = useState<SuperAdminCenter | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<SuperAdminCenter | null>(null);
+  const [createWithAdmin, setCreateWithAdmin] = useState(false);
 
   const { data: centers, isLoading } = useSuperAdminCenters(search || undefined);
   const createCenter = useCreateSACenter();
@@ -60,7 +61,15 @@ export const SACentersPage = () => {
     if (editingCenter) {
       updateCenter.mutate({ id: editingCenter.id, data }, { onSuccess: () => { setShowModal(false); setEditingCenter(null); } });
     } else {
-      createCenter.mutate(data, { onSuccess: () => { setShowModal(false); } });
+      const adminData: CreateCenterWithAdminData = {
+        ...data,
+        ...(createWithAdmin ? {
+          admin_email: form.get('admin_email') as string || undefined,
+          admin_full_name: form.get('admin_full_name') as string || undefined,
+          admin_phone: form.get('admin_phone') as string || undefined,
+        } : {}),
+      };
+      createCenter.mutate(adminData, { onSuccess: () => { setShowModal(false); setCreateWithAdmin(false); } });
     }
   };
 
@@ -87,7 +96,7 @@ export const SACentersPage = () => {
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button className="sa-btn sa-btn-secondary" onClick={handleExportCSV}>Exporter CSV</button>
-          <button className="sa-btn sa-btn-primary" onClick={() => { setEditingCenter(null); setShowModal(true); }}>
+          <button className="sa-btn sa-btn-primary" onClick={() => { setEditingCenter(null); setCreateWithAdmin(false); setShowModal(true); }}>
             + Nouveau centre
           </button>
         </div>
@@ -284,10 +293,39 @@ export const SACentersPage = () => {
                 <label className="sa-form-label">Site web</label>
                 <input name="website" className="sa-form-input" defaultValue={editingCenter?.website || ''} />
               </div>
+              {!editingCenter && (
+                <div style={{ marginTop: '20px', padding: '16px', border: '1px solid var(--sa-border-medium)', borderRadius: '8px', background: 'var(--sa-bg-subtle)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500, color: 'var(--sa-text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={createWithAdmin}
+                      onChange={(e) => setCreateWithAdmin(e.target.checked)}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                    Creer un administrateur pour ce centre
+                  </label>
+                  {createWithAdmin && (
+                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div className="sa-form-group" style={{ margin: 0 }}>
+                        <label className="sa-form-label">Nom complet *</label>
+                        <input name="admin_full_name" className="sa-form-input" required placeholder="Jean Dupont" />
+                      </div>
+                      <div className="sa-form-group" style={{ margin: 0 }}>
+                        <label className="sa-form-label">Email *</label>
+                        <input name="admin_email" type="email" className="sa-form-input" required placeholder="admin@centre.fr" />
+                      </div>
+                      <div className="sa-form-group" style={{ margin: 0 }}>
+                        <label className="sa-form-label">Telephone <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)' }}>(optionnel)</span></label>
+                        <input name="admin_phone" className="sa-form-input" placeholder="01 23 45 67 89" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="sa-modal-actions" style={{ marginTop: '24px' }}>
-                <button type="button" className="sa-btn sa-btn-secondary" onClick={() => setShowModal(false)}>Annuler</button>
+                <button type="button" className="sa-btn sa-btn-secondary" onClick={() => { setShowModal(false); setCreateWithAdmin(false); }}>Annuler</button>
                 <button type="submit" className="sa-btn sa-btn-primary" disabled={createCenter.isPending || updateCenter.isPending}>
-                  {editingCenter ? 'Mettre a jour' : 'Creer'}
+                  {editingCenter ? 'Mettre a jour' : createWithAdmin ? 'Creer centre + admin' : 'Creer'}
                 </button>
               </div>
             </form>

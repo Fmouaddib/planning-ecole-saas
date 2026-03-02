@@ -190,6 +190,12 @@ export interface CreateUserData {
   password?: string;
 }
 
+export interface CreateCenterWithAdminData extends CreateCenterData {
+  admin_email?: string;
+  admin_full_name?: string;
+  admin_phone?: string;
+}
+
 export interface AssignPlanData {
   center_id: string;
   plan_id: string;
