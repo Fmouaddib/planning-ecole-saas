@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 import { LoginPage, SignupPage } from '@/pages/auth'
 import { Layout } from '@/components/layout'
 import { User, LoginForm, SignupForm } from '@/types'
@@ -8,7 +8,7 @@ import { ROUTES } from '@/utils/constants'
 import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
-import { clearImpersonation } from '@/utils/impersonation'
+import { clearImpersonation, getImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
 import { ImpersonationBanner } from '@/components/ui/ImpersonationBanner'
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -68,6 +68,27 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [hash, setHash] = useState(window.location.hash)
+
+  // Impersonation : recalculer le user effectif quand l'impersonation change
+  const [_impTick, setImpTick] = useState(0)
+  useEffect(() => {
+    const onImp = () => setImpTick(t => t + 1)
+    window.addEventListener(IMPERSONATION_EVENT, onImp)
+    return () => window.removeEventListener(IMPERSONATION_EVENT, onImp)
+  }, [])
+
+  const effectiveUser = useMemo(() => {
+    if (!_user) return null
+    if (_user.role !== 'super_admin') return _user
+    const imp = getImpersonation()
+    if (!imp) return _user
+    return {
+      ..._user,
+      establishmentId: imp.centerId,
+      ...(imp.userRole && { role: imp.userRole as User['role'] }),
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_user, _impTick])
 
   // Vérification d'authentification au démarrage
   useEffect(() => {
@@ -500,7 +521,7 @@ export default function App() {
     <>
       <ImpersonationBanner />
       <Layout
-        user={_user}
+        user={effectiveUser}
         currentPath={currentPath}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
