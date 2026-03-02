@@ -13,6 +13,7 @@ export default function LandingNavbar({ scrolled, isDetailPage = false }: Landin
 
   const navLinks = [
     { href: '#/features', label: t('nav.features') },
+    { href: '#/ecole-en-ligne', label: t('nav.onlineSchool') },
     { href: '#/how-it-works', label: t('nav.howItWorks') },
     { href: isDetailPage ? '#/' : '#pricing', label: t('nav.pricing') },
     { href: '#/about', label: t('nav.about') },

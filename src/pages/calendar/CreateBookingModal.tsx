@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Modal, ModalFooter, Button, Input, Select, Textarea } from '@/components/ui'
-import { AlertTriangle, FileText } from 'lucide-react'
+import { AlertTriangle, FileText, Video } from 'lucide-react'
 import type { BookingType, Class } from '@/types'
 import { isClassDay, getExamPeriod } from '@/utils/scheduleUtils'
 
@@ -18,6 +18,8 @@ interface CreateBookingModalProps {
     description: string
     subjectId?: string
     classId?: string
+    sessionType?: 'in_person' | 'online' | 'hybrid'
+    meetingUrl?: string
   }) => void
   prefilledDate: Date | null
   prefilledHour: number | null
@@ -59,6 +61,8 @@ export function CreateBookingModal({
   const [startTime, setStartTime] = useState(`${String(startH).padStart(2, '0')}:00`)
   const [endTime, setEndTime] = useState(`${String(endH).padStart(2, '0')}:00`)
   const [description, setDescription] = useState('')
+  const [sessionType, setSessionType] = useState<'in_person' | 'online' | 'hybrid'>('in_person')
+  const [meetingUrl, setMeetingUrl] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Cascade académique
@@ -168,12 +172,16 @@ export function CreateBookingModal({
       description: description.trim(),
       subjectId: subjectId || undefined,
       classId: classId || undefined,
+      sessionType,
+      meetingUrl: meetingUrl.trim() || undefined,
     })
     // Reset
     setTitle('')
     setRoomId('')
     setType('course')
     setDescription('')
+    setSessionType('in_person')
+    setMeetingUrl('')
     setDiplomaId('')
     setClassId('')
     setSubjectId('')
@@ -240,6 +248,30 @@ export function CreateBookingModal({
             value={type}
             onChange={e => setType(e.target.value as BookingType)}
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            label="Mode"
+            options={[
+              { value: 'in_person', label: 'Présentiel' },
+              { value: 'online', label: 'En ligne' },
+              { value: 'hybrid', label: 'Hybride' },
+            ]}
+            value={sessionType}
+            onChange={e => setSessionType(e.target.value as 'in_person' | 'online' | 'hybrid')}
+          />
+          {(sessionType === 'online' || sessionType === 'hybrid') && (
+            <div className="relative">
+              <Input
+                label="Lien visio (Teams/Zoom)"
+                value={meetingUrl}
+                onChange={e => setMeetingUrl(e.target.value)}
+                placeholder="https://teams.microsoft.com/..."
+              />
+              <Video size={16} className="absolute right-3 top-9 text-neutral-400" />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-4">

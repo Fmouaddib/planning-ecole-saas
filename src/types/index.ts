@@ -111,6 +111,8 @@ export interface Booking {
   matiere?: string
   diplome?: string
   niveau?: string
+  meetingUrl?: string
+  sessionType?: 'in_person' | 'online' | 'hybrid'
   createdAt: string
   updatedAt: string
 }
@@ -237,6 +239,8 @@ export interface CalendarEvent {
   recurrence?: RecurrenceRule
   teacher?: string
   classId?: string
+  meetingUrl?: string
+  sessionType?: 'in_person' | 'online' | 'hybrid'
 }
 
 export interface Program {
@@ -456,6 +460,8 @@ export interface CreateBookingData {
   matiere?: string
   diplome?: string
   niveau?: string
+  sessionType?: 'in_person' | 'online' | 'hybrid'
+  meetingUrl?: string
   attendees?: {
     userId: string
     attendeeType: string

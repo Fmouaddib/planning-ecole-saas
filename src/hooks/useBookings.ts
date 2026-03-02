@@ -178,10 +178,11 @@ export function useBookings(): UseBookingsReturn {
         room_id: data.roomId,
         trainer_id: user.id,
         center_id: user.establishmentId,
-        session_type: 'in_person' as const,  // enum: in_person, online, hybrid
+        session_type: data.sessionType || 'in_person',
         status: 'scheduled' as const,
         subject_id: data.subjectId || null,
         class_id: data.classId || null,
+        meeting_url: data.meetingUrl || null,
       }
 
       const { data: newSession, error: createError } = await supabase
@@ -243,6 +244,8 @@ export function useBookings(): UseBookingsReturn {
         room_id: data.roomId,
         subject_id: data.subjectId,
         class_id: data.classId,
+        meeting_url: data.meetingUrl,
+        session_type: data.sessionType,
       }
 
       // Supprimer les propriétés undefined
@@ -491,6 +494,8 @@ export function useBookings(): UseBookingsReturn {
       diplome: booking.diplome,
       niveau: booking.niveau,
       classId: booking.classId,
+      meetingUrl: booking.meetingUrl,
+      sessionType: booking.sessionType,
     }))
   }, [bookings])
 

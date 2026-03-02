@@ -63,6 +63,8 @@ export function transformBooking(raw: Record<string, any>): Booking {
     matiere: subject?.name ?? undefined,
     diplome: class_?.diploma?.title ?? undefined,
     niveau: class_?.name ?? undefined,
+    meetingUrl: raw.meeting_url ?? undefined,
+    sessionType: raw.session_type ?? undefined,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }

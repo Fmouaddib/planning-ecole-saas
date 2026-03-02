@@ -40,10 +40,10 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'Notre algorithme détecte automatiquement les chevauchements de salles, d\'enseignants et de créneaux.',
     en: 'Our algorithm automatically detects room, teacher and time slot overlaps.',
   },
-  'features.zoom.title': { fr: 'Intégration Zoom', en: 'Zoom Integration' },
+  'features.zoom.title': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom Integration' },
   'features.zoom.desc': {
-    fr: 'Créez automatiquement des liens Zoom pour vos cours en ligne et réunions hybrides.',
-    en: 'Automatically create Zoom links for your online classes and hybrid meetings.',
+    fr: 'Créez automatiquement des liens Teams ou Zoom pour vos cours en ligne et réunions hybrides.',
+    en: 'Automatically create Teams or Zoom links for your online classes and hybrid meetings.',
   },
   'features.email.title': { fr: 'Emails automatiques', en: 'Automatic Emails' },
   'features.email.desc': {
@@ -170,23 +170,31 @@ const translations: Record<string, Record<Lang, string>> = {
   'pricing.cta.free': { fr: 'Commencer gratuitement', en: 'Start for free' },
   'pricing.cta.pro': { fr: 'Essayer Pro', en: 'Try Pro' },
   'pricing.cta.enterprise': { fr: 'Contacter les ventes', en: 'Contact sales' },
+  'pricing.cta.ecole': { fr: 'Essayer École en ligne', en: 'Try Online School' },
 
   // Plan names
   'plan.free': { fr: 'Gratuit', en: 'Free' },
   'plan.pro': { fr: 'Pro', en: 'Pro' },
+  'plan.ecole': { fr: 'École en ligne', en: 'Online School' },
   'plan.enterprise': { fr: 'Enterprise', en: 'Enterprise' },
 
   // Plan features
-  'plan.free.f1': { fr: 'Jusqu\'à 5 utilisateurs', en: 'Up to 5 users' },
+  'plan.free.f1': { fr: 'Jusqu\'à 3 profs', en: 'Up to 3 teachers' },
   'plan.free.f2': { fr: '3 salles maximum', en: '3 rooms maximum' },
   'plan.free.f3': { fr: '50 séances/mois', en: '50 bookings/month' },
   'plan.free.f4': { fr: 'Calendrier de base', en: 'Basic calendar' },
-  'plan.pro.f1': { fr: 'Jusqu\'à 50 utilisateurs', en: 'Up to 50 users' },
+  'plan.pro.f1': { fr: 'Jusqu\'à 15 profs', en: 'Up to 15 teachers' },
   'plan.pro.f2': { fr: 'Salles illimitées', en: 'Unlimited rooms' },
   'plan.pro.f3': { fr: 'Séances illimitées', en: 'Unlimited bookings' },
   'plan.pro.f4': { fr: 'Détection de conflits', en: 'Conflict detection' },
-  'plan.pro.f5': { fr: 'Intégration Zoom', en: 'Zoom integration' },
+  'plan.pro.f5': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom integration' },
   'plan.pro.f6': { fr: 'Support prioritaire', en: 'Priority support' },
+  'plan.ecole.f1': { fr: 'Jusqu\'à 15 profs', en: 'Up to 15 teachers' },
+  'plan.ecole.f2': { fr: 'Jusqu\'à 200 étudiants', en: 'Up to 200 students' },
+  'plan.ecole.f3': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom integration' },
+  'plan.ecole.f4': { fr: 'Séances illimitées', en: 'Unlimited sessions' },
+  'plan.ecole.f5': { fr: 'Comptes étudiants avec planning', en: 'Student accounts with schedule' },
+  'plan.ecole.f6': { fr: 'Support prioritaire', en: 'Priority support' },
   'plan.enterprise.f1': { fr: 'Utilisateurs illimités', en: 'Unlimited users' },
   'plan.enterprise.f2': { fr: 'Multi-établissements', en: 'Multi-campus' },
   'plan.enterprise.f3': { fr: 'API & webhooks', en: 'API & webhooks' },
@@ -299,15 +307,15 @@ const translations: Record<string, Record<Lang, string>> = {
   'featuresPage.conflict.b3': { fr: 'Vérification salles, enseignants et classes', en: 'Room, teacher and class verification' },
   'featuresPage.conflict.b4': { fr: 'Suggestions de créneaux alternatifs disponibles', en: 'Available alternative slot suggestions' },
 
-  'featuresPage.zoom.title': { fr: 'Intégration Zoom native', en: 'Native Zoom integration' },
+  'featuresPage.zoom.title': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom Integration' },
   'featuresPage.zoom.desc': {
-    fr: 'Créez automatiquement des réunions Zoom pour vos cours en ligne et sessions hybrides. Le lien est ajouté directement à la séance et partagé avec les participants.',
-    en: 'Automatically create Zoom meetings for your online classes and hybrid sessions. The link is added directly to the session and shared with participants.',
+    fr: 'Ajoutez vos liens Microsoft Teams ou Zoom directement dans vos séances. Le lien est accessible par les étudiants depuis leur planning personnel.',
+    en: 'Add your Microsoft Teams or Zoom links directly to your sessions. The link is accessible by students from their personal schedule.',
   },
-  'featuresPage.zoom.b1': { fr: 'Création automatique de liens Zoom', en: 'Automatic Zoom link creation' },
+  'featuresPage.zoom.b1': { fr: 'Compatible Microsoft Teams et Zoom', en: 'Compatible with Microsoft Teams and Zoom' },
   'featuresPage.zoom.b2': { fr: 'Support des sessions hybrides (présentiel + en ligne)', en: 'Hybrid session support (in-person + online)' },
-  'featuresPage.zoom.b3': { fr: 'Lien partagé automatiquement aux participants', en: 'Link automatically shared with participants' },
-  'featuresPage.zoom.b4': { fr: 'Compatible avec vos comptes Zoom existants', en: 'Compatible with your existing Zoom accounts' },
+  'featuresPage.zoom.b3': { fr: 'Lien cliquable depuis le détail de la séance', en: 'Clickable link from session details' },
+  'featuresPage.zoom.b4': { fr: 'Mode présentiel, en ligne ou hybride par séance', en: 'In-person, online or hybrid mode per session' },
 
   'featuresPage.email.title': { fr: 'Notifications et emails automatiques', en: 'Automatic notifications and emails' },
   'featuresPage.email.desc': {
@@ -434,6 +442,68 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'Créez votre compte en 30 secondes et commencez à planifier.',
     en: 'Create your account in 30 seconds and start scheduling.',
   },
+
+  // ===================== ONLINE SCHOOL PAGE =====================
+  'nav.onlineSchool': { fr: 'École en ligne', en: 'Online School' },
+  'footer.onlineSchool': { fr: 'École en ligne', en: 'Online School' },
+
+  'onlineSchoolPage.hero.label': { fr: 'École en ligne', en: 'Online School' },
+  'onlineSchoolPage.hero.title': { fr: 'Votre école 100% en ligne', en: 'Your 100% online school' },
+  'onlineSchoolPage.hero.subtitle': {
+    fr: 'Gérez vos classes virtuelles, vos étudiants et vos professeurs depuis une plateforme unique. Intégrez Teams et Zoom en un clic.',
+    en: 'Manage your virtual classrooms, students and teachers from a single platform. Integrate Teams and Zoom in one click.',
+  },
+
+  'onlineSchoolPage.virtual.title': { fr: 'Classes virtuelles', en: 'Virtual classrooms' },
+  'onlineSchoolPage.virtual.desc': {
+    fr: 'Créez et planifiez vos cours en ligne comme des séances présentielles. Chaque séance peut recevoir un lien visio Teams ou Zoom, partagé automatiquement aux participants.',
+    en: 'Create and schedule your online classes just like in-person sessions. Each session can receive a Teams or Zoom video link, automatically shared with participants.',
+  },
+  'onlineSchoolPage.virtual.b1': { fr: 'Création de séances en ligne ou hybrides', en: 'Create online or hybrid sessions' },
+  'onlineSchoolPage.virtual.b2': { fr: 'Lien visio ajouté directement à la séance', en: 'Video link added directly to the session' },
+  'onlineSchoolPage.virtual.b3': { fr: 'Planning identique au présentiel', en: 'Same planning as in-person' },
+  'onlineSchoolPage.virtual.b4': { fr: 'Accès étudiant au lien depuis le planning', en: 'Student access to link from schedule' },
+
+  'onlineSchoolPage.integration.title': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom integration' },
+  'onlineSchoolPage.integration.desc': {
+    fr: 'Ajoutez vos liens de visioconférence Microsoft Teams ou Zoom directement dans les séances. Les étudiants y accèdent en un clic depuis leur planning personnel.',
+    en: 'Add your Microsoft Teams or Zoom video conference links directly in sessions. Students access them in one click from their personal schedule.',
+  },
+  'onlineSchoolPage.integration.b1': { fr: 'Compatible Microsoft Teams et Zoom', en: 'Compatible with Microsoft Teams and Zoom' },
+  'onlineSchoolPage.integration.b2': { fr: 'Lien cliquable depuis le détail de la séance', en: 'Clickable link from session details' },
+  'onlineSchoolPage.integration.b3': { fr: 'Mode en ligne, hybride ou présentiel par séance', en: 'Online, hybrid or in-person mode per session' },
+  'onlineSchoolPage.integration.b4': { fr: 'Aucune extension à installer', en: 'No extension to install' },
+
+  'onlineSchoolPage.students.title': { fr: 'Gestion des étudiants', en: 'Student management' },
+  'onlineSchoolPage.students.desc': {
+    fr: 'Créez jusqu\'à 200 comptes étudiants inclus dans votre offre. Chaque étudiant dispose d\'un accès personnalisé avec son planning de classe en lecture seule.',
+    en: 'Create up to 200 student accounts included in your plan. Each student has personalized access with their class schedule in read-only mode.',
+  },
+  'onlineSchoolPage.students.b1': { fr: 'Jusqu\'à 200 comptes étudiants inclus', en: 'Up to 200 student accounts included' },
+  'onlineSchoolPage.students.b2': { fr: 'Accès personnalisé par classe', en: 'Personalized access by class' },
+  'onlineSchoolPage.students.b3': { fr: 'Planning en lecture seule pour les étudiants', en: 'Read-only schedule for students' },
+  'onlineSchoolPage.students.b4': { fr: 'Séparation profs (15) / étudiants (200)', en: 'Separate teachers (15) / students (200)' },
+
+  'onlineSchoolPage.planning.title': { fr: 'Planning en ligne', en: 'Online scheduling' },
+  'onlineSchoolPage.planning.desc': {
+    fr: 'Toute la puissance du planning AntiPlanning disponible pour vos cours en ligne : vues jour/semaine/mois, filtres, détection de conflits et export PDF/Excel.',
+    en: 'All the power of AntiPlanning scheduling available for your online classes: day/week/month views, filters, conflict detection and PDF/Excel export.',
+  },
+  'onlineSchoolPage.planning.b1': { fr: 'Vues jour, semaine et mois', en: 'Day, week and month views' },
+  'onlineSchoolPage.planning.b2': { fr: 'Filtres par professeur, classe, matière', en: 'Filters by teacher, class, subject' },
+  'onlineSchoolPage.planning.b3': { fr: 'Détection de conflits en temps réel', en: 'Real-time conflict detection' },
+  'onlineSchoolPage.planning.b4': { fr: 'Export PDF, Excel et CSV', en: 'PDF, Excel and CSV export' },
+
+  'onlineSchoolPage.cta.title': { fr: 'Lancez votre école en ligne dès maintenant', en: 'Launch your online school now' },
+  'onlineSchoolPage.cta.subtitle': {
+    fr: 'Créez votre établissement et commencez à planifier vos cours en ligne en quelques minutes.',
+    en: 'Create your institution and start scheduling your online classes in minutes.',
+  },
+
+  // Session mode labels
+  'session.mode.in_person': { fr: 'Présentiel', en: 'In-person' },
+  'session.mode.online': { fr: 'En ligne', en: 'Online' },
+  'session.mode.hybrid': { fr: 'Hybride', en: 'Hybrid' },
 
   // ===================== ABOUT PAGE =====================
   'aboutPage.hero.label': { fr: 'À propos', en: 'About' },

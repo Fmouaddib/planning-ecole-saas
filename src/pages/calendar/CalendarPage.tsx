@@ -37,6 +37,7 @@ import {
   Printer,
   Repeat,
   AlertTriangle,
+  Video,
 } from 'lucide-react'
 
 // Lazy-loaded views
@@ -324,6 +325,8 @@ function CalendarPage() {
     description: string
     subjectId?: string
     classId?: string
+    sessionType?: 'in_person' | 'online' | 'hybrid'
+    meetingUrl?: string
   }) => {
     try {
       await createBooking({
@@ -335,6 +338,8 @@ function CalendarPage() {
         description: data.description,
         subjectId: data.subjectId,
         classId: data.classId,
+        sessionType: data.sessionType,
+        meetingUrl: data.meetingUrl,
       })
     } catch {
       // Error handled by hook toast
@@ -490,8 +495,8 @@ function CalendarPage() {
             </button>
           )}
 
-          {/* Batch create button */}
-          {!isReadOnly && (
+          {/* Batch create button — admin uniquement */}
+          {user?.role === 'admin' && (
             <button
               className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
               onClick={() => setShowBatchModal(true)}
@@ -733,7 +738,29 @@ function CalendarPage() {
                   <p className="text-neutral-900 dark:text-neutral-100">{selectedEvent.niveau}</p>
                 </div>
               )}
+              {selectedEvent.sessionType && selectedEvent.sessionType !== 'in_person' && (
+                <div>
+                  <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Mode</label>
+                  <p className="text-neutral-900 dark:text-neutral-100">
+                    {selectedEvent.sessionType === 'online' ? 'En ligne' : 'Hybride'}
+                  </p>
+                </div>
+              )}
             </div>
+            {selectedEvent.meetingUrl && (
+              <div>
+                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Lien visio</label>
+                <a
+                  href={selectedEvent.meetingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 mt-1 text-sm font-medium"
+                >
+                  <Video size={16} />
+                  Rejoindre la visio
+                </a>
+              </div>
+            )}
             {selectedEvent.description && (
               <div>
                 <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Description</label>

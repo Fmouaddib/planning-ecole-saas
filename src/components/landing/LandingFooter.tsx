@@ -22,6 +22,7 @@ export default function LandingFooter() {
         <div className="landing-footer-col">
           <h4>{t('footer.product')}</h4>
           <a href="#/features">{t('footer.features')}</a>
+          <a href="#/ecole-en-ligne">{t('footer.onlineSchool')}</a>
           <a href="#/how-it-works">{t('footer.howItWorks')}</a>
           <a href="#pricing">{t('footer.pricing')}</a>
         </div>
