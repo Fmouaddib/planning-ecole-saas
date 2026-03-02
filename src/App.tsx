@@ -13,6 +13,9 @@ import { ImpersonationBanner } from '@/components/ui/ImpersonationBanner'
 import toast, { Toaster } from 'react-hot-toast'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
+const FeaturesPage = lazy(() => import('@/pages/landing/FeaturesPage'))
+const HowItWorksPage = lazy(() => import('@/pages/landing/HowItWorksPage'))
+const AboutPage = lazy(() => import('@/pages/landing/AboutPage'))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
@@ -413,8 +416,8 @@ export default function App() {
       )
     }
 
-    // Default: show landing page
-    return (
+    // Detail pages
+    const landingSuspense = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
       <Suspense
         fallback={
           <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
@@ -422,9 +425,16 @@ export default function App() {
           </div>
         }
       >
-        <LandingPage />
+        <Component />
       </Suspense>
     )
+
+    if (hash === '#/features') return landingSuspense(FeaturesPage)
+    if (hash === '#/how-it-works') return landingSuspense(HowItWorksPage)
+    if (hash === '#/about') return landingSuspense(AboutPage)
+
+    // Default: show landing page
+    return landingSuspense(LandingPage)
   }
 
   // Super Admin space

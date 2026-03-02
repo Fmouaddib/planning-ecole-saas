@@ -1,27 +1,29 @@
-import { useState, useEffect } from 'react'
-import { Calendar, ShieldCheck, Video, Mail, Check, Menu, X } from 'lucide-react'
+import { useState } from 'react'
+import {
+  Calendar, ShieldCheck, Video, Mail, Check, ArrowRight,
+  FileBarChart, Building2, GraduationCap, Smartphone,
+  UserPlus, Settings, CalendarCheck, ChevronDown,
+  Star, Quote,
+} from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
-import '@/styles/landing.css'
+import LandingLayout from './LandingLayout'
 
 export default function LandingPage() {
-  const { lang, toggleLang, t } = useLang()
+  const { t } = useLang()
   const { reveal } = useScrollReveal()
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [annualBilling, setAnnualBilling] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50)
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   const features = [
     { icon: Calendar, color: 'coral', titleKey: 'features.calendar.title', descKey: 'features.calendar.desc' },
     { icon: ShieldCheck, color: 'blue', titleKey: 'features.conflict.title', descKey: 'features.conflict.desc' },
     { icon: Video, color: 'teal', titleKey: 'features.zoom.title', descKey: 'features.zoom.desc' },
     { icon: Mail, color: 'amber', titleKey: 'features.email.title', descKey: 'features.email.desc' },
+    { icon: FileBarChart, color: 'violet', titleKey: 'features.reports.title', descKey: 'features.reports.desc' },
+    { icon: Building2, color: 'rose', titleKey: 'features.multiCampus.title', descKey: 'features.multiCampus.desc' },
+    { icon: GraduationCap, color: 'indigo', titleKey: 'features.academic.title', descKey: 'features.academic.desc' },
+    { icon: Smartphone, color: 'emerald', titleKey: 'features.mobile.title', descKey: 'features.mobile.desc' },
   ]
 
   const plans = [
@@ -54,7 +56,15 @@ export default function LandingPage() {
     },
   ]
 
-  // Calendar mockup slot data
+  const faqItems = [
+    { qKey: 'faq.1.q', aKey: 'faq.1.a' },
+    { qKey: 'faq.2.q', aKey: 'faq.2.a' },
+    { qKey: 'faq.3.q', aKey: 'faq.3.a' },
+    { qKey: 'faq.4.q', aKey: 'faq.4.a' },
+    { qKey: 'faq.5.q', aKey: 'faq.5.a' },
+    { qKey: 'faq.6.q', aKey: 'faq.6.a' },
+  ]
+
   const mockupSlots = [
     '', 'filled-coral', '', 'filled-blue', '',
     'filled-blue', '', 'filled-teal', '', 'filled-coral',
@@ -63,102 +73,7 @@ export default function LandingPage() {
   ]
 
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      {/* =================== NAVBAR =================== */}
-      <nav className={`landing-navbar ${scrolled ? 'scrolled' : ''}`}>
-        <div className="landing-navbar-inner">
-          <a href="#/" className="landing-logo">
-            <div className="landing-logo-icon">A</div>
-            <span>AntiPlanning</span>
-          </a>
-
-          <div className="landing-nav-links">
-            <a href="#features" className="landing-nav-link">{t('nav.features')}</a>
-            <a href="#pricing" className="landing-nav-link">{t('nav.pricing')}</a>
-          </div>
-
-          <div className="landing-nav-actions">
-            <div className="landing-lang-toggle">
-              <button
-                className={`landing-lang-option ${lang === 'fr' ? 'active' : ''}`}
-                onClick={lang !== 'fr' ? toggleLang : undefined}
-              >
-                FR
-              </button>
-              <button
-                className={`landing-lang-option ${lang === 'en' ? 'active' : ''}`}
-                onClick={lang !== 'en' ? toggleLang : undefined}
-              >
-                EN
-              </button>
-            </div>
-            <a href="#/login" className="landing-btn-ghost">{t('nav.login')}</a>
-            <a href="#/signup" className="landing-btn-coral">{t('nav.start')}</a>
-          </div>
-
-          <button
-            className="landing-hamburger"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Menu"
-          >
-            <Menu size={24} />
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile menu */}
-      <div className={`landing-mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
-        <button
-          className="landing-mobile-close"
-          onClick={() => setMobileMenuOpen(false)}
-          aria-label="Close"
-        >
-          <X size={24} />
-        </button>
-        <a
-          href="#features"
-          className="landing-mobile-link"
-          onClick={() => setMobileMenuOpen(false)}
-        >
-          {t('nav.features')}
-        </a>
-        <a
-          href="#pricing"
-          className="landing-mobile-link"
-          onClick={() => setMobileMenuOpen(false)}
-        >
-          {t('nav.pricing')}
-        </a>
-        <div className="landing-lang-toggle" style={{ marginTop: '1rem' }}>
-          <button
-            className={`landing-lang-option ${lang === 'fr' ? 'active' : ''}`}
-            onClick={() => { if (lang !== 'fr') toggleLang() }}
-          >
-            FR
-          </button>
-          <button
-            className={`landing-lang-option ${lang === 'en' ? 'active' : ''}`}
-            onClick={() => { if (lang !== 'en') toggleLang() }}
-          >
-            EN
-          </button>
-        </div>
-        <a
-          href="#/login"
-          className="landing-btn-ghost"
-          onClick={() => setMobileMenuOpen(false)}
-        >
-          {t('nav.login')}
-        </a>
-        <a
-          href="#/signup"
-          className="landing-btn-coral landing-btn-coral-lg"
-          onClick={() => setMobileMenuOpen(false)}
-        >
-          {t('nav.start')}
-        </a>
-      </div>
-
+    <LandingLayout>
       {/* =================== HERO =================== */}
       <section className="landing-hero">
         <div className="landing-float-shape landing-float-1" />
@@ -178,8 +93,8 @@ export default function LandingPage() {
               <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
                 {t('hero.cta.primary')}
               </a>
-              <a href="#/signup" className="landing-hero-btn-secondary">
-                {t('hero.cta.secondary.join')}
+              <a href="#/features" className="landing-hero-btn-secondary">
+                {t('hero.cta.secondary')}
               </a>
             </div>
           </div>
@@ -226,6 +141,188 @@ export default function LandingPage() {
                 </div>
                 <h3>{t(feat.titleKey)}</h3>
                 <p>{t(feat.descKey)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="landing-section-more" ref={reveal}>
+            <a href="#/features" className="landing-link-more">
+              {t('features.learnMore')} <ArrowRight size={18} />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== HOW IT WORKS =================== */}
+      <section className="landing-how-it-works" id="how-it-works">
+        <div className="landing-how-inner">
+          <div ref={reveal} style={{ textAlign: 'center' }}>
+            <span className="landing-section-label">{t('howItWorks.section')}</span>
+            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>{t('howItWorks.title')}</h2>
+            <p className="landing-section-subtitle" style={{ margin: '0 auto 3.5rem' }}>{t('howItWorks.subtitle')}</p>
+          </div>
+
+          <div className="landing-how-steps">
+            {[
+              { num: 1, icon: UserPlus, titleKey: 'howItWorks.step1.title', descKey: 'howItWorks.step1.desc' },
+              { num: 2, icon: Settings, titleKey: 'howItWorks.step2.title', descKey: 'howItWorks.step2.desc' },
+              { num: 3, icon: CalendarCheck, titleKey: 'howItWorks.step3.title', descKey: 'howItWorks.step3.desc' },
+            ].map((step, i) => (
+              <div key={step.num} className="landing-how-step" ref={reveal} data-reveal-delay={i + 1}>
+                <div className="landing-how-step-number">{step.num}</div>
+                <div className="landing-how-step-icon">
+                  <step.icon size={28} />
+                </div>
+                <h3>{t(step.titleKey)}</h3>
+                <p>{t(step.descKey)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="landing-section-more" ref={reveal}>
+            <a href="#/how-it-works" className="landing-link-more">
+              {t('howItWorks.learnMore')} <ArrowRight size={18} />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== FEATURE SHOWCASE =================== */}
+      <section className="landing-showcase">
+        <div className="landing-showcase-inner">
+          <div className="landing-showcase-block" ref={reveal}>
+            <div className="landing-showcase-text">
+              <span className="landing-showcase-label">{t('showcase.calendar.label')}</span>
+              <h3>{t('showcase.calendar.title')}</h3>
+              <p>{t('showcase.calendar.desc')}</p>
+              <ul className="landing-showcase-bullets">
+                {['showcase.calendar.b1', 'showcase.calendar.b2', 'showcase.calendar.b3', 'showcase.calendar.b4'].map(k => (
+                  <li key={k}><Check size={18} /> {t(k)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="landing-showcase-visual">
+              <div className="landing-showcase-mockup-calendar">
+                {['', 'active', '', 'blue', '', 'blue', '', 'teal', '', '', '', 'active', '', 'teal', ''].map((cls, i) => (
+                  <div key={i} className={`slot ${cls}`} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="landing-showcase-block reversed" ref={reveal}>
+            <div className="landing-showcase-text">
+              <span className="landing-showcase-label">{t('showcase.conflict.label')}</span>
+              <h3>{t('showcase.conflict.title')}</h3>
+              <p>{t('showcase.conflict.desc')}</p>
+              <ul className="landing-showcase-bullets">
+                {['showcase.conflict.b1', 'showcase.conflict.b2', 'showcase.conflict.b3'].map(k => (
+                  <li key={k}><Check size={18} /> {t(k)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="landing-showcase-visual">
+              <div className="landing-showcase-mockup-conflict">
+                <div className="landing-showcase-conflict-row">
+                  <div className="dot" style={{ background: '#3b82f6' }} />
+                  <div className="line" style={{ background: 'rgba(59,130,246,0.3)', width: '60%' }} />
+                </div>
+                <div className="landing-showcase-conflict-row">
+                  <div className="dot" style={{ background: '#14b8a6' }} />
+                  <div className="line" style={{ background: 'rgba(20,184,166,0.3)', width: '45%' }} />
+                </div>
+                <div className="landing-showcase-conflict-row conflict">
+                  <div className="dot" style={{ background: '#FF5B46' }} />
+                  <div className="line" style={{ background: 'rgba(255,91,70,0.3)', width: '55%' }} />
+                  <div className="badge">Conflit</div>
+                </div>
+                <div className="landing-showcase-conflict-row">
+                  <div className="dot" style={{ background: '#FBA625' }} />
+                  <div className="line" style={{ background: 'rgba(251,166,37,0.3)', width: '50%' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="landing-showcase-block" ref={reveal}>
+            <div className="landing-showcase-text">
+              <span className="landing-showcase-label">{t('showcase.academic.label')}</span>
+              <h3>{t('showcase.academic.title')}</h3>
+              <p>{t('showcase.academic.desc')}</p>
+              <ul className="landing-showcase-bullets">
+                {['showcase.academic.b1', 'showcase.academic.b2', 'showcase.academic.b3', 'showcase.academic.b4'].map(k => (
+                  <li key={k}><Check size={18} /> {t(k)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="landing-showcase-visual">
+              <div className="landing-showcase-mockup-academic">
+                <div className="landing-showcase-academic-item">
+                  <div className="icon-box" style={{ background: 'rgba(139,92,246,0.2)' }}>
+                    <GraduationCap size={14} style={{ color: '#8b5cf6' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(139,92,246,0.2)', width: '70%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent">
+                  <div className="icon-box" style={{ background: 'rgba(59,130,246,0.2)' }}>
+                    <Calendar size={14} style={{ color: '#3b82f6' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(59,130,246,0.2)', width: '55%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent-2">
+                  <div className="icon-box" style={{ background: 'rgba(20,184,166,0.2)' }}>
+                    <FileBarChart size={14} style={{ color: '#14b8a6' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(20,184,166,0.2)', width: '60%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent-2">
+                  <div className="icon-box" style={{ background: 'rgba(251,166,37,0.2)' }}>
+                    <FileBarChart size={14} style={{ color: '#FBA625' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(251,166,37,0.2)', width: '45%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent">
+                  <div className="icon-box" style={{ background: 'rgba(244,63,94,0.2)' }}>
+                    <Calendar size={14} style={{ color: '#f43f5e' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(244,63,94,0.2)', width: '50%' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== TESTIMONIALS =================== */}
+      <section className="landing-testimonials" id="testimonials">
+        <div className="landing-testimonials-inner">
+          <div ref={reveal} style={{ textAlign: 'center' }}>
+            <span className="landing-section-label">{t('testimonials.section')}</span>
+            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>{t('testimonials.title')}</h2>
+            <p className="landing-section-subtitle" style={{ margin: '0 auto 3.5rem' }}>{t('testimonials.subtitle')}</p>
+          </div>
+
+          <div className="landing-testimonials-grid">
+            {[
+              { quoteKey: 'testimonial.1.quote', nameKey: 'testimonial.1.name', roleKey: 'testimonial.1.role', color: '#3b82f6', initials: 'MD' },
+              { quoteKey: 'testimonial.2.quote', nameKey: 'testimonial.2.name', roleKey: 'testimonial.2.role', color: '#8b5cf6', initials: 'TB' },
+              { quoteKey: 'testimonial.3.quote', nameKey: 'testimonial.3.name', roleKey: 'testimonial.3.role', color: '#14b8a6', initials: 'SM' },
+            ].map((item, i) => (
+              <div key={i} className="landing-testimonial-card" ref={reveal} data-reveal-delay={i + 1}>
+                <div className="landing-testimonial-stars">
+                  {[...Array(5)].map((_, j) => <Star key={j} size={16} fill="currentColor" />)}
+                </div>
+                <Quote size={28} className="landing-testimonial-quote-icon" />
+                <p className="landing-testimonial-text">{t(item.quoteKey)}</p>
+                <div className="landing-testimonial-author">
+                  <div className="landing-testimonial-avatar" style={{ background: item.color }}>
+                    {item.initials}
+                  </div>
+                  <div className="landing-testimonial-author-info">
+                    <span className="landing-testimonial-name">{t(item.nameKey)}</span>
+                    <span className="landing-testimonial-role">{t(item.roleKey)}</span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -300,6 +397,41 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* =================== FAQ =================== */}
+      <section className="landing-faq" id="faq">
+        <div className="landing-faq-inner">
+          <div ref={reveal} style={{ textAlign: 'center' }}>
+            <span className="landing-section-label">{t('faq.section')}</span>
+            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>{t('faq.title')}</h2>
+            <p className="landing-section-subtitle" style={{ margin: '0 auto 3.5rem' }}>{t('faq.subtitle')}</p>
+          </div>
+
+          <div className="landing-faq-list">
+            {faqItems.map((item, i) => (
+              <div
+                key={i}
+                className={`landing-faq-item ${openFaq === i ? 'open' : ''}`}
+                ref={reveal}
+                data-reveal-delay={i + 1}
+              >
+                <button
+                  className="landing-faq-question"
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                >
+                  {t(item.qKey)}
+                  <ChevronDown size={20} className="landing-faq-chevron" />
+                </button>
+                <div className="landing-faq-answer">
+                  <div className="landing-faq-answer-content">
+                    {t(item.aKey)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* =================== CTA =================== */}
       <section className="landing-cta">
         <div className="landing-cta-inner" ref={reveal}>
@@ -308,34 +440,12 @@ export default function LandingPage() {
           <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
             {t('cta.button')}
           </a>
+          <div className="landing-cta-quote">
+            <p className="landing-cta-quote-text">{t('cta.quote')}</p>
+            <p className="landing-cta-quote-author">{t('cta.quoteAuthor')}</p>
+          </div>
         </div>
       </section>
-
-      {/* =================== FOOTER =================== */}
-      <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <div className="landing-footer-brand">
-            <a href="#/" className="landing-logo">
-              <div className="landing-logo-icon">A</div>
-              <span>AntiPlanning</span>
-            </a>
-            <p className="landing-footer-tagline">{t('footer.tagline')}</p>
-          </div>
-          <div className="landing-footer-col">
-            <h4>{t('footer.product')}</h4>
-            <a href="#features">{t('footer.features')}</a>
-            <a href="#pricing">{t('footer.pricing')}</a>
-          </div>
-          <div className="landing-footer-col">
-            <h4>{t('footer.legal')}</h4>
-            <a href="#/">{t('footer.terms')}</a>
-            <a href="#/">{t('footer.privacy')}</a>
-          </div>
-        </div>
-        <div className="landing-footer-bottom">
-          {t('footer.copyright')}
-        </div>
-      </footer>
-    </div>
+    </LandingLayout>
   )
 }
