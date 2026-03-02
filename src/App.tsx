@@ -18,6 +18,7 @@ const FeaturesPage = lazy(() => import('@/pages/landing/FeaturesPage'))
 const HowItWorksPage = lazy(() => import('@/pages/landing/HowItWorksPage'))
 const AboutPage = lazy(() => import('@/pages/landing/AboutPage'))
 const OnlineSchoolPage = lazy(() => import('@/pages/landing/OnlineSchoolPage'))
+const PricingPage = lazy(() => import('@/pages/landing/PricingPage'))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
@@ -469,6 +470,7 @@ export default function App() {
     if (hash === '#/how-it-works') return landingSuspense(HowItWorksPage)
     if (hash === '#/about') return landingSuspense(AboutPage)
     if (hash === '#/ecole-en-ligne') return landingSuspense(OnlineSchoolPage)
+    if (hash === '#/pricing') return landingSuspense(PricingPage)
 
     // Default: show landing page
     return landingSuspense(LandingPage)

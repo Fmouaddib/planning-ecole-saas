@@ -7,7 +7,7 @@ interface LandingNavbarProps {
   isDetailPage?: boolean
 }
 
-export default function LandingNavbar({ scrolled, isDetailPage = false }: LandingNavbarProps) {
+export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = false }: LandingNavbarProps) {
   const { lang, toggleLang, t } = useLang()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -15,7 +15,7 @@ export default function LandingNavbar({ scrolled, isDetailPage = false }: Landin
     { href: '#/features', label: t('nav.features') },
     { href: '#/ecole-en-ligne', label: t('nav.onlineSchool') },
     { href: '#/how-it-works', label: t('nav.howItWorks') },
-    { href: isDetailPage ? '#/' : '#pricing', label: t('nav.pricing') },
+    { href: '#/pricing', label: t('nav.pricing') },
     { href: '#/about', label: t('nav.about') },
   ]
 

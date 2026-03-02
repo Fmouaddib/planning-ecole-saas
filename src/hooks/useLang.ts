@@ -443,6 +443,54 @@ const translations: Record<string, Record<Lang, string>> = {
     en: 'Create your account in 30 seconds and start scheduling.',
   },
 
+  // ===================== PRICING PAGE =====================
+  'pricingPage.hero.label': { fr: 'Tarifs', en: 'Pricing' },
+  'pricingPage.hero.title': { fr: 'Choisissez votre plan', en: 'Choose your plan' },
+  'pricingPage.hero.subtitle': {
+    fr: 'Des tarifs transparents, sans engagement. Changez de plan ou annulez à tout moment.',
+    en: 'Transparent pricing, no commitment. Change plans or cancel at any time.',
+  },
+
+  'pricingPage.compare.title': { fr: 'Comparaison détaillée des plans', en: 'Detailed plan comparison' },
+  'pricingPage.compare.subtitle': {
+    fr: 'Retrouvez en un coup d\'œil toutes les fonctionnalités incluses dans chaque plan.',
+    en: 'See at a glance all the features included in each plan.',
+  },
+
+  'pricingPage.row.teachers': { fr: 'Professeurs', en: 'Teachers' },
+  'pricingPage.row.students': { fr: 'Comptes étudiants', en: 'Student accounts' },
+  'pricingPage.row.rooms': { fr: 'Salles', en: 'Rooms' },
+  'pricingPage.row.sessions': { fr: 'Séances / mois', en: 'Sessions / month' },
+  'pricingPage.row.calendar': { fr: 'Calendrier interactif', en: 'Interactive calendar' },
+  'pricingPage.row.conflicts': { fr: 'Détection de conflits', en: 'Conflict detection' },
+  'pricingPage.row.dragdrop': { fr: 'Glisser-déposer', en: 'Drag & drop' },
+  'pricingPage.row.export': { fr: 'Export PDF / Excel / CSV', en: 'PDF / Excel / CSV export' },
+  'pricingPage.row.academic': { fr: 'Référentiel académique', en: 'Academic framework' },
+  'pricingPage.row.visio': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom integration' },
+  'pricingPage.row.studentAccess': { fr: 'Accès étudiant au planning', en: 'Student schedule access' },
+  'pricingPage.row.multiCampus': { fr: 'Multi-établissements', en: 'Multi-campus' },
+  'pricingPage.row.api': { fr: 'API & webhooks', en: 'API & webhooks' },
+  'pricingPage.row.sso': { fr: 'SSO / SAML', en: 'SSO / SAML' },
+  'pricingPage.row.sla': { fr: 'SLA garanti', en: 'SLA guarantee' },
+  'pricingPage.row.support': { fr: 'Support', en: 'Support' },
+  'pricingPage.row.manager': { fr: 'Account manager dédié', en: 'Dedicated account manager' },
+
+  'pricingPage.support.email': { fr: 'Email', en: 'Email' },
+  'pricingPage.support.priority': { fr: 'Prioritaire', en: 'Priority' },
+  'pricingPage.support.dedicated': { fr: 'Dédié', en: 'Dedicated' },
+
+  'pricingPage.guarantee.title': { fr: 'Satisfait ou remboursé', en: 'Money-back guarantee' },
+  'pricingPage.guarantee.desc': {
+    fr: 'Testez AntiPlanning pendant 14 jours. Si vous n\'êtes pas convaincu, nous vous remboursons intégralement, sans question.',
+    en: 'Try AntiPlanning for 14 days. If you\'re not convinced, we\'ll refund you in full, no questions asked.',
+  },
+
+  'pricingPage.cta.title': { fr: 'Prêt à simplifier votre planning ?', en: 'Ready to simplify your schedule?' },
+  'pricingPage.cta.subtitle': {
+    fr: 'Commencez gratuitement et passez à un plan supérieur quand vous êtes prêt.',
+    en: 'Start for free and upgrade when you\'re ready.',
+  },
+
   // ===================== ONLINE SCHOOL PAGE =====================
   'nav.onlineSchool': { fr: 'École en ligne', en: 'Online School' },
   'footer.onlineSchool': { fr: 'École en ligne', en: 'Online School' },
