@@ -117,6 +117,7 @@ export class SACentersService {
           role: 'admin',
           center_id: center.id,
           phone: data.admin_phone,
+          send_invitation: data.send_admin_invitation !== false,
         });
 
         // Mettre a jour owner_id du centre

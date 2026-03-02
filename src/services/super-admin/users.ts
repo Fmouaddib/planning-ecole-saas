@@ -45,10 +45,12 @@ export class SAUsersService {
 
     const profile = (typeof data === 'string' ? JSON.parse(data) : data) as SuperAdminUserProfile;
 
-    // Envoyer un email de reinitialisation de mot de passe
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(userData.email);
-    if (resetError) {
-      console.warn('[SAUsers] resetPasswordForEmail warning:', resetError.message);
+    // Envoyer un email d'invitation (reset password) si demande
+    if (userData.send_invitation !== false) {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(userData.email);
+      if (resetError) {
+        console.warn('[SAUsers] resetPasswordForEmail warning:', resetError.message);
+      }
     }
 
     return profile;

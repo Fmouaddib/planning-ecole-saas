@@ -22,6 +22,7 @@ export const SACentersPage = () => {
   const [toggleConfirm, setToggleConfirm] = useState<SuperAdminCenter | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<SuperAdminCenter | null>(null);
   const [createWithAdmin, setCreateWithAdmin] = useState(false);
+  const [sendAdminInvitation, setSendAdminInvitation] = useState(true);
 
   const { data: centers, isLoading } = useSuperAdminCenters(search || undefined);
   const createCenter = useCreateSACenter();
@@ -67,9 +68,10 @@ export const SACentersPage = () => {
           admin_email: form.get('admin_email') as string || undefined,
           admin_full_name: form.get('admin_full_name') as string || undefined,
           admin_phone: form.get('admin_phone') as string || undefined,
+          send_admin_invitation: sendAdminInvitation,
         } : {}),
       };
-      createCenter.mutate(adminData, { onSuccess: () => { setShowModal(false); setCreateWithAdmin(false); } });
+      createCenter.mutate(adminData, { onSuccess: () => { setShowModal(false); setCreateWithAdmin(false); setSendAdminInvitation(true); } });
     }
   };
 
@@ -318,6 +320,20 @@ export const SACentersPage = () => {
                         <label className="sa-form-label">Telephone <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)' }}>(optionnel)</span></label>
                         <input name="admin_phone" className="sa-form-input" placeholder="01 23 45 67 89" />
                       </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--sa-text-primary)', marginTop: '4px' }}>
+                        <input
+                          type="checkbox"
+                          checked={sendAdminInvitation}
+                          onChange={(e) => setSendAdminInvitation(e.target.checked)}
+                          style={{ width: '15px', height: '15px' }}
+                        />
+                        Envoyer un email d'invitation automatiquement
+                      </label>
+                      {!sendAdminInvitation && (
+                        <p style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)', margin: '2px 0 0 23px' }}>
+                          L'admin devra utiliser "Mot de passe oublie" pour se connecter.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

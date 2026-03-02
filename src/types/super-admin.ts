@@ -188,12 +188,14 @@ export interface CreateUserData {
   phone?: string;
   center_id?: string;
   password?: string;
+  send_invitation?: boolean;
 }
 
 export interface CreateCenterWithAdminData extends CreateCenterData {
   admin_email?: string;
   admin_full_name?: string;
   admin_phone?: string;
+  send_admin_invitation?: boolean;
 }
 
 export interface AssignPlanData {
