@@ -711,7 +711,7 @@ function AnalyticsPage() {
         <div className="card">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Séances par jour</h3>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Semaine courante (Lu-Ve)</p>
-          <BarChart data={weekBarData} height={160} showValues />
+          <BarChart data={weekBarData} height={110} showValues />
         </div>
         <div className="card">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Répartition par statut</h3>

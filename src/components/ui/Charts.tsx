@@ -202,8 +202,8 @@ export function DonutChart({
 
       {/* Legend */}
       <div className="flex flex-col gap-1.5 min-w-0">
-        {data.filter(d => d.value > 0).map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
+        {data.map((item, i) => (
+          <div key={i} className={`flex items-center gap-2 ${item.value === 0 ? 'opacity-40' : ''}`}>
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"
               style={{ backgroundColor: item.color }}
