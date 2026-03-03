@@ -22,7 +22,7 @@ export const SACentersPage = () => {
   const [toggleConfirm, setToggleConfirm] = useState<SuperAdminCenter | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<SuperAdminCenter | null>(null);
   const [createWithAdmin, setCreateWithAdmin] = useState(false);
-  const [sendAdminInvitation, setSendAdminInvitation] = useState(true);
+  const [adminAuthMode, setAdminAuthMode] = useState<'invitation' | 'password'>('invitation');
 
   const { data: centers, isLoading } = useSuperAdminCenters(search || undefined);
   const createCenter = useCreateSACenter();
@@ -69,10 +69,11 @@ export const SACentersPage = () => {
           admin_email: form.get('admin_email') as string || undefined,
           admin_full_name: form.get('admin_full_name') as string || undefined,
           admin_phone: form.get('admin_phone') as string || undefined,
-          send_admin_invitation: sendAdminInvitation,
+          admin_password: adminAuthMode === 'password' ? (form.get('admin_password') as string || undefined) : undefined,
+          send_admin_invitation: adminAuthMode === 'invitation',
         } : {}),
       };
-      createCenter.mutate(adminData, { onSuccess: () => { setShowModal(false); setCreateWithAdmin(false); setSendAdminInvitation(true); } });
+      createCenter.mutate(adminData, { onSuccess: () => { setShowModal(false); setCreateWithAdmin(false); setAdminAuthMode('invitation'); } });
     }
   };
 
@@ -325,26 +326,47 @@ export const SACentersPage = () => {
                         <label className="sa-form-label">Telephone <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)' }}>(optionnel)</span></label>
                         <input name="admin_phone" className="sa-form-input" placeholder="01 23 45 67 89" />
                       </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--sa-text-primary)', marginTop: '4px' }}>
-                        <input
-                          type="checkbox"
-                          checked={sendAdminInvitation}
-                          onChange={(e) => setSendAdminInvitation(e.target.checked)}
-                          style={{ width: '15px', height: '15px' }}
-                        />
-                        Envoyer un email d'invitation automatiquement
-                      </label>
-                      {!sendAdminInvitation && (
-                        <p style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)', margin: '2px 0 0 23px' }}>
-                          L'admin devra utiliser "Mot de passe oublie" pour se connecter.
-                        </p>
-                      )}
+                      <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span className="sa-form-label" style={{ marginBottom: 0 }}>Mode d'authentification</span>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--sa-text-primary)' }}>
+                          <input
+                            type="radio"
+                            name="admin_auth_mode"
+                            checked={adminAuthMode === 'invitation'}
+                            onChange={() => setAdminAuthMode('invitation')}
+                            style={{ width: '15px', height: '15px' }}
+                          />
+                          Envoyer un email d'invitation
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--sa-text-primary)' }}>
+                          <input
+                            type="radio"
+                            name="admin_auth_mode"
+                            checked={adminAuthMode === 'password'}
+                            onChange={() => setAdminAuthMode('password')}
+                            style={{ width: '15px', height: '15px' }}
+                          />
+                          Definir un mot de passe
+                        </label>
+                        {adminAuthMode === 'password' && (
+                          <div className="sa-form-group" style={{ margin: '4px 0 0 23px' }}>
+                            <input
+                              name="admin_password"
+                              type="password"
+                              className="sa-form-input"
+                              required
+                              minLength={8}
+                              placeholder="Mot de passe (min. 8 caracteres)"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
               )}
               <div className="sa-modal-actions" style={{ marginTop: '24px' }}>
-                <button type="button" className="sa-btn sa-btn-secondary" onClick={() => { setShowModal(false); setCreateWithAdmin(false); }}>Annuler</button>
+                <button type="button" className="sa-btn sa-btn-secondary" onClick={() => { setShowModal(false); setCreateWithAdmin(false); setAdminAuthMode('invitation'); }}>Annuler</button>
                 <button type="submit" className="sa-btn sa-btn-primary" disabled={createCenter.isPending || updateCenter.isPending}>
                   {editingCenter ? 'Mettre a jour' : createWithAdmin ? 'Creer centre + admin' : 'Creer'}
                 </button>

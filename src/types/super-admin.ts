@@ -198,6 +198,7 @@ export interface CreateCenterWithAdminData extends CreateCenterData {
   admin_email?: string;
   admin_full_name?: string;
   admin_phone?: string;
+  admin_password?: string;
   send_admin_invitation?: boolean;
 }
 

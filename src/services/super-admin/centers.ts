@@ -148,6 +148,7 @@ export class SACentersService {
           role: 'admin',
           center_id: center.id,
           phone: data.admin_phone,
+          password: data.admin_password,
           send_invitation: data.send_admin_invitation !== false,
         });
 

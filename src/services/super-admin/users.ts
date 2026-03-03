@@ -28,11 +28,11 @@ export class SAUsersService {
    * Utilise un mot de passe aléatoire — l'admin devra faire "mot de passe oublié".
    */
   private static async createUserViaSignUp(userData: CreateUserData): Promise<SuperAdminUserProfile> {
-    const randomPassword = crypto.randomUUID() + '!Aa1';
+    const password = userData.password || (crypto.randomUUID() + '!Aa1');
 
     const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
       email: userData.email,
-      password: randomPassword,
+      password,
       options: {
         data: {
           full_name: userData.full_name,
@@ -83,21 +83,26 @@ export class SAUsersService {
 
     let profile: SuperAdminUserProfile;
 
-    // 1. Tenter la RPC create_user_for_center
-    const { data, error } = await supabase.rpc('create_user_for_center', {
-      p_email: userData.email,
-      p_full_name: userData.full_name,
-      p_role: userData.role,
-      p_center_id: userData.center_id,
-      p_phone: userData.phone || null,
-    });
-
-    if (error) {
-      console.warn('[SAUsers] RPC create_user_for_center echouee, fallback signUp:', error.message);
-      // 2. Fallback signUp via isolatedClient
+    if (userData.password) {
+      // Mot de passe fourni → signUp direct avec ce mot de passe
       profile = await this.createUserViaSignUp(userData);
     } else {
-      profile = (typeof data === 'string' ? JSON.parse(data) : data) as SuperAdminUserProfile;
+      // 1. Tenter la RPC create_user_for_center
+      const { data, error } = await supabase.rpc('create_user_for_center', {
+        p_email: userData.email,
+        p_full_name: userData.full_name,
+        p_role: userData.role,
+        p_center_id: userData.center_id,
+        p_phone: userData.phone || null,
+      });
+
+      if (error) {
+        console.warn('[SAUsers] RPC create_user_for_center echouee, fallback signUp:', error.message);
+        // 2. Fallback signUp via isolatedClient
+        profile = await this.createUserViaSignUp(userData);
+      } else {
+        profile = (typeof data === 'string' ? JSON.parse(data) : data) as SuperAdminUserProfile;
+      }
     }
 
     // Envoyer un email d'invitation (reset password) si demande
