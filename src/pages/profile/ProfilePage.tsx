@@ -13,6 +13,7 @@ interface ProfilePageProps {
 
 const PLAN_TIER_CONFIG: Record<SubscriptionPlanTier, { label: string; color: string; bg: string }> = {
   free: { label: 'Gratuit', color: 'text-gray-700', bg: 'bg-gray-100' },
+  'ecole-en-ligne': { label: 'École en ligne', color: 'text-teal-700', bg: 'bg-teal-100' },
   pro: { label: 'Pro', color: 'text-blue-700', bg: 'bg-blue-100' },
   enterprise: { label: 'Enterprise', color: 'text-purple-700', bg: 'bg-purple-100' },
 }

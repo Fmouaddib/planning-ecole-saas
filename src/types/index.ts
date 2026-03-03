@@ -551,7 +551,7 @@ export interface UseUsersReturn {
 
 // ==================== TYPES SAAS - ABONNEMENT ====================
 
-export type SubscriptionPlanTier = 'free' | 'pro' | 'enterprise'
+export type SubscriptionPlanTier = 'free' | 'pro' | 'enterprise' | 'ecole-en-ligne'
 export type SubscriptionStatus = 'active' | 'cancelled' | 'pending' | 'expired'
 
 export interface SubscriptionPlan {
@@ -601,6 +601,36 @@ export interface SubscriptionInfo {
   usage: UsageSummary | null
   isLoading: boolean
   error: string | null
+}
+
+// ==================== TYPES SAAS - AUDIT ====================
+
+// ==================== TYPES VIRTUAL ROOMS ====================
+
+export type VirtualRoomPlatform = 'teams' | 'zoom' | 'other'
+
+export interface VirtualRoom {
+  id: string
+  centerId: string
+  name: string
+  platform: VirtualRoomPlatform
+  meetingUrl: string
+  isDefault: boolean
+  isActive: boolean
+  createdBy?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateVirtualRoomData {
+  name: string
+  platform: VirtualRoomPlatform
+  meetingUrl: string
+  isDefault?: boolean
+}
+
+export interface UpdateVirtualRoomData extends Partial<CreateVirtualRoomData> {
+  id: string
 }
 
 // ==================== TYPES SAAS - AUDIT ====================

@@ -9,11 +9,13 @@ import {
   Clock,
   Shield,
   GraduationCap,
-  Settings
+  Settings,
+  Video
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { SidebarCalendar } from './SidebarCalendar'
+import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 
 interface NavigationItem {
   icon: React.ComponentType<any>
@@ -42,6 +44,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   className
 }) => {
+  const { plan } = useSubscriptionInfo()
+  const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
+
   const mainNavigation: NavigationItem[] = [
     {
       icon: Home,
@@ -55,13 +60,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/planning',
       active: currentPath === '/planning'
     },
-    {
-      icon: Building2,
-      label: 'Salles',
-      href: '/rooms',
-      active: currentPath === '/rooms',
-      roles: ['admin', 'staff']
-    },
+    isOnlineSchool
+      ? {
+          icon: Video,
+          label: 'Visio',
+          href: '/visio',
+          active: currentPath === '/visio',
+          roles: ['admin', 'staff'] as UserRole[],
+        }
+      : {
+          icon: Building2,
+          label: 'Salles',
+          href: '/rooms',
+          active: currentPath === '/rooms',
+          roles: ['admin', 'staff'] as UserRole[],
+        },
     {
       icon: Users,
       label: 'Utilisateurs',

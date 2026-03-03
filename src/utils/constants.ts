@@ -25,7 +25,8 @@ export const ROUTES = {
   ANALYTICS: '/analytics',
   SETTINGS: '/settings',
   PROFILE: '/profile',
-  HELP: '/help'
+  HELP: '/help',
+  VISIO: '/visio'
 } as const
 
 export const USER_ROLES = {
@@ -158,6 +159,13 @@ export const PREDEFINED_EQUIPMENT: { name: string; category: string }[] = [
   { name: 'Accès PMR', category: 'specialized' },
   { name: 'Prises électriques renforcées', category: 'specialized' },
 ]
+
+// Plateformes visio
+export const VISIO_PLATFORMS = {
+  teams: { label: 'Teams', color: '#6264A7', bgColor: '#6264A715' },
+  zoom: { label: 'Zoom', color: '#2D8CFF', bgColor: '#2D8CFF15' },
+  other: { label: 'Autre', color: '#6b7280', bgColor: '#6b728015' },
+} as const
 
 // Messages de succès
 export const SUCCESS_MESSAGES = {
