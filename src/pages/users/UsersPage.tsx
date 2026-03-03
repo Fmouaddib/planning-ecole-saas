@@ -1,12 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useUsers } from '@/hooks/useUsers'
 import { useAcademicData } from '@/hooks/useAcademicData'
+import type { StudentSubjectLink } from '@/hooks/useAcademicData'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole } from '@/types'
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen } from 'lucide-react'
 
 const roleLabels: Record<string, string> = {
   admin: 'Administrateur',
@@ -25,6 +26,10 @@ const roleBadgeVariant: Record<string, 'success' | 'warning' | 'error' | 'info' 
   teacher: 'info',
   student: 'success',
   staff: 'warning',
+}
+
+interface DispensationState {
+  [studentSubjectId: string]: { dispensed: boolean; reason: string }
 }
 
 interface UserFormData {
@@ -50,7 +55,12 @@ function UsersPage() {
     users, isLoading, error, createUser, updateUser, deleteUser, refreshUsers,
     canCreateUsers, canUpdateUser, canDeleteUser,
   } = useUsers()
-  const { classes, getClassIdForStudent, setStudentClass } = useAcademicData()
+  const {
+    classes, subjects, getClassIdForStudent, setStudentClass,
+    getSubjectIdsForClass, studentSubjects,
+    toggleDispensation, addFreeSubject, removeFreeSubject,
+    getStudentSubjectsForStudent,
+  } = useAcademicData()
   const classOptions = useMemo(
     () => classes.map(c => ({ value: c.id, label: c.name })),
     [classes],
@@ -61,6 +71,9 @@ function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [form, setForm] = useState<UserFormData>(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+  const [dispensations, setDispensations] = useState<DispensationState>({})
+  const [freeSubjectIds, setFreeSubjectIds] = useState<string[]>([])
+  const [addingFreeSubject, setAddingFreeSubject] = useState('')
 
   const filtered = useMemo(() => {
     let result = users
@@ -83,14 +96,31 @@ function UsersPage() {
 
   const openEdit = (user: User) => {
     setSelectedUser(user)
+    const cId = user.role === 'student' ? (getClassIdForStudent(user.id) || '') : ''
     setForm({
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       password: '',
       role: user.role,
-      classId: user.role === 'student' ? (getClassIdForStudent(user.id) || '') : '',
+      classId: cId,
     })
+    // Charger les dispensations existantes pour cet étudiant
+    if (user.role === 'student') {
+      const enrollments = getStudentSubjectsForStudent(user.id)
+      const dispState: DispensationState = {}
+      for (const ss of enrollments) {
+        if (ss.enrollment_type === 'class') {
+          dispState[ss.id] = { dispensed: ss.status === 'dispensed', reason: ss.dispensation_reason || '' }
+        }
+      }
+      setDispensations(dispState)
+      setFreeSubjectIds(enrollments.filter(ss => ss.enrollment_type === 'free').map(ss => ss.subject_id))
+    } else {
+      setDispensations({})
+      setFreeSubjectIds([])
+    }
+    setAddingFreeSubject('')
     setModalMode('edit')
   }
 
@@ -130,6 +160,30 @@ function UsersPage() {
         // Mettre à jour la classe si étudiant
         if (form.role === 'student') {
           await setStudentClass(selectedUser.id, form.classId || null)
+
+          // Sauvegarder dispensations
+          const currentEnrollments = getStudentSubjectsForStudent(selectedUser.id)
+          for (const [ssId, state] of Object.entries(dispensations)) {
+            const existing = currentEnrollments.find(ss => ss.id === ssId)
+            if (existing && (existing.status === 'dispensed') !== state.dispensed) {
+              await toggleDispensation(ssId, state.dispensed, state.reason || undefined)
+            } else if (existing && existing.status === 'dispensed' && state.dispensed && (existing.dispensation_reason || '') !== state.reason) {
+              await toggleDispensation(ssId, true, state.reason || undefined)
+            }
+          }
+
+          // Sauvegarder matières libres
+          const currentFreeIds = currentEnrollments
+            .filter(ss => ss.enrollment_type === 'free')
+            .map(ss => ss.subject_id)
+          const toAddFree = freeSubjectIds.filter(id => !currentFreeIds.includes(id))
+          const toRemoveFree = currentFreeIds.filter(id => !freeSubjectIds.includes(id))
+          for (const sid of toAddFree) {
+            await addFreeSubject(selectedUser.id, sid)
+          }
+          for (const sid of toRemoveFree) {
+            await removeFreeSubject(selectedUser.id, sid)
+          }
         }
       }
       closeModal()
@@ -301,7 +355,7 @@ function UsersPage() {
         isOpen={modalMode === 'create' || modalMode === 'edit'}
         onClose={closeModal}
         title={modalMode === 'create' ? 'Ajouter un utilisateur' : 'Modifier l\'utilisateur'}
-        size="md"
+        size={modalMode === 'edit' && form.role === 'student' && form.classId ? 'lg' : 'md'}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -352,6 +406,142 @@ function UsersPage() {
               onChange={e => setForm(f => ({ ...f, classId: e.target.value }))}
             />
           )}
+
+          {/* Section matières (visible si étudiant en édition avec classe) */}
+          {modalMode === 'edit' && form.role === 'student' && form.classId && selectedUser && (() => {
+            const classSubjectIds = getSubjectIdsForClass(form.classId)
+            const classSubjectList = subjects.filter(s => classSubjectIds.includes(s.id))
+            const enrollments = getStudentSubjectsForStudent(selectedUser.id)
+              .filter(ss => ss.class_id === form.classId && ss.enrollment_type === 'class')
+
+            // Matières du centre disponibles pour "libre" (pas déjà dans la classe ni déjà libre)
+            const allAssignedIds = new Set([...classSubjectIds, ...freeSubjectIds])
+            const availableFreeSubjects = subjects.filter(s => !allAssignedIds.has(s.id))
+
+            return (
+              <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4 space-y-4">
+                {/* Matières du programme */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BookOpen size={16} className="text-primary-600" />
+                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                      Matières du programme ({classSubjectList.length})
+                    </h3>
+                  </div>
+                  {classSubjectList.length === 0 ? (
+                    <p className="text-xs text-neutral-400">Aucune matière dans cette classe</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {classSubjectList.map(subject => {
+                        const enrollment = enrollments.find(ss => ss.subject_id === subject.id)
+                        const ssId = enrollment?.id || ''
+                        const dispState = dispensations[ssId]
+                        const isDispensed = dispState?.dispensed ?? false
+                        return (
+                          <div key={subject.id} className={`flex items-center gap-3 p-2 rounded-lg border ${isDispensed ? 'border-warning-200 bg-warning-50 dark:border-warning-800 dark:bg-warning-950' : 'border-neutral-200 dark:border-neutral-700'}`}>
+                            <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={isDispensed}
+                                onChange={e => {
+                                  if (!ssId) return
+                                  setDispensations(prev => ({
+                                    ...prev,
+                                    [ssId]: { dispensed: e.target.checked, reason: prev[ssId]?.reason || '' }
+                                  }))
+                                }}
+                                className="w-4 h-4 rounded border-neutral-300 text-warning-600 focus:ring-warning-500"
+                              />
+                              <span className="text-xs text-neutral-500">Dispensé</span>
+                            </label>
+                            <div className="flex-1 min-w-0">
+                              <span className={`text-sm font-medium ${isDispensed ? 'line-through text-neutral-400' : 'text-neutral-900 dark:text-neutral-100'}`}>
+                                {subject.name}
+                              </span>
+                              {subject.code && <span className="text-xs text-neutral-400 ml-2">({subject.code})</span>}
+                            </div>
+                            {isDispensed && (
+                              <>
+                                <Badge variant="warning" size="sm">Dispensé</Badge>
+                                <input
+                                  type="text"
+                                  placeholder="Motif..."
+                                  value={dispState?.reason || ''}
+                                  onChange={e => {
+                                    setDispensations(prev => ({
+                                      ...prev,
+                                      [ssId]: { ...prev[ssId], reason: e.target.value }
+                                    }))
+                                  }}
+                                  className="w-28 text-xs px-2 py-1 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800"
+                                />
+                              </>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Matières libres */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BookOpen size={16} className="text-info-600" />
+                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                      Matières libres ({freeSubjectIds.length})
+                    </h3>
+                  </div>
+                  {freeSubjectIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {freeSubjectIds.map(sid => {
+                        const s = subjects.find(x => x.id === sid)
+                        return (
+                          <span key={sid} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-info-50 dark:bg-info-950 text-info-700 dark:text-info-300 text-xs font-medium border border-info-200 dark:border-info-800">
+                            {s?.name || 'Matière inconnue'}
+                            <button
+                              type="button"
+                              onClick={() => setFreeSubjectIds(prev => prev.filter(id => id !== sid))}
+                              className="ml-0.5 hover:text-error-600 transition-colors"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {availableFreeSubjects.length > 0 && (
+                    <div className="flex gap-2">
+                      <select
+                        value={addingFreeSubject}
+                        onChange={e => setAddingFreeSubject(e.target.value)}
+                        className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                      >
+                        <option value="">Ajouter une matière libre...</option>
+                        {availableFreeSubjects.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>
+                        ))}
+                      </select>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={!addingFreeSubject}
+                        onClick={() => {
+                          if (addingFreeSubject) {
+                            setFreeSubjectIds(prev => [...prev, addingFreeSubject])
+                            setAddingFreeSubject('')
+                          }
+                        }}
+                      >
+                        <Plus size={14} />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>

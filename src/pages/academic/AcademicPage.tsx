@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAcademicData } from '@/hooks/useAcademicData'
+import type { StudentSubjectLink } from '@/hooks/useAcademicData'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { filterBySearch } from '@/utils/helpers'
 import type { Program, Diploma, Class, Subject, User } from '@/types'
-import { Plus, Search, Pencil, Trash2, GraduationCap, BookOpen, Layers, RefreshCw, UserCheck, FolderOpen, CalendarDays, X, FileText } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, GraduationCap, BookOpen, Layers, RefreshCw, UserCheck, FolderOpen, CalendarDays, X, FileText, Users } from 'lucide-react'
 import { SCHEDULE_TYPE_OPTIONS, DAY_OPTIONS, DEFAULT_DAYS_BY_TYPE, getScheduleTypeLabel, getScheduleTypeBadgeVariant, formatDaysShort } from '@/utils/scheduleUtils'
 import type { AlternanceConfig, ScheduleExceptions, ExamPeriod } from '@/types'
+import { supabase } from '@/lib/supabase'
 
 type Tab = 'programs' | 'diplomas' | 'classes' | 'subjects' | 'teachers'
 
@@ -446,6 +448,10 @@ function ClassesTab({
   updateClass,
   deleteClass,
   setClassSubjectLinks,
+  classStudents,
+  studentSubjects,
+  toggleDispensation,
+  getStudentSubjectsForClass,
 }: {
   classes: Class[]
   diplomas: Diploma[]
@@ -457,11 +463,18 @@ function ClassesTab({
   updateClass: (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: AlternanceConfig | null; scheduleExceptions?: ScheduleExceptions | null; examPeriods?: ExamPeriod[] | null }) => Promise<Class>
   deleteClass: (id: string) => Promise<void>
   setClassSubjectLinks: (classId: string, subjectIds: string[]) => Promise<void>
+  classStudents: { student_id: string; class_id: string }[]
+  studentSubjects: StudentSubjectLink[]
+  toggleDispensation: (id: string, dispensed: boolean, reason?: string) => Promise<void>
+  getStudentSubjectsForClass: (classId: string) => StudentSubjectLink[]
 }) {
   const [search, setSearch] = useState('')
   const [diplomaFilter, setDiplomaFilter] = useState('')
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
   const [selected, setSelected] = useState<Class | null>(null)
+  const [enrollmentClass, setEnrollmentClass] = useState<Class | null>(null)
+  const [enrollmentStudents, setEnrollmentStudents] = useState<{ id: string; name: string }[]>([])
+  const [enrollmentLoading, setEnrollmentLoading] = useState(false)
   const [form, setForm] = useState<ClassForm>(emptyClassForm)
   const [submitting, setSubmitting] = useState(false)
 
@@ -497,6 +510,25 @@ function ClassesTab({
   }
   const openDelete = (c: Class) => { setSelected(c); setModalMode('delete') }
   const closeModal = () => { setModalMode(null); setSelected(null) }
+
+  const openEnrollment = async (c: Class) => {
+    setEnrollmentClass(c)
+    setEnrollmentLoading(true)
+    // Charger les noms des étudiants de cette classe
+    const studentIds = classStudents.filter(cs => cs.class_id === c.id).map(cs => cs.student_id)
+    if (studentIds.length > 0) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', studentIds)
+        .eq('is_active', true)
+        .order('full_name')
+      setEnrollmentStudents((data || []).map((p: any) => ({ id: p.id, name: p.full_name || 'Sans nom' })))
+    } else {
+      setEnrollmentStudents([])
+    }
+    setEnrollmentLoading(false)
+  }
 
   const buildAlternanceConfig = (): AlternanceConfig | null => {
     if (form.scheduleType !== 'alternance' || !form.hasAlternanceCycle) return null
@@ -659,6 +691,7 @@ function ClassesTab({
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" title="Inscriptions matières" onClick={() => openEnrollment(c)}><Users size={14} className="text-primary-600" /></Button>
                             <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil size={14} /></Button>
                             <Button variant="ghost" size="sm" onClick={() => openDelete(c)}><Trash2 size={14} className="text-error-600" /></Button>
                           </div>
@@ -1008,6 +1041,109 @@ function ClassesTab({
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={submitting}>Supprimer</Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Enrollment Modal */}
+      <Modal
+        isOpen={!!enrollmentClass}
+        onClose={() => setEnrollmentClass(null)}
+        title={`Inscriptions — ${enrollmentClass?.name || ''}`}
+        size="lg"
+      >
+        {enrollmentLoading ? (
+          <div className="flex justify-center py-8">
+            <LoadingSpinner size="md" text="Chargement des étudiants..." />
+          </div>
+        ) : enrollmentStudents.length === 0 ? (
+          <p className="text-sm text-neutral-400 text-center py-8">Aucun étudiant dans cette classe</p>
+        ) : (() => {
+          const classId = enrollmentClass!.id
+          const subjectIds = getSubjectIdsForClass(classId)
+          const classSubjectList = subjects.filter(s => subjectIds.includes(s.id)).sort((a, b) => a.name.localeCompare(b.name))
+          const enrollments = getStudentSubjectsForClass(classId)
+
+          if (classSubjectList.length === 0) {
+            return <p className="text-sm text-neutral-400 text-center py-8">Aucune matière dans cette classe</p>
+          }
+
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                    <th className="text-left py-2 px-2 font-semibold text-neutral-600 dark:text-neutral-400 sticky left-0 bg-white dark:bg-neutral-900 z-10 min-w-[140px]">
+                      Étudiant
+                    </th>
+                    {classSubjectList.map(s => (
+                      <th key={s.id} className="py-2 px-1 font-medium text-neutral-500 text-center min-w-[60px]">
+                        <span className="writing-mode-vertical inline-block transform -rotate-45 origin-bottom-left whitespace-nowrap text-[11px]">
+                          {s.name.length > 12 ? s.name.slice(0, 12) + '...' : s.name}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {enrollmentStudents.map(student => (
+                    <tr key={student.id} className="border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                      <td className="py-1.5 px-2 font-medium text-neutral-900 dark:text-neutral-100 sticky left-0 bg-white dark:bg-neutral-900 z-10">
+                        {student.name}
+                      </td>
+                      {classSubjectList.map(subject => {
+                        const enrollment = enrollments.find(
+                          ss => ss.student_id === student.id && ss.subject_id === subject.id
+                        )
+                        const isDispensed = enrollment?.status === 'dispensed'
+
+                        return (
+                          <td key={subject.id} className="py-1.5 px-1 text-center">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (enrollment) {
+                                  await toggleDispensation(enrollment.id, !isDispensed)
+                                }
+                              }}
+                              disabled={!enrollment}
+                              className={`w-7 h-7 rounded-md border-2 transition-all ${
+                                !enrollment
+                                  ? 'border-neutral-200 bg-neutral-100 cursor-not-allowed'
+                                  : isDispensed
+                                    ? 'border-warning-400 bg-warning-100 dark:bg-warning-900/30 hover:border-warning-500'
+                                    : 'border-success-400 bg-success-100 dark:bg-success-900/30 hover:border-success-500'
+                              }`}
+                              title={isDispensed ? 'Dispensé — cliquer pour réinscrire' : 'Inscrit — cliquer pour dispenser'}
+                            >
+                              {enrollment && !isDispensed && (
+                                <span className="text-success-600 font-bold text-xs">✓</span>
+                              )}
+                              {enrollment && isDispensed && (
+                                <span className="text-warning-600 font-bold text-xs">—</span>
+                              )}
+                            </button>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex items-center gap-4 mt-3 text-xs text-neutral-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded border-2 border-success-400 bg-success-100 inline-flex items-center justify-center text-success-600 text-[10px] font-bold">✓</span>
+                  Inscrit
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded border-2 border-warning-400 bg-warning-100 inline-flex items-center justify-center text-warning-600 text-[10px] font-bold">—</span>
+                  Dispensé
+                </span>
+              </div>
+            </div>
+          )
+        })()}
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setEnrollmentClass(null)}>Fermer</Button>
         </ModalFooter>
       </Modal>
     </>
@@ -1513,6 +1649,10 @@ function AcademicPage() {
     setClassSubjectLinks,
     setTeacherSubjectLinks,
     getSubjectIdsForTeacher,
+    classStudents,
+    studentSubjects,
+    toggleDispensation,
+    getStudentSubjectsForClass,
     refreshAll,
   } = useAcademicData()
 
@@ -1600,6 +1740,10 @@ function AcademicPage() {
           updateClass={updateClass}
           deleteClass={deleteClass}
           setClassSubjectLinks={setClassSubjectLinks}
+          classStudents={classStudents}
+          studentSubjects={studentSubjects}
+          toggleDispensation={toggleDispensation}
+          getStudentSubjectsForClass={getStudentSubjectsForClass}
         />
       )}
       {activeTab === 'subjects' && (

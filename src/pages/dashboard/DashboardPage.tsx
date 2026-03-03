@@ -122,7 +122,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { bookings, isLoading: bookingsLoading, upcomingBookings, bookingsByStatus } = useBookings()
   const { rooms, isLoading: roomsLoading, totalCapacity } = useRooms()
   const { userStats, isLoading: usersLoading, teachers } = useUsers()
-  const { subjects, classes, classSubjects, getSubjectIdsForTeacher, getClassIdsForStudent, teacherSubjects, teachers: academicTeachers } = useAcademicData()
+  const { subjects, classes, classSubjects, getSubjectIdsForTeacher, getClassIdsForStudent, teacherSubjects, teachers: academicTeachers, studentSubjects } = useAcademicData()
 
   // Quotas d'utilisation
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null)
@@ -328,11 +328,23 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
     const myClassIds = getClassIdsForStudent(user.id)
     const myClasses = classes.filter(c => myClassIds.includes(c.id))
 
-    // Matières de l'étudiant (via class_subjects filtrées par ses classes)
-    const mySubjectIds = new Set<string>()
-    for (const cs of classSubjects) {
-      if (myClassIds.includes(cs.class_id)) {
-        mySubjectIds.add(cs.subject_id)
+    // Matières via student_subjects (prioritaire) ou fallback sur class_subjects
+    const myStudentSubjects = studentSubjects.filter(ss => ss.student_id === user.id)
+    const hasStudentSubjects = myStudentSubjects.length > 0
+
+    let mySubjectIds: Set<string>
+    let dispensedCount = 0
+
+    if (hasStudentSubjects) {
+      const enrolled = myStudentSubjects.filter(ss => ss.status === 'enrolled')
+      dispensedCount = myStudentSubjects.filter(ss => ss.status === 'dispensed').length
+      mySubjectIds = new Set(enrolled.map(ss => ss.subject_id))
+    } else {
+      mySubjectIds = new Set<string>()
+      for (const cs of classSubjects) {
+        if (myClassIds.includes(cs.class_id)) {
+          mySubjectIds.add(cs.subject_id)
+        }
       }
     }
     const mySubjects = subjects.filter(s => mySubjectIds.has(s.id))
@@ -368,12 +380,13 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
     return {
       myClasses,
       mySubjects,
+      dispensedCount,
       myTeachers,
       weekSessionCount: weekBookings.length,
       upcoming,
       nextSession: upcoming[0] || null,
     }
-  }, [isStudent, user?.id, classes, subjects, classSubjects, bookings, teacherSubjects, academicTeachers, getClassIdsForStudent])
+  }, [isStudent, user?.id, classes, subjects, classSubjects, bookings, teacherSubjects, academicTeachers, getClassIdsForStudent, studentSubjects])
 
   // ==================== DONNÉES PROFESSEUR ====================
 
@@ -471,6 +484,9 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               <div>
                 <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Mes matières</p>
                 <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{studentData.mySubjects.length}</p>
+                {studentData.dispensedCount > 0 && (
+                  <p className="text-xs text-warning-600 mt-0.5">({studentData.dispensedCount} dispensée{studentData.dispensedCount > 1 ? 's' : ''})</p>
+                )}
               </div>
               <div className="p-3 rounded-xl bg-success-100">
                 <BookOpen size={22} className="text-success-600" />
@@ -559,11 +575,22 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               {studentData.mySubjects.length === 0 ? (
                 <p className="text-sm text-neutral-400">Aucune matière assignée</p>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {studentData.mySubjects.map(s => (
-                    <span key={s.id} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                      {s.name}
-                    </span>
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-sm transition-all"
+                    >
+                      <div className="shrink-0 w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                        <BookOpen size={14} className="text-primary-600 dark:text-primary-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{s.name}</p>
+                        {s.code && (
+                          <p className="text-xs text-neutral-400 dark:text-neutral-500">{s.code}</p>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -573,11 +600,17 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               {studentData.myTeachers.length === 0 ? (
                 <p className="text-sm text-neutral-400">Aucun professeur assigné</p>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {studentData.myTeachers.map(t => (
-                    <span key={t.id} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-success-50 text-success-700 dark:bg-success-950 dark:text-success-300">
-                      {t.firstName} {t.lastName}
-                    </span>
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50 hover:border-success-300 dark:hover:border-success-700 hover:shadow-sm transition-all"
+                    >
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-success-100 dark:bg-success-900 flex items-center justify-center text-xs font-bold text-success-700 dark:text-success-300">
+                        {(t.firstName?.[0] || '').toUpperCase()}{(t.lastName?.[0] || '').toUpperCase()}
+                      </div>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{t.firstName} {t.lastName}</p>
+                    </div>
                   ))}
                 </div>
               )}
@@ -599,6 +632,18 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               <div>
                 <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mon emploi du temps</p>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">Voir le calendrier</p>
+              </div>
+            </button>
+            <button
+              className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
+              onClick={() => onNavigate?.('/my-class')}
+            >
+              <div className="p-3 bg-success-50 rounded-xl">
+                <GraduationCap size={20} className="text-success-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Ma classe</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Matières, professeurs, camarades</p>
               </div>
             </button>
           </div>

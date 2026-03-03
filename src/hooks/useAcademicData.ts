@@ -21,6 +21,8 @@ import toast from 'react-hot-toast'
 interface ClassSubjectLink {
   class_id: string
   subject_id: string
+  trainer_id?: string
+  hours_planned?: number
 }
 
 interface TeacherSubjectLink {
@@ -33,6 +35,17 @@ interface ClassStudentLink {
   class_id: string
 }
 
+export interface StudentSubjectLink {
+  id: string
+  student_id: string
+  subject_id: string
+  class_id: string | null
+  center_id: string
+  enrollment_type: 'class' | 'free'
+  status: 'enrolled' | 'dispensed'
+  dispensation_reason?: string
+}
+
 export function useAcademicData() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [diplomas, setDiplomas] = useState<Diploma[]>([])
@@ -42,6 +55,7 @@ export function useAcademicData() {
   const [classSubjects, setClassSubjects] = useState<ClassSubjectLink[]>([])
   const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubjectLink[]>([])
   const [classStudents, setClassStudents] = useState<ClassStudentLink[]>([])
+  const [studentSubjects, setStudentSubjects] = useState<StudentSubjectLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
 
@@ -144,7 +158,7 @@ export function useAcademicData() {
       if (classIds.length > 0) {
         const { data: csData, error: csError } = await supabase
           .from('class_subjects')
-          .select('class_id, subject_id')
+          .select('class_id, subject_id, trainer_id, hours_planned')
           .in('class_id', classIds)
 
         if (!csError && csData) {
@@ -182,6 +196,14 @@ export function useAcademicData() {
       } else {
         setClassStudents([])
       }
+
+      // Charger student_subjects
+      const { data: ssData } = await supabase
+        .from('student_subjects')
+        .select('id, student_id, subject_id, class_id, center_id, enrollment_type, status, dispensation_reason')
+        .eq('center_id', user.establishmentId)
+      if (ssData) setStudentSubjects(ssData as StudentSubjectLink[])
+      else setStudentSubjects([])
     } catch (error: any) {
       toast.error('Erreur chargement référentiel: ' + (error?.message || 'Erreur inconnue'))
     } finally {
@@ -566,7 +588,46 @@ export function useAcademicData() {
     for (const sid of toRemove) {
       await unlinkSubjectFromClass(classId, sid)
     }
-  }, [classSubjects, linkSubjectToClass, unlinkSubjectFromClass])
+
+    // Sync student_subjects pour les étudiants de la classe
+    if (user?.establishmentId && (toAdd.length > 0 || toRemove.length > 0)) {
+      const studentIds = classStudents.filter(cs => cs.class_id === classId).map(cs => cs.student_id)
+      if (studentIds.length > 0) {
+        // Matières ajoutées → créer student_subjects pour chaque étudiant
+        if (toAdd.length > 0) {
+          const rows = studentIds.flatMap(sid =>
+            toAdd.map(subId => ({
+              student_id: sid,
+              subject_id: subId,
+              class_id: classId,
+              center_id: user.establishmentId,
+              enrollment_type: 'class' as const,
+              status: 'enrolled' as const,
+            }))
+          )
+          const { data: inserted, error } = await supabase
+            .from('student_subjects')
+            .insert(rows)
+            .select('id, student_id, subject_id, class_id, center_id, enrollment_type, status, dispensation_reason')
+          if (!error && inserted) setStudentSubjects(prev => [...prev, ...(inserted as StudentSubjectLink[])])
+        }
+        // Matières retirées → supprimer student_subjects (enrollment_type='class')
+        for (const subId of toRemove) {
+          const { error } = await supabase
+            .from('student_subjects')
+            .delete()
+            .eq('class_id', classId)
+            .eq('subject_id', subId)
+            .eq('enrollment_type', 'class')
+          if (!error) {
+            setStudentSubjects(prev => prev.filter(ss =>
+              !(ss.class_id === classId && ss.subject_id === subId && ss.enrollment_type === 'class')
+            ))
+          }
+        }
+      }
+    }
+  }, [classSubjects, classStudents, user?.establishmentId, linkSubjectToClass, unlinkSubjectFromClass])
 
   const getSubjectIdsForClass = useCallback(
     (classId: string): string[] => {
@@ -613,6 +674,9 @@ export function useAcademicData() {
   // ==================== Liens class_students ====================
 
   const setStudentClass = useCallback(async (studentId: string, classId: string | null) => {
+    // Ancienne classe pour la sync student_subjects
+    const oldClassId = classStudents.find(cs => cs.student_id === studentId)?.class_id ?? null
+
     // Supprimer les affectations existantes
     const { error: delError } = await supabase
       .from('class_students')
@@ -631,7 +695,10 @@ export function useAcademicData() {
       if (insError) { toast.error('Erreur affectation classe: ' + insError.message); throw insError }
       setClassStudents(prev => [...prev, { student_id: studentId, class_id: classId }])
     }
-  }, [])
+
+    // Sync student_subjects (class-type uniquement, free préservés)
+    await syncStudentSubjectsForClassChange(studentId, oldClassId, classId)
+  }, [classStudents, syncStudentSubjectsForClassChange])
 
   const getClassIdForStudent = useCallback(
     (studentId: string): string | null => {
@@ -640,6 +707,106 @@ export function useAcademicData() {
     },
     [classStudents],
   )
+
+  // ==================== CRUD student_subjects ====================
+
+  const toggleDispensation = useCallback(async (id: string, dispensed: boolean, reason?: string) => {
+    const newStatus = dispensed ? 'dispensed' : 'enrolled'
+    const payload: any = { status: newStatus, updated_at: new Date().toISOString() }
+    if (dispensed && reason !== undefined) payload.dispensation_reason = reason
+    if (!dispensed) payload.dispensation_reason = null
+
+    const { error } = await supabase.from('student_subjects').update(payload).eq('id', id)
+    if (error) { toast.error('Erreur dispensation: ' + error.message); throw error }
+    setStudentSubjects(prev => prev.map(ss => ss.id === id ? { ...ss, status: newStatus as 'enrolled' | 'dispensed', dispensation_reason: dispensed ? (reason || ss.dispensation_reason) : undefined } : ss))
+  }, [])
+
+  const addFreeSubject = useCallback(async (studentId: string, subjectId: string) => {
+    if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
+    const { data: row, error } = await supabase
+      .from('student_subjects')
+      .insert({
+        student_id: studentId,
+        subject_id: subjectId,
+        class_id: null,
+        center_id: user.establishmentId,
+        enrollment_type: 'free',
+        status: 'enrolled',
+      })
+      .select('id, student_id, subject_id, class_id, center_id, enrollment_type, status, dispensation_reason')
+      .single()
+    if (error) { toast.error('Erreur ajout matière libre: ' + error.message); throw error }
+    setStudentSubjects(prev => [...prev, row as StudentSubjectLink])
+    return row
+  }, [user?.establishmentId])
+
+  const removeFreeSubject = useCallback(async (studentId: string, subjectId: string) => {
+    const { error } = await supabase
+      .from('student_subjects')
+      .delete()
+      .eq('student_id', studentId)
+      .eq('subject_id', subjectId)
+      .eq('enrollment_type', 'free')
+      .is('class_id', null)
+    if (error) { toast.error('Erreur suppression matière libre: ' + error.message); throw error }
+    setStudentSubjects(prev => prev.filter(ss =>
+      !(ss.student_id === studentId && ss.subject_id === subjectId && ss.enrollment_type === 'free' && ss.class_id === null)
+    ))
+  }, [])
+
+  const getStudentSubjectsForStudent = useCallback(
+    (studentId: string): StudentSubjectLink[] => {
+      return studentSubjects.filter(ss => ss.student_id === studentId)
+    },
+    [studentSubjects],
+  )
+
+  const getStudentSubjectsForClass = useCallback(
+    (classId: string): StudentSubjectLink[] => {
+      return studentSubjects.filter(ss => ss.class_id === classId)
+    },
+    [studentSubjects],
+  )
+
+  // Sync student_subjects quand un étudiant change de classe
+  const syncStudentSubjectsForClassChange = useCallback(async (studentId: string, oldClassId: string | null, newClassId: string | null) => {
+    if (!user?.establishmentId) return
+
+    // 1. Supprimer inscriptions class-type de l'ancienne classe
+    if (oldClassId) {
+      const { error: delErr } = await supabase
+        .from('student_subjects')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('class_id', oldClassId)
+        .eq('enrollment_type', 'class')
+      if (delErr) console.error('Erreur suppression student_subjects:', delErr.message)
+      setStudentSubjects(prev => prev.filter(ss =>
+        !(ss.student_id === studentId && ss.class_id === oldClassId && ss.enrollment_type === 'class')
+      ))
+    }
+
+    // 2. Créer inscriptions pour la nouvelle classe
+    if (newClassId) {
+      const newSubjectIds = classSubjects.filter(cs => cs.class_id === newClassId).map(cs => cs.subject_id)
+      if (newSubjectIds.length > 0) {
+        const rows = newSubjectIds.map(sid => ({
+          student_id: studentId,
+          subject_id: sid,
+          class_id: newClassId,
+          center_id: user.establishmentId,
+          enrollment_type: 'class' as const,
+          status: 'enrolled' as const,
+        }))
+        const { data: inserted, error: insErr } = await supabase
+          .from('student_subjects')
+          .insert(rows)
+          .select('id, student_id, subject_id, class_id, center_id, enrollment_type, status, dispensation_reason')
+        if (insErr) console.error('Erreur création student_subjects:', insErr.message)
+        if (inserted) setStudentSubjects(prev => [...prev, ...(inserted as StudentSubjectLink[])])
+      }
+    }
+  }, [user?.establishmentId, classSubjects])
 
   // Helpers de cascade
 
@@ -759,6 +926,13 @@ export function useAcademicData() {
     [getSubjectsByDiploma],
   )
 
+  const getClassSubjectsForClass = useCallback(
+    (classId: string): ClassSubjectLink[] => {
+      return classSubjects.filter(cs => cs.class_id === classId)
+    },
+    [classSubjects],
+  )
+
   return {
     programs,
     diplomas,
@@ -812,6 +986,7 @@ export function useAcademicData() {
     unlinkSubjectFromClass,
     setClassSubjectLinks,
     getSubjectIdsForClass,
+    getClassSubjectsForClass,
     // Teacher-Subject links
     setTeacherSubjectLinks,
     getSubjectIdsForTeacher,
@@ -819,6 +994,13 @@ export function useAcademicData() {
     getClassIdsForStudent,
     getClassIdForStudent,
     setStudentClass,
+    // Student-Subject links
+    studentSubjects,
+    toggleDispensation,
+    addFreeSubject,
+    removeFreeSubject,
+    getStudentSubjectsForStudent,
+    getStudentSubjectsForClass,
     // Refresh
     refreshAll: fetchAll,
   }
