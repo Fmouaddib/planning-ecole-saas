@@ -25,8 +25,6 @@ import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
 import { mockBuildingRooms } from '@/data/mock-room-buildings'
 import { ColorLegend } from './ColorLegend'
-import { CreateBookingModal } from './CreateBookingModal'
-import { RoomsView } from './RoomsView'
 import {
   ChevronLeft,
   ChevronRight,
@@ -41,11 +39,13 @@ import {
   Video,
 } from 'lucide-react'
 
-// Lazy-loaded views
+// Lazy-loaded views & modals
 const WeekView = lazy(() => import('./WeekView'))
 const MonthView = lazy(() => import('./MonthView'))
 const DayView = lazy(() => import('./DayView'))
+const RoomsView = lazy(() => import('./RoomsView').then(m => ({ default: m.RoomsView })))
 const BatchCreateModal = lazy(() => import('./BatchCreateModal'))
+const CreateBookingModal = lazy(() => import('./CreateBookingModal').then(m => ({ default: m.CreateBookingModal })))
 
 type ViewMode = 'week' | 'month' | 'day' | 'rooms'
 
@@ -660,18 +660,20 @@ function CalendarPage() {
           )}
         </Suspense>
         {view === 'rooms' && (
-          <RoomsView
-            currentDate={currentDate}
-            events={filteredEvents}
-            onEventClick={setSelectedEvent}
-            buildings={isDemoMode
-              ? mockBuildingRooms.map(b => ({
-                  ...b,
-                  rooms: b.rooms.map(r => ({ id: r.name, name: r.name, capacity: r.capacity })),
-                }))
-              : buildingsWithRooms
-            }
-          />
+          <Suspense fallback={<div className="flex justify-center py-20"><LoadingSpinner /></div>}>
+            <RoomsView
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={setSelectedEvent}
+              buildings={isDemoMode
+                ? mockBuildingRooms.map(b => ({
+                    ...b,
+                    rooms: b.rooms.map(r => ({ id: r.name, name: r.name, capacity: r.capacity })),
+                  }))
+                : buildingsWithRooms
+              }
+            />
+          </Suspense>
         )}
       </div>
 
@@ -761,16 +763,30 @@ function CalendarPage() {
             </div>
             {selectedEvent.meetingUrl && (
               <div>
-                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Lien visio</label>
-                <a
-                  href={selectedEvent.meetingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 mt-1 text-sm font-medium"
-                >
-                  <Video size={16} />
-                  Rejoindre la visio
-                </a>
+                {isStudent ? (
+                  <a
+                    href={selectedEvent.meetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm transition-colors"
+                  >
+                    <Video size={18} />
+                    Rejoindre la visio
+                  </a>
+                ) : (
+                  <>
+                    <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Lien visio</label>
+                    <a
+                      href={selectedEvent.meetingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 mt-1 text-sm font-medium"
+                    >
+                      <Video size={16} />
+                      Rejoindre la visio
+                    </a>
+                  </>
+                )}
               </div>
             )}
             {selectedEvent.description && (
@@ -787,19 +803,23 @@ function CalendarPage() {
       </Modal>
 
       {/* F5 - Create Booking Modal */}
-      <CreateBookingModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSubmit={handleCreateSubmit}
-        prefilledDate={createDate}
-        prefilledHour={createHour}
-        rooms={roomOptions}
-        virtualRooms={virtualRoomOptions}
-        diplomaOptions={diplomaOptions}
-        classOptionsByDiploma={classOptionsByDiploma}
-        subjectOptionsByClass={subjectOptionsByClass}
-        getClassById={getClassById}
-      />
+      {showCreateModal && (
+        <Suspense fallback={null}>
+          <CreateBookingModal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSubmit={handleCreateSubmit}
+            prefilledDate={createDate}
+            prefilledHour={createHour}
+            rooms={roomOptions}
+            virtualRooms={virtualRoomOptions}
+            diplomaOptions={diplomaOptions}
+            classOptionsByDiploma={classOptionsByDiploma}
+            subjectOptionsByClass={subjectOptionsByClass}
+            getClassById={getClassById}
+          />
+        </Suspense>
+      )}
 
       {/* Batch Create Modal */}
       {showBatchModal && (
