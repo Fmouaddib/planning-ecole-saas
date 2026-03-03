@@ -7,6 +7,7 @@ import LandingLayout from '@/components/landing/LandingLayout'
 const plans = [
   {
     nameKey: 'plan.free',
+    slug: 'free',
     price: 0,
     priceAnnual: 0,
     features: ['plan.free.f1', 'plan.free.f2', 'plan.free.f3', 'plan.free.f4'],
@@ -16,6 +17,7 @@ const plans = [
   },
   {
     nameKey: 'plan.ecole',
+    slug: 'ecole-en-ligne',
     price: 59,
     priceAnnual: 47,
     features: ['plan.ecole.f1', 'plan.ecole.f2', 'plan.ecole.f3', 'plan.ecole.f4', 'plan.ecole.f5', 'plan.ecole.f6'],
@@ -25,6 +27,7 @@ const plans = [
   },
   {
     nameKey: 'plan.pro',
+    slug: 'pro',
     price: 99,
     priceAnnual: 79,
     features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
@@ -34,6 +37,7 @@ const plans = [
   },
   {
     nameKey: 'plan.enterprise',
+    slug: 'enterprise',
     price: 149,
     priceAnnual: 119,
     features: ['plan.enterprise.f1', 'plan.enterprise.f2', 'plan.enterprise.f3', 'plan.enterprise.f4', 'plan.enterprise.f5', 'plan.enterprise.f6'],
@@ -130,6 +134,10 @@ export default function PricingPage() {
           <div className="landing-pricing-grid">
             {plans.map((plan, i) => {
               const price = annualBilling ? plan.priceAnnual : plan.price
+              const billing = annualBilling ? 'yearly' : 'monthly'
+              const ctaHref = plan.slug === 'free'
+                ? '#/onboarding'
+                : `#/onboarding?plan=${plan.slug}&billing=${billing}`
               return (
                 <div
                   key={plan.nameKey}
@@ -155,7 +163,7 @@ export default function PricingPage() {
                     ))}
                   </ul>
                   <a
-                    href="#/signup"
+                    href={ctaHref}
                     className={`landing-pricing-card-btn ${plan.btnStyle}`}
                   >
                     {t(plan.ctaKey)}

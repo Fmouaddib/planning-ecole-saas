@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
+import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { Button, Input, Modal, ModalFooter } from '@/components/ui'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage } from '@/types'
-import { User, KeyRound, Mail, LogOut } from 'lucide-react'
+import { User, KeyRound, Mail, LogOut, CreditCard, ArrowUpRight } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -53,6 +54,7 @@ function UsageBar({ label, usage }: { label: string; usage: ResourceUsage }) {
 function ProfilePage({ onLogout }: ProfilePageProps) {
   const { user, updateProfile } = useAuthContext()
   const { plan, subscription, usage, isLoading: subLoading, error: subError } = useSubscriptionInfo()
+  const { openPortal, isLoading: portalLoading } = useStripeCheckout()
 
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
@@ -231,12 +233,32 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
             )}
 
             <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800">
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
-                Pour changer de plan ou poser une question sur votre abonnement :
-              </p>
-              <a href="mailto:support@antiplanning.com">
-                <Button variant="secondary">Contacter le support</Button>
-              </a>
+              {subscription?.stripeSubscriptionId ? (
+                <>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
+                    Gérez votre abonnement, vos factures et vos moyens de paiement :
+                  </p>
+                  <Button
+                    variant="secondary"
+                    leftIcon={CreditCard}
+                    onClick={openPortal}
+                    isLoading={portalLoading}
+                  >
+                    Gérer mon abonnement
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
+                    Passez à un plan supérieur pour débloquer plus de fonctionnalités :
+                  </p>
+                  <a href="#/pricing">
+                    <Button variant="secondary" leftIcon={ArrowUpRight}>
+                      Voir les plans
+                    </Button>
+                  </a>
+                </>
+              )}
             </div>
           </div>
         )}

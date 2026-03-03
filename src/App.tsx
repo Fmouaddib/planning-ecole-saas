@@ -36,6 +36,7 @@ const HelpPage = lazy(() => import('@/pages/help/HelpPage'))
 const AcademicPage = lazy(() => import('@/pages/academic/AcademicPage'))
 const VisioPage = lazy(() => import('@/pages/visio/VisioPage'))
 const EmailsPage = lazy(() => import('@/pages/emails/EmailsPage'))
+const MyClassPage = lazy(() => import('@/pages/my-class/MyClassPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -65,6 +66,7 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.ACADEMIC]: AcademicPage,
   [ROUTES.HELP]: HelpPage,
   [ROUTES.VISIO]: VisioPage,
+  [ROUTES.MY_CLASS]: MyClassPage,
   [ROUTES.EMAILS]: EmailsPage,
 }
 
@@ -211,6 +213,24 @@ export default function App() {
     const onHashChange = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  // Gérer le retour Stripe Checkout (?checkout=success ou ?checkout=cancelled)
+  useEffect(() => {
+    const h = window.location.hash
+    const qIdx = h.indexOf('?')
+    if (qIdx === -1) return
+    const params = new URLSearchParams(h.slice(qIdx))
+    if (params.get('checkout') === 'success') {
+      toast.success('Paiement réussi ! Votre abonnement est maintenant actif.')
+      // Nettoyer l'URL en gardant la route de base
+      const basePath = h.slice(0, qIdx) || '#/'
+      window.location.hash = basePath
+    } else if (params.get('checkout') === 'cancelled') {
+      toast.error('Paiement annulé.')
+      const basePath = h.slice(0, qIdx) || '#/'
+      window.location.hash = basePath
+    }
   }, [])
 
   const handleLogin = async (credentials: LoginForm): Promise<void> => {
@@ -480,6 +500,21 @@ export default function App() {
     return landingSuspense(LandingPage)
   }
 
+  // Pricing accessible aux utilisateurs authentifiés (upgrade depuis ProfilePage)
+  if (hash === '#/pricing') {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+            <LoadingState size="lg" text="Chargement..." />
+          </div>
+        }
+      >
+        <PricingPage />
+      </Suspense>
+    )
+  }
+
   // Super Admin space
   if (hash.startsWith('#/super-admin')) {
     return (
@@ -501,7 +536,7 @@ export default function App() {
   // Render the current page based on path
   const renderPage = () => {
     // Route guards : les professeurs n'ont pas accès aux pages admin
-    const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.VISIO, ROUTES.EMAILS]
+    const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.VISIO, ROUTES.EMAILS, ROUTES.MY_CLASS]
     if (isTeacherRole(effectiveUser?.role) && teacherForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />

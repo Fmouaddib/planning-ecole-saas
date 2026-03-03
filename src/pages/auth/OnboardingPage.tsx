@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Eye, EyeOff, Lock, Mail, Building2, Phone, MapPin,
-  ArrowRight, ArrowLeft, User, CheckCircle, Copy, Check
+  ArrowRight, ArrowLeft, User, CheckCircle, Copy, Check, Crown, Zap, Rocket
 } from 'lucide-react'
 import { Button, Input, Card, CardContent } from '@/components/ui'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
+import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import toast, { Toaster } from 'react-hot-toast'
 
 interface StepIndicatorProps {
@@ -57,11 +58,20 @@ function getPasswordStrength(password: string): { level: number; label: string; 
   return { level: 4, label: 'Très fort', color: 'bg-success-600' }
 }
 
+// Plan cards pour l'étape 3
+const onboardingPlans = [
+  { slug: 'free', nameKey: 'Gratuit', price: 0, priceYearly: 0, icon: Zap, color: 'bg-gray-100 text-gray-600', features: ['3 enseignants', '3 salles', '50 séances/mois'] },
+  { slug: 'ecole-en-ligne', nameKey: 'École en ligne', price: 59, priceYearly: 47, icon: Rocket, color: 'bg-teal-100 text-teal-600', features: ['15 enseignants', '200 étudiants', 'Visio intégrée'] },
+  { slug: 'pro', nameKey: 'Pro', price: 99, priceYearly: 79, icon: Crown, color: 'bg-blue-100 text-blue-600', features: ['50 enseignants', 'Salles illimitées', 'Export & stats'] },
+  { slug: 'enterprise', nameKey: 'Enterprise', price: 149, priceYearly: 119, icon: Crown, color: 'bg-purple-100 text-purple-600', features: ['Illimité', 'Multi-campus', 'SLA 99.9%'] },
+]
+
 export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const { openCheckout, isLoading: checkoutLoading } = useStripeCheckout()
 
   // Étape 1 : Compte admin
   const [firstName, setFirstName] = useState('')
@@ -81,8 +91,32 @@ export default function OnboardingPage() {
   const [phone, setPhone] = useState('')
   const [contactEmail, setContactEmail] = useState('')
 
+  // Étape 3 : Plan
+  const [selectedPlan, setSelectedPlan] = useState('free')
+  const [annualBilling, setAnnualBilling] = useState(false)
+
   // Résultat
   const [enrollmentCode, setEnrollmentCode] = useState<string | null>(null)
+
+  // Parse URL params (?plan=&billing=) et checkout return (?checkout=success)
+  useEffect(() => {
+    const hash = window.location.hash
+    const queryIndex = hash.indexOf('?')
+    if (queryIndex === -1) return
+    const params = new URLSearchParams(hash.slice(queryIndex))
+    if (params.get('plan')) setSelectedPlan(params.get('plan')!)
+    if (params.get('billing') === 'yearly') setAnnualBilling(true)
+    if (params.get('checkout') === 'success') {
+      toast.success('Paiement réussi ! Votre abonnement est actif.')
+      // Nettoyer l'URL
+      window.location.hash = '#/onboarding'
+      setStep(4) // Aller directement au succès
+    }
+    if (params.get('checkout') === 'cancelled') {
+      toast.error('Paiement annulé.')
+      window.location.hash = '#/onboarding'
+    }
+  }, [])
 
   const passwordStrength = getPasswordStrength(password)
 
@@ -188,7 +222,7 @@ export default function OnboardingPage() {
       })
 
       setEnrollmentCode(result.enrollment_code)
-      setStep(3)
+      setStep(3) // Aller à l'étape Plan
       toast.success('Établissement créé avec succès !')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur lors de la création'
@@ -212,6 +246,21 @@ export default function OnboardingPage() {
     }
   }
 
+  const handleSelectPlan = async (planSlug: string) => {
+    if (planSlug === 'free') {
+      // Plan gratuit : passer directement au succès
+      setStep(4)
+      return
+    }
+    // Plan payant : rediriger vers Stripe Checkout
+    await openCheckout({
+      planSlug,
+      billingCycle: annualBilling ? 'yearly' : 'monthly',
+      successUrl: `${window.location.origin}/#/onboarding?checkout=success`,
+      cancelUrl: `${window.location.origin}/#/onboarding?checkout=cancelled`,
+    })
+  }
+
   const handleGoToDashboard = () => {
     window.location.hash = '#/login'
     window.location.reload()
@@ -220,7 +269,7 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center p-4">
       <Toaster position="top-center" />
-      <div className="w-full max-w-lg">
+      <div className={`w-full ${step === 3 ? 'max-w-2xl' : 'max-w-lg'} transition-all`}>
         {/* Retour */}
         <a
           href="#/"
@@ -239,21 +288,23 @@ export default function OnboardingPage() {
             <span className="text-white font-extrabold text-2xl">A</span>
           </div>
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 font-display mb-2">
-            {step === 3 ? 'Félicitations !' : 'Créer mon établissement'}
+            {step === 4 ? 'Félicitations !' : 'Créer mon établissement'}
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400">
             {step === 1 && 'Commencez par créer votre compte administrateur'}
             {step === 2 && 'Renseignez les informations de votre établissement'}
-            {step === 3 && 'Votre établissement est prêt à utiliser'}
+            {step === 3 && 'Choisissez votre formule'}
+            {step === 4 && 'Votre établissement est prêt à utiliser'}
           </p>
         </div>
 
-        {step < 3 && <StepIndicator current={step} total={2} />}
+        {step < 3 && <StepIndicator current={step} total={3} />}
+        {step === 3 && <StepIndicator current={3} total={3} />}
 
         <Card variant="elevated" className="shadow-strong">
           <CardContent>
-            {/* =================== Étape 3 : Succès =================== */}
-            {step === 3 && (
+            {/* =================== Étape 4 : Succès =================== */}
+            {step === 4 && (
               <div className="text-center py-4">
                 <div className="mx-auto h-14 w-14 rounded-full bg-success-100 dark:bg-success-900/30 flex items-center justify-center mb-4">
                   <CheckCircle className="h-7 w-7 text-success-600 dark:text-success-400" />
@@ -297,6 +348,94 @@ export default function OnboardingPage() {
                 >
                   Accéder à mon espace
                 </Button>
+              </div>
+            )}
+
+            {/* =================== Étape 3 : Choix du plan =================== */}
+            {step === 3 && (
+              <div className="space-y-5">
+                {/* Toggle mensuel/annuel */}
+                <div className="flex items-center justify-center gap-3">
+                  <span className={`text-sm font-medium ${!annualBilling ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400'}`}>
+                    Mensuel
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAnnualBilling(!annualBilling)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${annualBilling ? 'bg-primary-600' : 'bg-neutral-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${annualBilling ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className={`text-sm font-medium ${annualBilling ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400'}`}>
+                    Annuel
+                  </span>
+                  {annualBilling && (
+                    <span className="text-xs font-semibold text-success-600 bg-success-50 px-2 py-0.5 rounded-full">
+                      -20%
+                    </span>
+                  )}
+                </div>
+
+                {/* Grille des plans */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {onboardingPlans.map((plan) => {
+                    const price = annualBilling ? plan.priceYearly : plan.price
+                    const isSelected = selectedPlan === plan.slug
+                    const Icon = plan.icon
+                    return (
+                      <button
+                        key={plan.slug}
+                        type="button"
+                        onClick={() => setSelectedPlan(plan.slug)}
+                        className={`text-left p-4 rounded-xl border-2 transition-all ${
+                          isSelected
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-950 shadow-md'
+                            : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`p-1.5 rounded-lg ${plan.color}`}>
+                            <Icon size={16} />
+                          </div>
+                          <span className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">
+                            {plan.nameKey}
+                          </span>
+                        </div>
+                        <div className="mb-2">
+                          <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                            {price === 0 ? 'Gratuit' : `${price}€`}
+                          </span>
+                          {price > 0 && <span className="text-sm text-neutral-500">/mois</span>}
+                        </div>
+                        <ul className="space-y-1">
+                          {plan.features.map((f, i) => (
+                            <li key={i} className="flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400">
+                              <Check size={12} className="text-success-500 shrink-0" />
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  rightIcon={ArrowRight}
+                  onClick={() => handleSelectPlan(selectedPlan)}
+                  isLoading={checkoutLoading}
+                  disabled={checkoutLoading}
+                >
+                  {selectedPlan === 'free' ? 'Commencer gratuitement' : 'Continuer vers le paiement'}
+                </Button>
+
+                <p className="text-xs text-neutral-400 text-center">
+                  Vous pourrez changer de plan à tout moment depuis votre profil.
+                </p>
               </div>
             )}
 

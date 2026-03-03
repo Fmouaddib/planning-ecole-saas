@@ -58,6 +58,8 @@ export function useSubscriptionInfo(): SubscriptionInfo & { refresh: () => Promi
           endDate: subData.current_period_end || '',
           renewalDate: subData.cancel_at_period_end ? '' : (subData.current_period_end || ''),
           createdAt: subData.created_at,
+          stripeSubscriptionId: subData.stripe_subscription_id || undefined,
+          stripeCustomerId: subData.stripe_customer_id || undefined,
         })
 
         if (subData.plan) {

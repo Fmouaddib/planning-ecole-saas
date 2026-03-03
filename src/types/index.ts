@@ -576,6 +576,8 @@ export interface EstablishmentSubscription {
   endDate: string
   renewalDate: string
   createdAt: string
+  stripeSubscriptionId?: string
+  stripeCustomerId?: string
 }
 
 export interface ResourceUsage {
