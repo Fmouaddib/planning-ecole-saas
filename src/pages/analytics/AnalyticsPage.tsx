@@ -713,22 +713,22 @@ function AnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Séances par jour</h3>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Semaine courante (Lu-Ve)</p>
-          <BarChart data={weekBarData} height={110} showValues />
-        </div>
-        <div className="card">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Répartition par statut</h3>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Toutes les séances</p>
           <DonutChart data={statusDonutData} size={140} thickness={22} />
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Séances par modalité</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Présentiel / En ligne / Hybride</p>
+          <DonutChart data={modalityDonutData} size={140} thickness={22} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Occupation des salles</h3>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Par créneau horaire (semaine courante)</p>
-          <HeatmapGrid data={heatmapData} rowLabels={DAY_LABELS} colLabels={SLOT_LABELS} />
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Séances par jour</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Semaine courante (Lu-Ve)</p>
+          <BarChart data={weekBarData} height={110} showValues />
         </div>
         <div className="card">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Charge enseignante</h3>
@@ -741,11 +741,11 @@ function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="card">
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Séances par modalité</h3>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Présentiel / En ligne / Hybride</p>
-          <DonutChart data={modalityDonutData} size={140} thickness={22} />
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Occupation des salles</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Par créneau horaire (semaine courante)</p>
+          <HeatmapGrid data={heatmapData} rowLabels={DAY_LABELS} colLabels={SLOT_LABELS} />
         </div>
         <div className="card">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Utilisation des salles</h3>
