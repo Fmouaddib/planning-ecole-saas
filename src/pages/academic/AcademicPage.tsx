@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import type { StudentSubjectLink } from '@/hooks/useAcademicData'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { filterBySearch } from '@/utils/helpers'
 import type { Program, Diploma, Class, Subject, User } from '@/types'
-import { Plus, Search, Pencil, Trash2, GraduationCap, BookOpen, Layers, RefreshCw, UserCheck, FolderOpen, CalendarDays, X, FileText, Users } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, GraduationCap, BookOpen, Layers, RefreshCw, UserCheck, FolderOpen, CalendarDays, X, FileText, Users, Rss, Copy, Check, Send, RefreshCcw, Pause, Play } from 'lucide-react'
+import { useCalendarFeeds, getFeedUrl } from '@/hooks/useCalendarFeeds'
+import type { CalendarFeed } from '@/hooks/useCalendarFeeds'
 import { SCHEDULE_TYPE_OPTIONS, DAY_OPTIONS, DEFAULT_DAYS_BY_TYPE, getScheduleTypeLabel, getScheduleTypeBadgeVariant, formatDaysShort } from '@/utils/scheduleUtils'
 import type { AlternanceConfig, ScheduleExceptions, ExamPeriod } from '@/types'
 import { supabase } from '@/lib/supabase'
@@ -1177,10 +1179,18 @@ function SubjectsTab({
 }) {
   const [search, setSearch] = useState('')
   const [programFilter, setProgramFilter] = useState('')
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'ical' | null>(null)
   const [selected, setSelected] = useState<Subject | null>(null)
   const [form, setForm] = useState<SubjectForm>(emptySubjectForm)
   const [submitting, setSubmitting] = useState(false)
+
+  // iCal feeds
+  const { getOrCreateFeed, regenerateToken, toggleFeedActive, shareFeedByEmail } = useCalendarFeeds()
+  const [icalFeed, setIcalFeed] = useState<CalendarFeed | null>(null)
+  const [icalLoading, setIcalLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [emailInput, setEmailInput] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   const filtered = useMemo(() => {
     let result = subjects
@@ -1200,7 +1210,23 @@ function SubjectsTab({
     setModalMode('edit')
   }
   const openDelete = (s: Subject) => { setSelected(s); setModalMode('delete') }
-  const closeModal = () => { setModalMode(null); setSelected(null) }
+  const openIcal = useCallback(async (s: Subject) => {
+    setSelected(s)
+    setIcalLoading(true)
+    setIcalFeed(null)
+    setCopied(false)
+    setEmailInput('')
+    setModalMode('ical')
+    try {
+      const feed = await getOrCreateFeed(s.id, s.name)
+      setIcalFeed(feed)
+    } catch (err) {
+      console.error('Erreur création flux iCal:', err)
+    } finally {
+      setIcalLoading(false)
+    }
+  }, [getOrCreateFeed])
+  const closeModal = () => { setModalMode(null); setSelected(null); setIcalFeed(null); setCopied(false); setEmailInput('') }
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -1281,6 +1307,7 @@ function SubjectsTab({
                       <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400 max-w-xs truncate">{s.description || '-'}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openIcal(s)} title="Flux calendrier iCal"><Rss size={14} className="text-primary-600" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => openEdit(s)}><Pencil size={14} /></Button>
                           <Button variant="ghost" size="sm" onClick={() => openDelete(s)}><Trash2 size={14} className="text-error-600" /></Button>
                         </div>
@@ -1338,6 +1365,138 @@ function SubjectsTab({
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={submitting}>Supprimer</Button>
         </ModalFooter>
+      </Modal>
+
+      {/* iCal Feed Modal */}
+      <Modal isOpen={modalMode === 'ical'} onClose={closeModal}
+        title={`Flux calendrier — ${selected?.name || ''}`} size="md">
+        {icalLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <LoadingSpinner />
+          </div>
+        ) : icalFeed ? (
+          <div className="space-y-5">
+            {/* URL + Copy */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">URL d'abonnement</label>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={getFeedUrl(icalFeed.token)}
+                  className="flex-1 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300 font-mono select-all"
+                  onClick={e => (e.target as HTMLInputElement).select()}
+                />
+                <Button
+                  variant={copied ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(getFeedUrl(icalFeed.token))
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 2000)
+                  }}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                </Button>
+              </div>
+              {copied && <p className="text-xs text-success-600 mt-1">Copié !</p>}
+            </div>
+
+            {/* Instructions */}
+            <div className="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-4 text-sm text-neutral-700 dark:text-neutral-300">
+              <p className="font-medium text-primary-700 dark:text-primary-400 mb-2">Comment s'abonner ?</p>
+              <ul className="space-y-1 list-disc list-inside">
+                <li><strong>Google Calendar</strong> : Autres agendas (+) &gt; A partir de l'URL</li>
+                <li><strong>Apple Calendar</strong> : Fichier &gt; Nouvel abonnement</li>
+                <li><strong>Outlook</strong> : Ajouter un calendrier &gt; S'abonner depuis le web</li>
+              </ul>
+            </div>
+
+            {/* Stats */}
+            {(icalFeed.accessCount > 0 || icalFeed.lastAccessedAt) && (
+              <p className="text-xs text-neutral-500">
+                {icalFeed.accessCount} acc&egrave;s
+                {icalFeed.lastAccessedAt && (
+                  <> &middot; Dernier acc&egrave;s : {new Date(icalFeed.lastAccessedAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</>
+                )}
+              </p>
+            )}
+
+            {/* Email sharing */}
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Envoyer par email</label>
+              <textarea
+                value={emailInput}
+                onChange={e => setEmailInput(e.target.value)}
+                placeholder="emails séparés par virgule ou retour à la ligne..."
+                rows={2}
+                className="w-full rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300 placeholder:text-neutral-400 resize-none"
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-2"
+                disabled={!emailInput.trim() || sendingEmail}
+                isLoading={sendingEmail}
+                onClick={async () => {
+                  const emails = emailInput.split(/[,\n]+/).map(e => e.trim()).filter(Boolean)
+                  if (emails.length === 0) return
+                  setSendingEmail(true)
+                  try {
+                    await shareFeedByEmail(getFeedUrl(icalFeed.token), selected?.name || '', emails)
+                    setEmailInput('')
+                  } catch (err) {
+                    console.error('Erreur envoi email:', err)
+                  } finally {
+                    setSendingEmail(false)
+                  }
+                }}
+              >
+                <Send size={14} className="mr-1" /> Envoyer
+              </Button>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  setIcalLoading(true)
+                  try {
+                    const updated = await regenerateToken(icalFeed.id)
+                    setIcalFeed(updated)
+                    setCopied(false)
+                  } finally {
+                    setIcalLoading(false)
+                  }
+                }}
+              >
+                <RefreshCcw size={14} className="mr-1" /> Régénérer le lien
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await toggleFeedActive(icalFeed.id, !icalFeed.isActive)
+                    setIcalFeed(prev => prev ? { ...prev, isActive: !prev.isActive } : null)
+                  } catch {}
+                }}
+              >
+                {icalFeed.isActive ? (
+                  <><Pause size={14} className="mr-1" /> Désactiver</>
+                ) : (
+                  <><Play size={14} className="mr-1" /> Réactiver</>
+                )}
+              </Button>
+              {!icalFeed.isActive && (
+                <Badge variant="warning" size="sm">Flux désactivé</Badge>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-neutral-500 py-4">Impossible de créer le flux. Réessayez.</p>
+        )}
       </Modal>
     </>
   )
