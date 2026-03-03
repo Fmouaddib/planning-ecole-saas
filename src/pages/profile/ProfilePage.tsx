@@ -4,7 +4,7 @@ import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { Button, Input, Modal, ModalFooter } from '@/components/ui'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage } from '@/types'
-import { User, KeyRound, Mail, LogOut, CreditCard, ArrowUpRight, Check, Zap, Rocket, Crown } from 'lucide-react'
+import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
