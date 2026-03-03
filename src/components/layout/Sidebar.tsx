@@ -61,6 +61,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/planning',
       active: currentPath === '/planning'
     },
+    {
+      icon: GraduationCap,
+      label: 'Ma classe',
+      href: '/my-class',
+      active: currentPath === '/my-class',
+      roles: ['student'] as UserRole[],
+    },
     isOnlineSchool
       ? {
           icon: Video,
@@ -131,6 +138,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // Masquer "Séances" pour les étudiants
     if (item.href === '/bookings' && isStudentRole(userRole)) return false
     if (!item.roles) return true
+    // super_admin a accès à toutes les sections sauf celles réservées aux étudiants
+    if (userRole === 'super_admin') {
+      return !item.roles.every(r => isStudentRole(r))
+    }
     return item.roles.includes(userRole)
   }
 

@@ -175,26 +175,35 @@ export class SubscriptionLimitsService {
    * Récupérer un résumé complet de l'utilisation
    */
   static async getUsageSummary(centerId: string): Promise<UsageSummary> {
-    const [plan, counts] = await Promise.all([
-      this.getActivePlan(centerId),
-      this.countResources(centerId),
-    ])
+    try {
+      const [plan, counts] = await Promise.all([
+        this.getActivePlan(centerId),
+        this.countResources(centerId),
+      ])
 
-    const activePlan = plan || DEMO_PLAN
+      const activePlan = plan || DEMO_PLAN
 
-    return {
-      users: {
-        current: counts.users,
-        max: activePlan.maxUsers,
-      },
-      rooms: {
-        current: counts.rooms,
-        max: activePlan.maxRooms,
-      },
-      bookingsThisMonth: {
-        current: counts.bookingsThisMonth,
-        max: activePlan.maxBookingsPerMonth,
-      },
+      return {
+        users: {
+          current: counts.users,
+          max: activePlan.maxUsers,
+        },
+        rooms: {
+          current: counts.rooms,
+          max: activePlan.maxRooms,
+        },
+        bookingsThisMonth: {
+          current: counts.bookingsThisMonth,
+          max: activePlan.maxBookingsPerMonth,
+        },
+      }
+    } catch (error) {
+      console.error('Error getting usage summary:', error)
+      return {
+        users: { current: 0, max: DEMO_PLAN.maxUsers },
+        rooms: { current: 0, max: DEMO_PLAN.maxRooms },
+        bookingsThisMonth: { current: 0, max: DEMO_PLAN.maxBookingsPerMonth },
+      }
     }
   }
 }

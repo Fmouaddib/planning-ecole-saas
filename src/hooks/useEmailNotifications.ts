@@ -8,8 +8,32 @@ import { supabase } from '@/lib/supabase'
 import type { Booking } from '@/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { EMAIL_POLICY_DEFAULTS, type CenterSettings } from '@/hooks/useCenterSettings'
 
 type EmailType = 'session_created' | 'session_updated' | 'session_cancelled'
+
+/** Map EmailType → clé settings */
+const EMAIL_TYPE_TO_SETTING: Record<EmailType, keyof CenterSettings> = {
+  session_created: 'email_session_created',
+  session_updated: 'email_session_updated',
+  session_cancelled: 'email_session_cancelled',
+}
+
+/** Fetch la politique email du centre depuis training_centers.settings */
+async function getCenterEmailPolicy(centerId: string): Promise<typeof EMAIL_POLICY_DEFAULTS> {
+  try {
+    const { data } = await supabase
+      .from('training_centers')
+      .select('settings')
+      .eq('id', centerId)
+      .single()
+
+    const settings = (data?.settings || {}) as CenterSettings
+    return { ...EMAIL_POLICY_DEFAULTS, ...settings }
+  } catch {
+    return { ...EMAIL_POLICY_DEFAULTS }
+  }
+}
 
 interface Recipient {
   email: string
@@ -123,6 +147,18 @@ export function useEmailNotifications() {
     roomName?: string
   ) => {
     try {
+      // 0. Vérifier la politique email du centre
+      const centerId = session.establishmentId || session.schoolId
+      const policy = centerId ? await getCenterEmailPolicy(centerId) : null
+
+      if (policy) {
+        const settingKey = EMAIL_TYPE_TO_SETTING[type]
+        if (!policy[settingKey]) {
+          console.info(`[EmailPolicy] "${type}" disabled for center ${centerId} — skipping`)
+          return
+        }
+      }
+
       // 1. Récupérer le template
       const { data: template } = await supabase
         .from('email_templates')
@@ -138,22 +174,56 @@ export function useEmailNotifications() {
       }
 
       // 2. Récupérer les destinataires
-      const recipients = await getSessionRecipients(session)
+      let recipients = await getSessionRecipients(session)
       if (recipients.length === 0) {
         console.info(`No recipients for session ${session.id} — skipping email`)
         return
       }
 
-      // 3. Construire le contenu
+      // 3. Filtrer les destinataires selon la politique
+      if (policy) {
+        if (!policy.email_notify_trainers && session.userId) {
+          const { data: trainer } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', session.userId)
+            .single()
+          if (trainer?.email) {
+            recipients = recipients.filter(r => r.email !== trainer.email)
+          }
+        }
+
+        if (!policy.email_notify_students) {
+          if (session.userId && policy.email_notify_trainers) {
+            const { data: trainer } = await supabase
+              .from('profiles')
+              .select('email')
+              .eq('id', session.userId)
+              .single()
+            recipients = trainer?.email
+              ? recipients.filter(r => r.email === trainer.email)
+              : []
+          } else {
+            recipients = []
+          }
+        }
+
+        if (recipients.length === 0) {
+          console.info(`[EmailPolicy] No recipients after policy filter for session ${session.id} — skipping`)
+          return
+        }
+      }
+
+      // 4. Construire le contenu
       const htmlContent = renderTemplate(template.body_html, session, roomName)
       const subject = template.subject.replace(/\{\{session_title\}\}/g, session.title)
 
-      // 4. Appeler l'Edge Function
+      // 5. Appeler l'Edge Function
       const { error } = await supabase.functions.invoke('send-email', {
         body: { to: recipients, subject, htmlContent, tags: [type] },
       })
 
-      // 5. Logger dans email_logs
+      // 6. Logger dans email_logs
       const logs = recipients.map(r => ({
         session_id: session.id,
         participant_email: r.email,

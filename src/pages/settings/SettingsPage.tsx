@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Button, Select } from '@/components/ui'
-import { Settings, Bell, Monitor, Save, LogOut, User, HelpCircle } from 'lucide-react'
+import { Settings, Bell, Monitor, Save, LogOut, User, HelpCircle, GraduationCap, Mail } from 'lucide-react'
+import { useAuthContext } from '@/contexts/AuthContext'
+import { useCenterSettings } from '@/hooks/useCenterSettings'
 
 interface SettingsPageProps {
   onLogout?: () => void
@@ -31,15 +33,20 @@ const defaultSettings: AppSettings = {
   pageSize: '10',
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
   return (
-    <label className="flex items-center justify-between cursor-pointer">
-      <span className="text-sm text-neutral-700 dark:text-neutral-300">{label}</span>
+    <label className="flex items-center justify-between cursor-pointer gap-4">
+      <div className="flex-1 min-w-0">
+        <span className="text-sm text-neutral-700 dark:text-neutral-300">{label}</span>
+        {description && (
+          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{description}</p>
+        )}
+      </div>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
           checked ? 'bg-primary-600' : 'bg-neutral-300'
         }`}
         onClick={() => onChange(!checked)}
@@ -55,6 +62,10 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 }
 
 function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
+  const { user } = useAuthContext()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const { settings: centerSettings, updateSettings: updateCenterSettings } = useCenterSettings()
+
   const [settings, setSettings] = useState<AppSettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
 
@@ -202,6 +213,110 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
           />
         </div>
       </div>
+
+      {/* Espace étudiant — admin only */}
+      {isAdmin && (
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <GraduationCap size={20} className="text-primary-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Espace étudiant</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Options visibles par les étudiants de votre centre</p>
+            </div>
+          </div>
+          <div className="space-y-4 max-w-md">
+            <Toggle
+              label="Masquer la liste des matières"
+              checked={!!centerSettings.hide_subjects}
+              onChange={v => updateCenterSettings({ hide_subjects: v })}
+            />
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 -mt-2 ml-1">
+              Si activé, la section « Mes matières » ne sera pas visible dans l'espace étudiant.
+            </p>
+            <Toggle
+              label="Masquer la liste des camarades de classe"
+              checked={!!centerSettings.hide_classmates}
+              onChange={v => updateCenterSettings({ hide_classmates: v })}
+            />
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 -mt-2 ml-1">
+              Si activé, la section « Mes camarades » ne sera pas visible dans l'espace étudiant.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Politique email — admin only */}
+      {isAdmin && (
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Mail size={20} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Politique email de l'établissement</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Contrôlez quels emails sont envoyés et à qui</p>
+            </div>
+          </div>
+
+          <div className="space-y-6 max-w-md">
+            <div>
+              <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-3">Types d'email envoyés</h4>
+              <div className="space-y-3">
+                <Toggle
+                  label="Création de séance"
+                  description="Email envoyé lorsqu'une nouvelle séance est créée"
+                  checked={centerSettings.email_session_created ?? true}
+                  onChange={v => updateCenterSettings({ email_session_created: v })}
+                />
+                <Toggle
+                  label="Modification de séance"
+                  description="Email envoyé lorsqu'une séance est modifiée"
+                  checked={centerSettings.email_session_updated ?? true}
+                  onChange={v => updateCenterSettings({ email_session_updated: v })}
+                />
+                <Toggle
+                  label="Annulation de séance"
+                  description="Email envoyé lorsqu'une séance est annulée"
+                  checked={centerSettings.email_session_cancelled ?? true}
+                  onChange={v => updateCenterSettings({ email_session_cancelled: v })}
+                />
+                <Toggle
+                  label="Rappels automatiques"
+                  description="Rappels J-1 et H-1 avant chaque séance"
+                  checked={centerSettings.email_reminders ?? true}
+                  onChange={v => updateCenterSettings({ email_reminders: v })}
+                />
+                <Toggle
+                  label="Récapitulatif hebdomadaire"
+                  description="Email récap envoyé chaque dimanche soir"
+                  checked={centerSettings.email_weekly_recap ?? true}
+                  onChange={v => updateCenterSettings({ email_weekly_recap: v })}
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
+              <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-3">Destinataires</h4>
+              <div className="space-y-3">
+                <Toggle
+                  label="Notifier les formateurs"
+                  description="Les formateurs reçoivent les emails liés à leurs séances"
+                  checked={centerSettings.email_notify_trainers ?? true}
+                  onChange={v => updateCenterSettings({ email_notify_trainers: v })}
+                />
+                <Toggle
+                  label="Notifier les étudiants / participants"
+                  description="Les étudiants et participants reçoivent les emails liés à leurs séances"
+                  checked={centerSettings.email_notify_students ?? true}
+                  onChange={v => updateCenterSettings({ email_notify_students: v })}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Compte */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mt-6">

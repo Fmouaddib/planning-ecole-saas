@@ -61,7 +61,13 @@ export const SACentersPage = () => {
     };
 
     if (editingCenter) {
-      updateCenter.mutate({ id: editingCenter.id, data }, { onSuccess: () => { setShowModal(false); setEditingCenter(null); } });
+      const hideSubjects = (form.get('hide_subjects') as string) === 'on';
+      const hideClassmates = (form.get('hide_classmates') as string) === 'on';
+      const updatedSettings = { ...(editingCenter.settings || {}), hide_subjects: hideSubjects, hide_classmates: hideClassmates };
+      updateCenter.mutate(
+        { id: editingCenter.id, data: { ...data, settings: updatedSettings } as any },
+        { onSuccess: () => { setShowModal(false); setEditingCenter(null); } }
+      );
     } else {
       const adminData: CreateCenterWithAdminData = {
         ...data,
@@ -301,6 +307,29 @@ export const SACentersPage = () => {
                 <label className="sa-form-label">Site web</label>
                 <input name="website" className="sa-form-input" defaultValue={editingCenter?.website || ''} />
               </div>
+              {editingCenter && (
+                <div style={{ marginTop: '16px', padding: '12px 16px', border: '1px solid var(--sa-border-medium)', borderRadius: '8px', background: 'var(--sa-bg-subtle)' }}>
+                  <span className="sa-form-label" style={{ display: 'block', marginBottom: '8px' }}>Espace étudiant</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--sa-text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      name="hide_subjects"
+                      defaultChecked={!!editingCenter.settings?.hide_subjects}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                    Masquer la liste des matières
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--sa-text-primary)', marginTop: '8px' }}>
+                    <input
+                      type="checkbox"
+                      name="hide_classmates"
+                      defaultChecked={!!editingCenter.settings?.hide_classmates}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                    Masquer la liste des camarades de classe
+                  </label>
+                </div>
+              )}
               {!editingCenter && (
                 <div style={{ marginTop: '20px', padding: '16px', border: '1px solid var(--sa-border-medium)', borderRadius: '8px', background: 'var(--sa-bg-subtle)' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500, color: 'var(--sa-text-primary)' }}>

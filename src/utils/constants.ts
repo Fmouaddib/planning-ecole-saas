@@ -27,6 +27,7 @@ export const ROUTES = {
   PROFILE: '/profile',
   HELP: '/help',
   VISIO: '/visio',
+  MY_CLASS: '/my-class',
   EMAILS: '/emails'
 } as const
 
