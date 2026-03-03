@@ -8,12 +8,12 @@ import { supabase } from '@/lib/supabase'
 import type { Booking } from '@/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { EMAIL_POLICY_DEFAULTS, type CenterSettings } from '@/hooks/useCenterSettings'
+import { EMAIL_POLICY_DEFAULTS } from '@/hooks/useCenterSettings'
 
 type EmailType = 'session_created' | 'session_updated' | 'session_cancelled'
 
 /** Map EmailType → clé settings */
-const EMAIL_TYPE_TO_SETTING: Record<EmailType, keyof CenterSettings> = {
+const EMAIL_TYPE_TO_SETTING: Record<EmailType, keyof typeof EMAIL_POLICY_DEFAULTS> = {
   session_created: 'email_session_created',
   session_updated: 'email_session_updated',
   session_cancelled: 'email_session_cancelled',
@@ -28,7 +28,7 @@ async function getCenterEmailPolicy(centerId: string): Promise<typeof EMAIL_POLI
       .eq('id', centerId)
       .single()
 
-    const settings = (data?.settings || {}) as CenterSettings
+    const settings = (data?.settings || {}) as Record<string, unknown>
     return { ...EMAIL_POLICY_DEFAULTS, ...settings }
   } catch {
     return { ...EMAIL_POLICY_DEFAULTS }
