@@ -4,9 +4,15 @@ import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { Button, Input, Modal, ModalFooter } from '@/components/ui'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage } from '@/types'
-import { User, KeyRound, Mail, LogOut, CreditCard, ArrowUpRight } from 'lucide-react'
+import { User, KeyRound, Mail, LogOut, CreditCard, ArrowUpRight, Check, Zap, Rocket, Crown } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import toast from 'react-hot-toast'
+
+const upgradePlans = [
+  { slug: 'ecole-en-ligne', name: 'École en ligne', price: 59, priceYearly: 47, icon: Rocket, color: 'bg-teal-100 text-teal-600', features: ['15 enseignants', '200 étudiants', 'Visio intégrée'] },
+  { slug: 'pro', name: 'Pro', price: 99, priceYearly: 79, icon: Crown, color: 'bg-blue-100 text-blue-600', features: ['50 enseignants', 'Salles illimitées', 'Export & stats'] },
+  { slug: 'enterprise', name: 'Enterprise', price: 149, priceYearly: 119, icon: Crown, color: 'bg-purple-100 text-purple-600', features: ['Illimité', 'Multi-campus', 'SLA 99.9%'] },
+]
 
 interface ProfilePageProps {
   onLogout?: () => void
@@ -54,7 +60,8 @@ function UsageBar({ label, usage }: { label: string; usage: ResourceUsage }) {
 function ProfilePage({ onLogout }: ProfilePageProps) {
   const { user, updateProfile } = useAuthContext()
   const { plan, subscription, usage, isLoading: subLoading, error: subError } = useSubscriptionInfo()
-  const { openPortal, isLoading: portalLoading } = useStripeCheckout()
+  const { openCheckout, openPortal, isLoading: portalLoading } = useStripeCheckout()
+  const [annualBilling, setAnnualBilling] = useState(false)
 
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
@@ -248,16 +255,59 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
                   </Button>
                 </>
               ) : (
-                <>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
-                    Passez à un plan supérieur pour débloquer plus de fonctionnalités :
-                  </p>
-                  <a href="#/pricing">
-                    <Button variant="secondary" leftIcon={ArrowUpRight}>
-                      Voir les plans
-                    </Button>
-                  </a>
-                </>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      Passez à un plan supérieur :
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium ${!annualBilling ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400'}`}>Mensuel</span>
+                      <button
+                        type="button"
+                        onClick={() => setAnnualBilling(!annualBilling)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${annualBilling ? 'bg-primary-600' : 'bg-neutral-300'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${annualBilling ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                      </button>
+                      <span className={`text-xs font-medium ${annualBilling ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400'}`}>Annuel</span>
+                      {annualBilling && <span className="text-[10px] font-semibold text-success-600 bg-success-50 px-1.5 py-0.5 rounded-full">-20%</span>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {upgradePlans.map((p) => {
+                      const price = annualBilling ? p.priceYearly : p.price
+                      const Icon = p.icon
+                      return (
+                        <div key={p.slug} className="border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 flex flex-col">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`p-1.5 rounded-lg ${p.color}`}><Icon size={14} /></div>
+                            <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">{p.name}</span>
+                          </div>
+                          <div className="mb-2">
+                            <span className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{price}€</span>
+                            <span className="text-xs text-neutral-500">/mois</span>
+                          </div>
+                          <ul className="space-y-1 mb-3 flex-1">
+                            {p.features.map((f, i) => (
+                              <li key={i} className="flex items-center gap-1 text-xs text-neutral-600 dark:text-neutral-400">
+                                <Check size={10} className="text-success-500 shrink-0" />{f}
+                              </li>
+                            ))}
+                          </ul>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            fullWidth
+                            onClick={() => openCheckout({ planSlug: p.slug, billingCycle: annualBilling ? 'yearly' : 'monthly' })}
+                            isLoading={portalLoading}
+                          >
+                            Choisir
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </div>
