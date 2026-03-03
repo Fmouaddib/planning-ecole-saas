@@ -673,6 +673,46 @@ export function useAcademicData() {
 
   // ==================== Liens class_students ====================
 
+  // Sync student_subjects quand un étudiant change de classe
+  const syncStudentSubjectsForClassChange = useCallback(async (studentId: string, oldClassId: string | null, newClassId: string | null) => {
+    if (!user?.establishmentId) return
+
+    // 1. Supprimer inscriptions class-type de l'ancienne classe
+    if (oldClassId) {
+      const { error: delErr } = await supabase
+        .from('student_subjects')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('class_id', oldClassId)
+        .eq('enrollment_type', 'class')
+      if (delErr) console.error('Erreur suppression student_subjects:', delErr.message)
+      setStudentSubjects(prev => prev.filter(ss =>
+        !(ss.student_id === studentId && ss.class_id === oldClassId && ss.enrollment_type === 'class')
+      ))
+    }
+
+    // 2. Créer inscriptions pour la nouvelle classe
+    if (newClassId) {
+      const newSubjectIds = classSubjects.filter(cs => cs.class_id === newClassId).map(cs => cs.subject_id)
+      if (newSubjectIds.length > 0) {
+        const rows = newSubjectIds.map(sid => ({
+          student_id: studentId,
+          subject_id: sid,
+          class_id: newClassId,
+          center_id: user.establishmentId,
+          enrollment_type: 'class' as const,
+          status: 'enrolled' as const,
+        }))
+        const { data: inserted, error: insErr } = await supabase
+          .from('student_subjects')
+          .insert(rows)
+          .select('id, student_id, subject_id, class_id, center_id, enrollment_type, status, dispensation_reason')
+        if (insErr) console.error('Erreur création student_subjects:', insErr.message)
+        if (inserted) setStudentSubjects(prev => [...prev, ...(inserted as StudentSubjectLink[])])
+      }
+    }
+  }, [user?.establishmentId, classSubjects])
+
   const setStudentClass = useCallback(async (studentId: string, classId: string | null) => {
     // Ancienne classe pour la sync student_subjects
     const oldClassId = classStudents.find(cs => cs.student_id === studentId)?.class_id ?? null
@@ -767,46 +807,6 @@ export function useAcademicData() {
     },
     [studentSubjects],
   )
-
-  // Sync student_subjects quand un étudiant change de classe
-  const syncStudentSubjectsForClassChange = useCallback(async (studentId: string, oldClassId: string | null, newClassId: string | null) => {
-    if (!user?.establishmentId) return
-
-    // 1. Supprimer inscriptions class-type de l'ancienne classe
-    if (oldClassId) {
-      const { error: delErr } = await supabase
-        .from('student_subjects')
-        .delete()
-        .eq('student_id', studentId)
-        .eq('class_id', oldClassId)
-        .eq('enrollment_type', 'class')
-      if (delErr) console.error('Erreur suppression student_subjects:', delErr.message)
-      setStudentSubjects(prev => prev.filter(ss =>
-        !(ss.student_id === studentId && ss.class_id === oldClassId && ss.enrollment_type === 'class')
-      ))
-    }
-
-    // 2. Créer inscriptions pour la nouvelle classe
-    if (newClassId) {
-      const newSubjectIds = classSubjects.filter(cs => cs.class_id === newClassId).map(cs => cs.subject_id)
-      if (newSubjectIds.length > 0) {
-        const rows = newSubjectIds.map(sid => ({
-          student_id: studentId,
-          subject_id: sid,
-          class_id: newClassId,
-          center_id: user.establishmentId,
-          enrollment_type: 'class' as const,
-          status: 'enrolled' as const,
-        }))
-        const { data: inserted, error: insErr } = await supabase
-          .from('student_subjects')
-          .insert(rows)
-          .select('id, student_id, subject_id, class_id, center_id, enrollment_type, status, dispensation_reason')
-        if (insErr) console.error('Erreur création student_subjects:', insErr.message)
-        if (inserted) setStudentSubjects(prev => [...prev, ...(inserted as StudentSubjectLink[])])
-      }
-    }
-  }, [user?.establishmentId, classSubjects])
 
   // Helpers de cascade
 

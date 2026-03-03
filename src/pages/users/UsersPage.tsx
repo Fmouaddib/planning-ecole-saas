@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useUsers } from '@/hooks/useUsers'
 import { useAcademicData } from '@/hooks/useAcademicData'
-import type { StudentSubjectLink } from '@/hooks/useAcademicData'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { USER_ROLES } from '@/utils/constants'
@@ -57,7 +56,7 @@ function UsersPage() {
   } = useUsers()
   const {
     classes, subjects, getClassIdForStudent, setStudentClass,
-    getSubjectIdsForClass, studentSubjects,
+    getSubjectIdsForClass,
     toggleDispensation, addFreeSubject, removeFreeSubject,
     getStudentSubjectsForStudent,
   } = useAcademicData()

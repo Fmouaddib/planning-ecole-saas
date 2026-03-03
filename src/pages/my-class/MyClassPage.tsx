@@ -20,7 +20,6 @@ import type { User as UserType } from '@/types'
 function MyClassPage() {
   const { user } = useAuthContext()
   const {
-    classes,
     subjects,
     teachers,
     classStudents,

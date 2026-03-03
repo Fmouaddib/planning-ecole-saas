@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import type { StudentSubjectLink } from '@/hooks/useAcademicData'
 import { usePagination } from '@/hooks/usePagination'
@@ -449,7 +449,6 @@ function ClassesTab({
   deleteClass,
   setClassSubjectLinks,
   classStudents,
-  studentSubjects,
   toggleDispensation,
   getStudentSubjectsForClass,
 }: {
@@ -464,7 +463,6 @@ function ClassesTab({
   deleteClass: (id: string) => Promise<void>
   setClassSubjectLinks: (classId: string, subjectIds: string[]) => Promise<void>
   classStudents: { student_id: string; class_id: string }[]
-  studentSubjects: StudentSubjectLink[]
   toggleDispensation: (id: string, dispensed: boolean, reason?: string) => Promise<void>
   getStudentSubjectsForClass: (classId: string) => StudentSubjectLink[]
 }) {
@@ -1650,7 +1648,6 @@ function AcademicPage() {
     setTeacherSubjectLinks,
     getSubjectIdsForTeacher,
     classStudents,
-    studentSubjects,
     toggleDispensation,
     getStudentSubjectsForClass,
     refreshAll,
@@ -1741,7 +1738,6 @@ function AcademicPage() {
           deleteClass={deleteClass}
           setClassSubjectLinks={setClassSubjectLinks}
           classStudents={classStudents}
-          studentSubjects={studentSubjects}
           toggleDispensation={toggleDispensation}
           getStudentSubjectsForClass={getStudentSubjectsForClass}
         />
