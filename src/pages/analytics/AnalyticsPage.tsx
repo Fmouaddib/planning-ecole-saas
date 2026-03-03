@@ -14,6 +14,8 @@ import type { AnalyticsExportData } from '@/utils/export-analytics'
 
 const statusLabels: Record<string, string> = {
   scheduled: 'Planifié',
+  confirmed: 'Confirmé',
+  pending: 'En attente',
   in_progress: 'En cours',
   completed: 'Terminé',
   cancelled: 'Annulé',
@@ -21,6 +23,8 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   scheduled: '#3b82f6',
+  confirmed: '#8b5cf6',
+  pending: '#f97316',
   in_progress: '#f59e0b',
   completed: '#22c55e',
   cancelled: '#ef4444',
