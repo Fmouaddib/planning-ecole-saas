@@ -6,6 +6,12 @@ import { AlertTriangle, FileText, Video } from 'lucide-react'
 import type { BookingType, Class } from '@/types'
 import { isClassDay, getExamPeriod } from '@/utils/scheduleUtils'
 
+interface VirtualRoomOption {
+  value: string
+  label: string
+  url: string
+}
+
 interface CreateBookingModalProps {
   isOpen: boolean
   onClose: () => void
@@ -24,6 +30,7 @@ interface CreateBookingModalProps {
   prefilledDate: Date | null
   prefilledHour: number | null
   rooms: { value: string; label: string }[]
+  virtualRooms?: VirtualRoomOption[]
   diplomaOptions?: { value: string; label: string }[]
   classOptionsByDiploma?: (diplomaId: string) => { value: string; label: string }[]
   subjectOptionsByClass?: (classId: string) => { value: string; label: string }[]
@@ -45,6 +52,7 @@ export function CreateBookingModal({
   prefilledDate,
   prefilledHour,
   rooms,
+  virtualRooms = [],
   diplomaOptions = [],
   classOptionsByDiploma,
   subjectOptionsByClass,
@@ -63,6 +71,7 @@ export function CreateBookingModal({
   const [description, setDescription] = useState('')
   const [sessionType, setSessionType] = useState<'in_person' | 'online' | 'hybrid'>('in_person')
   const [meetingUrl, setMeetingUrl] = useState('')
+  const [virtualRoomId, setVirtualRoomId] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Cascade académique
@@ -129,6 +138,28 @@ export function CreateBookingModal({
     }
   }
 
+  const isOnlineOrHybrid = sessionType === 'online' || sessionType === 'hybrid'
+  const hasVirtualRooms = virtualRooms.length > 0 && isOnlineOrHybrid
+  const isUrlFromRoom = hasVirtualRooms && virtualRoomId !== ''
+
+  const handleVirtualRoomChange = (roomId: string) => {
+    setVirtualRoomId(roomId)
+    if (roomId) {
+      const room = virtualRooms.find(r => r.value === roomId)
+      if (room) setMeetingUrl(room.url)
+    } else {
+      setMeetingUrl('')
+    }
+  }
+
+  const handleSessionTypeChange = (newType: 'in_person' | 'online' | 'hybrid') => {
+    setSessionType(newType)
+    if (newType === 'in_person') {
+      setVirtualRoomId('')
+      setMeetingUrl('')
+    }
+  }
+
   // Auto-ajuster l'heure de fin quand le début change (+1h, max 20:00)
   const handleStartTimeChange = (newStart: string) => {
     setStartTime(newStart)
@@ -182,6 +213,7 @@ export function CreateBookingModal({
     setDescription('')
     setSessionType('in_person')
     setMeetingUrl('')
+    setVirtualRoomId('')
     setDiplomaId('')
     setClassId('')
     setSubjectId('')
@@ -259,20 +291,33 @@ export function CreateBookingModal({
               { value: 'hybrid', label: 'Hybride' },
             ]}
             value={sessionType}
-            onChange={e => setSessionType(e.target.value as 'in_person' | 'online' | 'hybrid')}
+            onChange={e => handleSessionTypeChange(e.target.value as 'in_person' | 'online' | 'hybrid')}
           />
-          {(sessionType === 'online' || sessionType === 'hybrid') && (
-            <div className="relative">
-              <Input
-                label="Lien visio (Teams/Zoom)"
-                value={meetingUrl}
-                onChange={e => setMeetingUrl(e.target.value)}
-                placeholder="https://teams.microsoft.com/..."
-              />
-              <Video size={16} className="absolute right-3 top-9 text-neutral-400" />
-            </div>
+          {hasVirtualRooms && (
+            <Select
+              label="Salle virtuelle"
+              options={[
+                { value: '', label: 'Lien personnalisé' },
+                ...virtualRooms.map(r => ({ value: r.value, label: r.label })),
+              ]}
+              value={virtualRoomId}
+              onChange={e => handleVirtualRoomChange(e.target.value)}
+            />
           )}
         </div>
+        {isOnlineOrHybrid && (
+          <div className="relative">
+            <Input
+              label="Lien visio (Teams/Zoom)"
+              value={meetingUrl}
+              onChange={e => setMeetingUrl(e.target.value)}
+              placeholder="https://teams.microsoft.com/..."
+              readOnly={isUrlFromRoom}
+              className={isUrlFromRoom ? 'bg-neutral-50 dark:bg-neutral-800 cursor-not-allowed' : ''}
+            />
+            <Video size={16} className={`absolute right-3 top-9 ${isUrlFromRoom ? 'text-primary-400' : 'text-neutral-400'}`} />
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-4">
           <Input

@@ -29,7 +29,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-export': ['xlsx', 'exceljs', 'jspdf', 'jspdf-autotable', 'file-saver'],
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-date': ['date-fns'],
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+          'vendor-excel': ['xlsx', 'exceljs', 'file-saver'],
         },
       },
     },

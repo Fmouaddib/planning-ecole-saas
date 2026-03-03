@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
 import { formatTimeRange, isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
+import { useVisio } from '@/hooks/useVisio'
 import type { CalendarEvent, ExportFormat, BookingType } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
@@ -93,6 +94,17 @@ function CalendarPage() {
     getClassById,
     getClassIdsForStudent,
   } = useAcademicData()
+  const { virtualRooms } = useVisio()
+
+  const virtualRoomOptions = useMemo(
+    () => virtualRooms.map(r => ({
+      value: r.id,
+      label: `${r.name} (${r.platform === 'teams' ? 'Teams' : r.platform === 'zoom' ? 'Zoom' : 'Autre'})`,
+      url: r.meetingUrl,
+    })),
+    [virtualRooms],
+  )
+
   const [view, setView] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [roomFilter, setRoomFilter] = useState('')
@@ -782,6 +794,7 @@ function CalendarPage() {
         prefilledDate={createDate}
         prefilledHour={createHour}
         rooms={roomOptions}
+        virtualRooms={virtualRoomOptions}
         diplomaOptions={diplomaOptions}
         classOptionsByDiploma={classOptionsByDiploma}
         subjectOptionsByClass={subjectOptionsByClass}
