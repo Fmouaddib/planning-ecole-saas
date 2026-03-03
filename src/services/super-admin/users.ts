@@ -1,4 +1,4 @@
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase, isolatedClient, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { SuperAdminUserProfile, CreateUserData } from '@/types/super-admin';
 
@@ -23,13 +23,67 @@ export class SAUsersService {
     return (data || []) as SuperAdminUserProfile[];
   }
 
+  /**
+   * Fallback : création via signUp (isolatedClient) si la RPC n'existe pas ou échoue.
+   * Utilise un mot de passe aléatoire — l'admin devra faire "mot de passe oublié".
+   */
+  private static async createUserViaSignUp(userData: CreateUserData): Promise<SuperAdminUserProfile> {
+    const randomPassword = crypto.randomUUID() + '!Aa1';
+
+    const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
+      email: userData.email,
+      password: randomPassword,
+      options: {
+        data: {
+          full_name: userData.full_name,
+          role: userData.role,
+        },
+      },
+    });
+
+    if (signUpError) {
+      console.error('[SAUsers] signUp fallback error:', signUpError.message);
+      throw signUpError;
+    }
+    if (!signUpData.user) throw new Error('Échec de la création du compte (signUp)');
+
+    const newId = signUpData.user.id;
+
+    // Attendre un court instant pour que le trigger handle_new_user s'exécute
+    await new Promise(r => setTimeout(r, 500));
+
+    // Mettre à jour le profil avec les bonnes infos
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: newId,
+        email: userData.email,
+        full_name: userData.full_name,
+        role: userData.role,
+        center_id: userData.center_id,
+        phone: userData.phone || null,
+        is_active: true,
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (profileError) {
+      console.error('[SAUsers] signUp fallback profile error:', profileError.message);
+      throw profileError;
+    }
+
+    return profile as SuperAdminUserProfile;
+  }
+
   static async createUser(userData: CreateUserData): Promise<SuperAdminUserProfile> {
     if (isDemoMode) return MockStore.addUser({
       email: userData.email, full_name: userData.full_name, role: userData.role,
       phone: userData.phone, center_id: userData.center_id, is_active: true,
     });
 
-    // Appel RPC create_user_for_center (SECURITY DEFINER, bypass GoTrue)
+    let profile: SuperAdminUserProfile;
+
+    // 1. Tenter la RPC create_user_for_center
     const { data, error } = await supabase.rpc('create_user_for_center', {
       p_email: userData.email,
       p_full_name: userData.full_name,
@@ -39,11 +93,12 @@ export class SAUsersService {
     });
 
     if (error) {
-      console.error('[SAUsers] createUser RPC error:', error.message, error.details, error.hint);
-      throw error;
+      console.warn('[SAUsers] RPC create_user_for_center echouee, fallback signUp:', error.message);
+      // 2. Fallback signUp via isolatedClient
+      profile = await this.createUserViaSignUp(userData);
+    } else {
+      profile = (typeof data === 'string' ? JSON.parse(data) : data) as SuperAdminUserProfile;
     }
-
-    const profile = (typeof data === 'string' ? JSON.parse(data) : data) as SuperAdminUserProfile;
 
     // Envoyer un email d'invitation (reset password) si demande
     if (userData.send_invitation !== false) {
