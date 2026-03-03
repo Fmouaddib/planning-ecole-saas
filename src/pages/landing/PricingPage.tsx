@@ -15,15 +15,6 @@ const plans = [
     btnStyle: 'outline' as const,
   },
   {
-    nameKey: 'plan.pro',
-    price: 99,
-    priceAnnual: 79,
-    features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
-    ctaKey: 'pricing.cta.pro',
-    popular: false,
-    btnStyle: 'outline' as const,
-  },
-  {
     nameKey: 'plan.ecole',
     price: 59,
     priceAnnual: 47,
@@ -31,6 +22,15 @@ const plans = [
     ctaKey: 'pricing.cta.ecole',
     popular: true,
     btnStyle: 'filled' as const,
+  },
+  {
+    nameKey: 'plan.pro',
+    price: 99,
+    priceAnnual: 79,
+    features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
+    ctaKey: 'pricing.cta.pro',
+    popular: false,
+    btnStyle: 'outline' as const,
   },
   {
     nameKey: 'plan.enterprise',
@@ -68,10 +68,11 @@ export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0) }, [])
 
   const compareRows: CompareRow[] = [
-    { labelKey: 'pricingPage.row.teachers', values: ['3', '50', '15', t('plan.enterprise.f1').split(' ')[0]] },
-    { labelKey: 'pricingPage.row.students', values: ['—', '—', '200', t('plan.enterprise.f1').split(' ')[0]] },
+    // Ordre : Free, École en ligne, Pro, Enterprise
+    { labelKey: 'pricingPage.row.teachers', values: ['3', '15', '50', t('plan.enterprise.f1').split(' ')[0]] },
+    { labelKey: 'pricingPage.row.students', values: ['—', '200', '—', t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.rooms', values: ['3', t('plan.pro.f2').split(' ')[0], t('plan.pro.f2').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
-    { labelKey: 'pricingPage.row.sessions', values: ['50', t('plan.pro.f3').split(' ')[0], t('plan.ecole.f4').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
+    { labelKey: 'pricingPage.row.sessions', values: ['50', t('plan.ecole.f4').split(' ')[0], t('plan.pro.f3').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.calendar', values: [true, true, true, true] },
     { labelKey: 'pricingPage.row.conflicts', values: [false, true, true, true] },
     { labelKey: 'pricingPage.row.dragdrop', values: [true, true, true, true] },

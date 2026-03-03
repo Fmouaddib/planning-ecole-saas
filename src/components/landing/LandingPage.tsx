@@ -37,15 +37,6 @@ export default function LandingPage() {
       btnStyle: 'outline' as const,
     },
     {
-      nameKey: 'plan.pro',
-      price: 99,
-      priceAnnual: 79,
-      features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
-      ctaKey: 'pricing.cta.pro',
-      popular: false,
-      btnStyle: 'outline' as const,
-    },
-    {
       nameKey: 'plan.ecole',
       price: 59,
       priceAnnual: 47,
@@ -53,6 +44,15 @@ export default function LandingPage() {
       ctaKey: 'pricing.cta.ecole',
       popular: true,
       btnStyle: 'filled' as const,
+    },
+    {
+      nameKey: 'plan.pro',
+      price: 99,
+      priceAnnual: 79,
+      features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
+      ctaKey: 'pricing.cta.pro',
+      popular: false,
+      btnStyle: 'outline' as const,
     },
     {
       nameKey: 'plan.enterprise',
