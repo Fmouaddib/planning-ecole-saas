@@ -39,7 +39,13 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
  * création de compte enseignant via signUp fallback).
  */
 export const isolatedClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    storageKey: 'sb-isolated-auth',
+    flowType: 'implicit',
+  },
 })
 
 // Types utilitaires pour Supabase

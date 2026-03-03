@@ -30,6 +30,9 @@ export class SAUsersService {
   private static async createUserViaSignUp(userData: CreateUserData): Promise<SuperAdminUserProfile> {
     const password = userData.password || (crypto.randomUUID() + '!Aa1');
 
+    // Sauvegarder la session admin avant signUp
+    const { data: { session: adminSession } } = await supabase.auth.getSession();
+
     const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
       email: userData.email,
       password,
@@ -46,6 +49,18 @@ export class SAUsersService {
       throw signUpError;
     }
     if (!signUpData.user) throw new Error('Échec de la création du compte (signUp)');
+
+    // Restaurer la session admin si elle a été perturbée
+    if (adminSession) {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession || currentSession.user.id !== adminSession.user.id) {
+        console.warn('[SAUsers] Session principale perturbee, restauration...');
+        await supabase.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+    }
 
     const newId = signUpData.user.id;
 
