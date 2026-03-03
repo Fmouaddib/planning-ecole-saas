@@ -26,7 +26,8 @@ export const ROUTES = {
   SETTINGS: '/settings',
   PROFILE: '/profile',
   HELP: '/help',
-  VISIO: '/visio'
+  VISIO: '/visio',
+  EMAILS: '/emails'
 } as const
 
 export const USER_ROLES = {

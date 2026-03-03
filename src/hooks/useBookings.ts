@@ -18,6 +18,7 @@ import type {
 } from '@/types'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
+import { useEmailNotifications } from './useEmailNotifications'
 import { getErrorMessage } from '@/utils'
 import { transformBooking } from '@/utils/transforms'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
@@ -29,6 +30,7 @@ export function useBookings(): UseBookingsReturn {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
+  const { notifySession } = useEmailNotifications()
 
   // ==================== HELPER FUNCTIONS ====================
 
@@ -207,13 +209,16 @@ export function useBookings(): UseBookingsReturn {
       // Audit logging
       AuditService.logCrud('created', 'session', transformed.id, user.id, user.establishmentId, { title: transformed.title })
 
+      // Notification email (async, non-bloquant)
+      notifySession('session_created', transformed, transformed.room?.name)
+
       return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la création de la séance')
       toast.error(message)
       throw error
     }
-  }, [user?.id, user?.establishmentId, checkBookingConflict, handleError])
+  }, [user?.id, user?.establishmentId, checkBookingConflict, handleError, notifySession])
 
   const updateBooking = useCallback(async (data: UpdateBookingData): Promise<Booking> => {
     try {
@@ -283,13 +288,16 @@ export function useBookings(): UseBookingsReturn {
         AuditService.logCrud('updated', 'session', data.id, user.id, user.establishmentId, { title: transformed.title })
       }
 
+      // Notification email (async, non-bloquant)
+      notifySession('session_updated', transformed, transformed.room?.name)
+
       return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la mise à jour de la séance')
       toast.error(message)
       throw error
     }
-  }, [user, bookings, checkBookingConflict, handleError])
+  }, [user, bookings, checkBookingConflict, handleError, notifySession])
 
   const deleteBooking = useCallback(async (id: UUID): Promise<void> => {
     try {
@@ -344,13 +352,17 @@ export function useBookings(): UseBookingsReturn {
       )
 
       toast.success('Séance annulée avec succès')
+
+      // Notification email (async, non-bloquant)
+      notifySession('session_cancelled', transformed, transformed.room?.name)
+
       return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de l\'annulation de la séance')
       toast.error(message)
       throw error
     }
-  }, [user?.id, handleError])
+  }, [user?.id, handleError, notifySession])
 
   const createBatchBookings = useCallback(async (sessions: BatchCreateSessionInput[]): Promise<BatchCreateResult> => {
     if (!user?.establishmentId) {

@@ -35,6 +35,7 @@ const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'))
 const HelpPage = lazy(() => import('@/pages/help/HelpPage'))
 const AcademicPage = lazy(() => import('@/pages/academic/AcademicPage'))
 const VisioPage = lazy(() => import('@/pages/visio/VisioPage'))
+const EmailsPage = lazy(() => import('@/pages/emails/EmailsPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -64,6 +65,7 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.ACADEMIC]: AcademicPage,
   [ROUTES.HELP]: HelpPage,
   [ROUTES.VISIO]: VisioPage,
+  [ROUTES.EMAILS]: EmailsPage,
 }
 
 export default function App() {
@@ -499,14 +501,14 @@ export default function App() {
   // Render the current page based on path
   const renderPage = () => {
     // Route guards : les professeurs n'ont pas accès aux pages admin
-    const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.VISIO]
+    const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.VISIO, ROUTES.EMAILS]
     if (isTeacherRole(effectiveUser?.role) && teacherForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />
     }
 
     // Route guards : les étudiants n'ont accès qu'au dashboard et au planning
-    const studentForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.BOOKINGS, ROUTES.VISIO]
+    const studentForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.BOOKINGS, ROUTES.VISIO, ROUTES.EMAILS]
     if (isStudentRole(effectiveUser?.role) && studentForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />
