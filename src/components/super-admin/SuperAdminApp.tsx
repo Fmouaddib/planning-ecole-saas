@@ -8,6 +8,7 @@ const SAUsersPage = lazy(() => import('@/pages/super-admin/SAUsersPage').then(m 
 const SACentersPage = lazy(() => import('@/pages/super-admin/SACentersPage').then(m => ({ default: m.SACentersPage })));
 const SAPlansPage = lazy(() => import('@/pages/super-admin/SAPlansPage').then(m => ({ default: m.SAPlansPage })));
 const SASubscriptionsPage = lazy(() => import('@/pages/super-admin/SASubscriptionsPage').then(m => ({ default: m.SASubscriptionsPage })));
+const SAAddonsPage = lazy(() => import('@/pages/super-admin/SAAddonsPage').then(m => ({ default: m.SAAddonsPage })));
 const SAAuditPage = lazy(() => import('@/pages/super-admin/SAAuditPage').then(m => ({ default: m.SAAuditPage })));
 
 const PageLoader = () => (
@@ -38,6 +39,8 @@ export const SuperAdminApp = ({ user, onLogout }: SuperAdminAppProps) => {
         return <SACentersPage />;
       case 'sa-plans':
         return <SAPlansPage />;
+      case 'sa-addons':
+        return <SAAddonsPage />;
       case 'sa-subscriptions':
         return <SASubscriptionsPage />;
       case 'sa-audit':

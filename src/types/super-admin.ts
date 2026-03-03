@@ -208,3 +208,66 @@ export interface AssignPlanData {
   billing_cycle: 'monthly' | 'yearly';
   max_students?: number;
 }
+
+// ==================== ADDON SYSTEM ====================
+
+export interface AddonPlan {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  addon_type: 'email' | 'teacher' | 'student';
+  quota_value: number;
+  price_monthly: number;
+  price_yearly?: number;
+  currency: string;
+  stripe_price_id_monthly?: string;
+  stripe_price_id_yearly?: string;
+  stripe_product_id?: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CenterAddon {
+  id: string;
+  center_id: string;
+  addon_plan_id: string;
+  quantity: number;
+  status: 'active' | 'cancelled' | 'past_due' | 'pending';
+  billing_cycle: 'monthly' | 'yearly';
+  current_period_start?: string;
+  current_period_end?: string;
+  cancel_at_period_end: boolean;
+  cancelled_at?: string;
+  stripe_subscription_id?: string;
+  stripe_item_id?: string;
+  created_at: string;
+  updated_at: string;
+
+  // Relations (populated via JOIN)
+  addon_plan?: AddonPlan;
+  center?: {
+    id: string;
+    name: string;
+    acronym?: string;
+  };
+}
+
+export interface CreateAddonPlanData {
+  name: string;
+  slug: string;
+  description?: string;
+  addon_type: 'email' | 'teacher' | 'student';
+  quota_value: number;
+  price_monthly: number;
+  price_yearly?: number;
+}
+
+export interface AssignAddonData {
+  center_id: string;
+  addon_plan_id: string;
+  quantity: number;
+  billing_cycle: 'monthly' | 'yearly';
+}

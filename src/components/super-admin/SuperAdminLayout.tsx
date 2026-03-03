@@ -48,6 +48,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
 
   const subscriptionItems = [
     { id: 'sa-plans', label: 'Plans', icon: '💎' },
+    { id: 'sa-addons', label: 'Options', icon: '🧩' },
     { id: 'sa-subscriptions', label: 'Abonnements', icon: '📋' },
   ];
 

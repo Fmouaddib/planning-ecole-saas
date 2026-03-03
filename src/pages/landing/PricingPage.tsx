@@ -249,6 +249,77 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* Options supplementaires */}
+      <section className="landing-pricing-compare">
+        <div className="landing-pricing-compare-inner">
+          <div ref={reveal} style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>Options supplementaires</h2>
+            <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
+              Ajoutez des packs pour etendre les capacites de votre plan
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', maxWidth: '1000px', margin: '0 auto' }} ref={reveal} data-reveal-delay="1">
+            {/* Email Packs */}
+            <div style={{ background: 'var(--landing-card-bg, #fff)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--landing-border, #e5e7eb)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                  📧
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Packs Email</h3>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Inclus dans Enterprise</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[{ name: '25 emails/jour', price: '9,90' }, { name: '50 emails/jour', price: '14,90' }, { name: '200 emails/jour', price: '19,90' }].map(p => (
+                  <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderRadius: '8px', background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.1)' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{p.name}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{p.price}{'\u20AC'}/mois</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Teacher Packs */}
+            <div style={{ background: 'var(--landing-card-bg, #fff)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--landing-border, #e5e7eb)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                  👨‍🏫
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Packs Professeurs</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[{ name: '+5 profs', price: '9,90' }, { name: '+15 profs', price: '19,90' }, { name: '+30 profs', price: '29,90' }].map(p => (
+                  <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderRadius: '8px', background: 'rgba(139,92,246,0.04)', border: '1px solid rgba(139,92,246,0.1)' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{p.name}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{p.price}{'\u20AC'}/mois</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Student Packs */}
+            <div style={{ background: 'var(--landing-card-bg, #fff)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--landing-border, #e5e7eb)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                  🎓
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Packs Etudiants</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[{ name: '+50 etudiants', price: '9,90' }, { name: '+150 etudiants', price: '19,90' }, { name: '+500 etudiants', price: '29,90' }].map(p => (
+                  <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderRadius: '8px', background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.1)' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{p.name}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{p.price}{'\u20AC'}/mois</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Guarantee */}
       <section className="landing-pricing-guarantee">
         <div className="landing-pricing-guarantee-inner" ref={reveal}>

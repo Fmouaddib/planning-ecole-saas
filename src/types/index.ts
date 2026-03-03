@@ -672,3 +672,35 @@ export interface AuditLogEntry {
   ipAddress?: string
   createdAt?: string
 }
+
+// ==================== TYPES ADDON SYSTEM ====================
+
+export type AddonType = 'email' | 'teacher' | 'student'
+
+export interface AddonPlanInfo {
+  id: string
+  name: string
+  slug: string
+  addonType: AddonType
+  quotaValue: number
+  priceMonthly: number
+  priceYearly?: number
+}
+
+export interface ActiveAddon {
+  id: string
+  addonPlanId: string
+  addonType: AddonType
+  quotaValue: number
+  quantity: number
+  name: string
+  status: string
+  priceMonthly: number
+  periodEnd?: string
+}
+
+export interface EffectiveQuotas {
+  emails: { base: number; addons: number; total: number; usedToday: number }
+  teachers: { base: number; addons: number; total: number; current: number }
+  students: { base: number; addons: number; total: number; current: number }
+}

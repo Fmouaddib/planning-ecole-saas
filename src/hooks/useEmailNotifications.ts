@@ -9,6 +9,7 @@ import type { Booking } from '@/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { EMAIL_POLICY_DEFAULTS } from '@/hooks/useCenterSettings'
+import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 
 type EmailType = 'session_created' | 'session_updated' | 'session_cancelled'
 
@@ -197,6 +198,24 @@ export function useEmailNotifications() {
         }
       }
 
+      // --- EMAIL QUOTA CHECK ---
+      if (centerId) {
+        const quotaCheck = await SubscriptionLimitsService.checkEmailQuota(centerId)
+        if (!quotaCheck.allowed) {
+          console.info(`[EmailQuota] Quota exceeded for center ${centerId} (${quotaCheck.current}/${quotaCheck.max}) — skipping email`)
+          // Log quota exceeded
+          await supabase.from('email_logs').insert([{
+            session_id: session.id,
+            center_id: centerId,
+            participant_email: 'quota_exceeded',
+            email_type: type,
+            status: 'quota_exceeded',
+            error_message: `Quota email dépassé (${quotaCheck.current}/${quotaCheck.max})`,
+          }])
+          return
+        }
+      }
+
       // --- EMAIL NOTIFICATIONS (soumis à la politique) ---
       const policy = centerId ? await getCenterEmailPolicy(centerId) : null
 
@@ -271,9 +290,10 @@ export function useEmailNotifications() {
         body: { to: recipients, subject, htmlContent, tags: [type] },
       })
 
-      // 5. Logger dans email_logs (avec rendu HTML pour preview)
+      // 5. Logger dans email_logs (avec rendu HTML pour preview + center_id)
       const logs = recipients.map(r => ({
         session_id: session.id,
+        center_id: centerId || null,
         participant_email: r.email,
         email_type: type,
         status: error ? 'failed' : 'sent',

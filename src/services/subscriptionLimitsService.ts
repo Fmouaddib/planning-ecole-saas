@@ -11,7 +11,7 @@
  * On utilise establishment_id comme center_id car ce sont la même entité.
  */
 
-import type { LimitCheckResult, UsageSummary, SubscriptionPlan } from '@/types'
+import type { LimitCheckResult, UsageSummary, SubscriptionPlan, ActiveAddon, EffectiveQuotas } from '@/types'
 import { supabase } from '@/lib/supabase'
 
 // Plan par défaut pour le mode démo / si pas d'abonnement (limites Pro)
@@ -142,6 +142,11 @@ export class SubscriptionLimitsService {
         case 'users':
           current = counts.users
           max = activePlan.maxUsers
+          // Ajouter le quota add-on teacher si pas illimité
+          if (max !== -1) {
+            const teacherAddon = await this.getAddonQuota(centerId, 'teacher')
+            max += teacherAddon
+          }
           break
         case 'rooms':
           current = counts.rooms
@@ -203,6 +208,141 @@ export class SubscriptionLimitsService {
         users: { current: 0, max: DEMO_PLAN.maxUsers },
         rooms: { current: 0, max: DEMO_PLAN.maxRooms },
         bookingsThisMonth: { current: 0, max: DEMO_PLAN.maxBookingsPerMonth },
+      }
+    }
+  }
+
+  /**
+   * Récupérer les add-ons actifs d'un centre
+   */
+  static async getActiveAddons(centerId: string): Promise<ActiveAddon[]> {
+    try {
+      const { data, error } = await supabase
+        .from('center_addons')
+        .select('*, addon_plan:addon_plans(*)')
+        .eq('center_id', centerId)
+        .eq('status', 'active')
+
+      if (error) throw error
+      return (data || []).map((a: Record<string, unknown>) => {
+        const plan = a.addon_plan as Record<string, unknown> | undefined
+        return {
+          id: a.id as string,
+          addonPlanId: a.addon_plan_id as string,
+          addonType: plan?.addon_type as ActiveAddon['addonType'],
+          quotaValue: (plan?.quota_value as number) || 0,
+          quantity: (a.quantity as number) || 1,
+          name: (plan?.name as string) || '',
+          status: a.status as string,
+          priceMonthly: (plan?.price_monthly as number) || 0,
+          periodEnd: a.current_period_end as string | undefined,
+        }
+      })
+    } catch (error) {
+      console.error('Error getting active addons:', error)
+      return []
+    }
+  }
+
+  /**
+   * Calculer le quota additionnel pour un type d'add-on
+   * Cumul de (quota_value * quantity) pour tous les add-ons actifs de ce type
+   */
+  static async getAddonQuota(centerId: string, addonType: 'email' | 'teacher' | 'student'): Promise<number> {
+    try {
+      const addons = await this.getActiveAddons(centerId)
+      return addons
+        .filter(a => a.addonType === addonType)
+        .reduce((sum, a) => sum + a.quotaValue * a.quantity, 0)
+    } catch {
+      return 0
+    }
+  }
+
+  /**
+   * Vérifier le quota email d'un centre :
+   * base (Enterprise=200, autres=0) + add-ons email cumulés vs emails envoyés aujourd'hui
+   */
+  static async checkEmailQuota(centerId: string): Promise<LimitCheckResult> {
+    try {
+      const plan = await this.getActivePlan(centerId)
+      const isEnterprise = plan?.tier === 'enterprise'
+      const baseEmails = isEnterprise ? 200 : 0
+      const addonEmails = await this.getAddonQuota(centerId, 'email')
+      const totalQuota = baseEmails + addonEmails
+
+      if (totalQuota <= 0) {
+        return { allowed: false, current: 0, max: 0 }
+      }
+
+      // Compter les emails envoyés aujourd'hui
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+
+      const { count } = await supabase
+        .from('email_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('center_id', centerId)
+        .eq('status', 'sent')
+        .gte('sent_at', todayStart.toISOString())
+
+      const usedToday = count || 0
+      return { allowed: usedToday < totalQuota, current: usedToday, max: totalQuota }
+    } catch (error) {
+      console.error('Error checking email quota:', error)
+      return { allowed: true, current: 0, max: 0 }
+    }
+  }
+
+  /**
+   * Quotas effectifs (plan de base + add-ons) pour affichage
+   */
+  static async getEffectiveQuotas(centerId: string): Promise<EffectiveQuotas> {
+    try {
+      const [plan, counts, addons] = await Promise.all([
+        this.getActivePlan(centerId),
+        this.countResources(centerId),
+        this.getActiveAddons(centerId),
+      ])
+
+      const activePlan = plan || DEMO_PLAN
+      const isEnterprise = activePlan.tier === 'enterprise'
+
+      const emailAddonQuota = addons.filter(a => a.addonType === 'email').reduce((s, a) => s + a.quotaValue * a.quantity, 0)
+      const teacherAddonQuota = addons.filter(a => a.addonType === 'teacher').reduce((s, a) => s + a.quotaValue * a.quantity, 0)
+      const studentAddonQuota = addons.filter(a => a.addonType === 'student').reduce((s, a) => s + a.quotaValue * a.quantity, 0)
+
+      // Compter étudiants actifs
+      const { count: studentCount } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('center_id', centerId)
+        .eq('role', 'student')
+        .eq('is_active', true)
+
+      // Compter emails aujourd'hui
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const { count: emailsToday } = await supabase
+        .from('email_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('center_id', centerId)
+        .eq('status', 'sent')
+        .gte('sent_at', todayStart.toISOString())
+
+      const baseEmails = isEnterprise ? 200 : 0
+
+      return {
+        emails: { base: baseEmails, addons: emailAddonQuota, total: baseEmails + emailAddonQuota, usedToday: emailsToday || 0 },
+        teachers: { base: activePlan.maxUsers, addons: teacherAddonQuota, total: activePlan.maxUsers === -1 ? -1 : activePlan.maxUsers + teacherAddonQuota, current: counts.users },
+        students: { base: 0, addons: studentAddonQuota, total: studentAddonQuota, current: studentCount || 0 },
+      }
+    } catch (error) {
+      console.error('Error getting effective quotas:', error)
+      return {
+        emails: { base: 0, addons: 0, total: 0, usedToday: 0 },
+        teachers: { base: DEMO_PLAN.maxUsers, addons: 0, total: DEMO_PLAN.maxUsers, current: 0 },
+        students: { base: 0, addons: 0, total: 0, current: 0 },
       }
     }
   }

@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
+import { useAddonInfo } from '@/hooks/useAddonInfo'
 import { Button, Input, Modal, ModalFooter } from '@/components/ui'
-import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage } from '@/types'
-import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown } from 'lucide-react'
+import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
+import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType } from '@/types'
+import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
+import { SAAddonsService } from '@/services/super-admin/addons'
 import toast from 'react-hot-toast'
 
 const upgradePlans = [
@@ -314,6 +317,9 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
         )}
       </div>
 
+      {/* Section Mes options */}
+      <AddonsSection />
+
       {/* Actions du compte */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -417,6 +423,154 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
         </ModalFooter>
       </Modal>
     </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════
+// Section Mes options (add-ons actifs + barres d'utilisation)
+// ═══════════════════════════════════════════════════════════
+
+const ADDON_TYPE_ICONS: Record<AddonType, typeof Mail> = {
+  email: Mail,
+  teacher: Users,
+  student: GraduationCap,
+}
+
+const ADDON_TYPE_LABELS: Record<AddonType, string> = {
+  email: 'Email',
+  teacher: 'Professeurs',
+  student: 'Etudiants',
+}
+
+const ADDON_TYPE_COLORS: Record<AddonType, { text: string; bg: string }> = {
+  email: { text: 'text-blue-700', bg: 'bg-blue-100' },
+  teacher: { text: 'text-purple-700', bg: 'bg-purple-100' },
+  student: { text: 'text-emerald-700', bg: 'bg-emerald-100' },
+}
+
+function AddonsSection() {
+  const { activeAddons, effectiveQuotas, isLoading, refresh } = useAddonInfo()
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false)
+  const [cancelling, setCancelling] = useState<string | null>(null)
+
+  const handleCancel = async (addonId: string) => {
+    setCancelling(addonId)
+    try {
+      await SAAddonsService.cancelCenterAddon(addonId)
+      toast.success('Option annulee')
+      refresh()
+    } catch {
+      toast.error('Erreur lors de l\'annulation')
+    } finally {
+      setCancelling(null)
+    }
+  }
+
+  return (
+    <>
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
+        <div className="flex items-start sm:items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 rounded-lg shrink-0">
+              <Package size={20} className="text-indigo-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Mes options</h3>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setShowSubscribeModal(true)} className="shrink-0">
+            + Ajouter une option
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <p className="text-neutral-500 text-center py-4">Chargement...</p>
+        ) : (
+          <div className="space-y-6">
+            {/* Quotas effectifs */}
+            {effectiveQuotas && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+                  Quotas
+                </h4>
+                {effectiveQuotas.emails.total > 0 && (
+                  <UsageBar
+                    label={`Emails aujourd'hui`}
+                    usage={{ current: effectiveQuotas.emails.usedToday, max: effectiveQuotas.emails.total }}
+                  />
+                )}
+                {effectiveQuotas.teachers.total !== 0 && (
+                  <UsageBar
+                    label="Enseignants"
+                    usage={{ current: effectiveQuotas.teachers.current, max: effectiveQuotas.teachers.total }}
+                  />
+                )}
+                {effectiveQuotas.students.total > 0 && (
+                  <UsageBar
+                    label="Etudiants"
+                    usage={{ current: effectiveQuotas.students.current, max: effectiveQuotas.students.total }}
+                  />
+                )}
+                {effectiveQuotas.emails.total === 0 && effectiveQuotas.students.total === 0 && (
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                    Aucune option active. Ajoutez des packs pour debloquer des quotas supplementaires.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Active addons list */}
+            {activeAddons.length > 0 && (
+              <div className="space-y-3 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+                <h4 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+                  Options actives
+                </h4>
+                {activeAddons.map(addon => {
+                  const Icon = ADDON_TYPE_ICONS[addon.addonType]
+                  const colors = ADDON_TYPE_COLORS[addon.addonType]
+                  return (
+                    <div key={addon.id} className="flex items-center justify-between p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/50">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-lg ${colors.bg}`}>
+                          <Icon size={14} className={colors.text} />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                            {addon.name}
+                          </span>
+                          {addon.quantity > 1 && (
+                            <span className="text-xs text-neutral-500 ml-1">x{addon.quantity}</span>
+                          )}
+                          <div className="text-xs text-neutral-500">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${colors.bg} ${colors.text}`}>
+                              {ADDON_TYPE_LABELS[addon.addonType]}
+                            </span>
+                            <span className="ml-2">{addon.priceMonthly}{'\u20AC'}/mois</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCancel(addon.id)}
+                        disabled={cancelling === addon.id}
+                        className="p-1.5 rounded-md text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Annuler cette option"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {showSubscribeModal && (
+        <AddonSubscribeModal
+          isOpen={true}
+          onClose={() => { setShowSubscribeModal(false); refresh(); }}
+        />
+      )}
+    </>
   )
 }
 

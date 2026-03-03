@@ -11,11 +11,14 @@ import type {
   CenterSubscription,
   BillingEvent,
   AuditLogEntry,
+  AddonPlan,
+  CenterAddon,
+  AssignAddonData,
 } from '@/types/super-admin';
 
 const PREFIX = 'sa_mock_';
 const VERSION_KEY = `${PREFIX}version`;
-const CURRENT_VERSION = '2';
+const CURRENT_VERSION = '3';
 
 // ──────────── Generic helpers ────────────
 
@@ -106,6 +109,21 @@ function seedAudit(): AuditLogEntry[] {
   ];
 }
 
+function seedAddonPlans(): AddonPlan[] {
+  const now = new Date().toISOString();
+  return [
+    { id: 'ap1', name: 'Pack Email 25', slug: 'email-25', description: '25 emails/jour supplémentaires', addon_type: 'email', quota_value: 25, price_monthly: 9.90, price_yearly: 99, currency: 'EUR', is_active: true, sort_order: 1, created_at: now, updated_at: now },
+    { id: 'ap2', name: 'Pack Email 50', slug: 'email-50', description: '50 emails/jour supplémentaires', addon_type: 'email', quota_value: 50, price_monthly: 14.90, price_yearly: 149, currency: 'EUR', is_active: true, sort_order: 2, created_at: now, updated_at: now },
+    { id: 'ap3', name: 'Pack Email 200', slug: 'email-200', description: '200 emails/jour supplémentaires', addon_type: 'email', quota_value: 200, price_monthly: 19.90, price_yearly: 199, currency: 'EUR', is_active: true, sort_order: 3, created_at: now, updated_at: now },
+    { id: 'ap4', name: 'Pack Profs +5', slug: 'teacher-5', description: '+5 enseignants supplémentaires', addon_type: 'teacher', quota_value: 5, price_monthly: 9.90, price_yearly: 99, currency: 'EUR', is_active: true, sort_order: 4, created_at: now, updated_at: now },
+    { id: 'ap5', name: 'Pack Profs +15', slug: 'teacher-15', description: '+15 enseignants supplémentaires', addon_type: 'teacher', quota_value: 15, price_monthly: 19.90, price_yearly: 199, currency: 'EUR', is_active: true, sort_order: 5, created_at: now, updated_at: now },
+    { id: 'ap6', name: 'Pack Profs +30', slug: 'teacher-30', description: '+30 enseignants supplémentaires', addon_type: 'teacher', quota_value: 30, price_monthly: 29.90, price_yearly: 299, currency: 'EUR', is_active: true, sort_order: 6, created_at: now, updated_at: now },
+    { id: 'ap7', name: 'Pack Étudiants +50', slug: 'student-50', description: '+50 étudiants supplémentaires', addon_type: 'student', quota_value: 50, price_monthly: 9.90, price_yearly: 99, currency: 'EUR', is_active: true, sort_order: 7, created_at: now, updated_at: now },
+    { id: 'ap8', name: 'Pack Étudiants +150', slug: 'student-150', description: '+150 étudiants supplémentaires', addon_type: 'student', quota_value: 150, price_monthly: 19.90, price_yearly: 199, currency: 'EUR', is_active: true, sort_order: 8, created_at: now, updated_at: now },
+    { id: 'ap9', name: 'Pack Étudiants +500', slug: 'student-500', description: '+500 étudiants supplémentaires', addon_type: 'student', quota_value: 500, price_monthly: 29.90, price_yearly: 299, currency: 'EUR', is_active: true, sort_order: 9, created_at: now, updated_at: now },
+  ];
+}
+
 // ──────────── Init: seed si premiere visite ou version changee ────────────
 
 function initStore(): void {
@@ -118,6 +136,8 @@ function initStore(): void {
   save('subscriptions', seedSubscriptions());
   save('billing', seedBilling());
   save('audit', seedAudit());
+  save('addonPlans', seedAddonPlans());
+  save('centerAddons', []);
   localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
 }
 
@@ -344,10 +364,91 @@ export const MockStore = {
     };
   },
 
+  // ── Addon Plans ──
+  getAddonPlans(): AddonPlan[] {
+    return load<AddonPlan>('addonPlans').sort((a, b) => a.sort_order - b.sort_order);
+  },
+  addAddonPlan(data: Partial<AddonPlan>): AddonPlan {
+    const plans = load<AddonPlan>('addonPlans');
+    const now = new Date().toISOString();
+    const p: AddonPlan = {
+      id: uid(), name: data.name || '', slug: data.slug || '', description: data.description,
+      addon_type: data.addon_type || 'email', quota_value: data.quota_value || 0,
+      price_monthly: data.price_monthly || 0, price_yearly: data.price_yearly, currency: 'EUR',
+      is_active: true, sort_order: plans.length + 1, created_at: now, updated_at: now,
+    };
+    plans.push(p);
+    save('addonPlans', plans);
+    return p;
+  },
+  updateAddonPlan(id: string, data: Partial<AddonPlan>): AddonPlan | null {
+    const plans = load<AddonPlan>('addonPlans');
+    const idx = plans.findIndex(p => p.id === id);
+    if (idx === -1) return null;
+    plans[idx] = { ...plans[idx], ...data, updated_at: new Date().toISOString() };
+    save('addonPlans', plans);
+    return plans[idx];
+  },
+  deleteAddonPlan(id: string): void {
+    save('addonPlans', load<AddonPlan>('addonPlans').filter(p => p.id !== id));
+  },
+
+  // ── Center Addons ──
+  getCenterAddons(centerId?: string): CenterAddon[] {
+    let addons = load<CenterAddon>('centerAddons');
+    if (centerId) addons = addons.filter(a => a.center_id === centerId);
+    const plans = load<AddonPlan>('addonPlans');
+    const centers = load<SuperAdminCenter>('centers');
+    return addons.map(a => ({
+      ...a,
+      addon_plan: a.addon_plan || plans.find(p => p.id === a.addon_plan_id),
+      center: a.center || (() => { const c = centers.find(c => c.id === a.center_id); return c ? { id: c.id, name: c.name, acronym: c.acronym } : undefined; })(),
+    })).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+  addCenterAddon(data: AssignAddonData): CenterAddon {
+    const addons = load<CenterAddon>('centerAddons');
+    const plans = load<AddonPlan>('addonPlans');
+    const centers = load<SuperAdminCenter>('centers');
+    const now = new Date();
+    const periodEnd = new Date(now);
+    if (data.billing_cycle === 'yearly') periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    else periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+    const plan = plans.find(p => p.id === data.addon_plan_id);
+    const center = centers.find(c => c.id === data.center_id);
+
+    const addon: CenterAddon = {
+      id: uid(), center_id: data.center_id, addon_plan_id: data.addon_plan_id,
+      quantity: data.quantity, status: 'active', billing_cycle: data.billing_cycle,
+      current_period_start: now.toISOString(), current_period_end: periodEnd.toISOString(),
+      cancel_at_period_end: false, created_at: now.toISOString(), updated_at: now.toISOString(),
+      addon_plan: plan, center: center ? { id: center.id, name: center.name, acronym: center.acronym } : undefined,
+    };
+    addons.unshift(addon);
+    save('centerAddons', addons);
+    return addon;
+  },
+  updateCenterAddon(id: string, data: Partial<CenterAddon>): CenterAddon | null {
+    const addons = load<CenterAddon>('centerAddons');
+    const idx = addons.findIndex(a => a.id === id);
+    if (idx === -1) return null;
+    addons[idx] = { ...addons[idx], ...data, updated_at: new Date().toISOString() };
+    save('centerAddons', addons);
+    return addons[idx];
+  },
+  cancelCenterAddon(id: string): void {
+    const addons = load<CenterAddon>('centerAddons');
+    const idx = addons.findIndex(a => a.id === id);
+    if (idx !== -1) {
+      addons[idx] = { ...addons[idx], status: 'cancelled', cancelled_at: new Date().toISOString(), cancel_at_period_end: true, updated_at: new Date().toISOString() };
+      save('centerAddons', addons);
+    }
+  },
+
   /** Reset complet du store (utile pour debug) */
   reset(): void {
     localStorage.removeItem(VERSION_KEY);
-    ['users', 'centers', 'plans', 'subscriptions', 'billing', 'audit'].forEach(k => localStorage.removeItem(`${PREFIX}${k}`));
+    ['users', 'centers', 'plans', 'subscriptions', 'billing', 'audit', 'addonPlans', 'centerAddons'].forEach(k => localStorage.removeItem(`${PREFIX}${k}`));
     initStore();
   },
 };
