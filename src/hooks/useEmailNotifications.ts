@@ -271,13 +271,15 @@ export function useEmailNotifications() {
         body: { to: recipients, subject, htmlContent, tags: [type] },
       })
 
-      // 5. Logger dans email_logs
+      // 5. Logger dans email_logs (avec rendu HTML pour preview)
       const logs = recipients.map(r => ({
         session_id: session.id,
         participant_email: r.email,
         email_type: type,
         status: error ? 'failed' : 'sent',
         error_message: error?.message || null,
+        rendered_subject: subject,
+        rendered_html: htmlContent,
       }))
 
       await supabase.from('email_logs').insert(logs)
