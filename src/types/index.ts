@@ -316,7 +316,30 @@ export interface Subject {
   createdAt: string
 }
 
-export type ExportFormat = 'excel' | 'csv' | 'word' | 'pdf'
+export type ExportFormat = 'excel' | 'csv' | 'word' | 'pdf' | 'ical'
+
+// ==================== TYPES NOTIFICATIONS IN-APP ====================
+
+export type InAppNotificationType =
+  | 'session_created'
+  | 'session_updated'
+  | 'session_cancelled'
+  | 'reminder'
+  | 'weekly_recap'
+  | 'system'
+
+export interface InAppNotification {
+  id: string
+  userId: string
+  centerId: string
+  title: string
+  message: string
+  type: InAppNotificationType
+  link?: string
+  isRead: boolean
+  sessionId?: string
+  createdAt: string
+}
 
 // Type placeholder pour Supabase Database (généré par supabase gen types)
 export type Database = any

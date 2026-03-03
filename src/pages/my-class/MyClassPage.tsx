@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   GraduationCap,
   BookOpen,
@@ -6,12 +6,14 @@ import {
   Calendar,
   Clock,
   User,
+  Download,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
 import { isStudentRole } from '@/utils/helpers'
 import { supabase, isDemoMode } from '@/lib/supabase'
+import { useBookings } from '@/hooks/useBookings'
 import { LoadingState, Badge } from '@/components/ui'
 import { getScheduleTypeLabel, getScheduleTypeBadgeVariant, DAY_OPTIONS } from '@/utils/scheduleUtils'
 import { transformUser } from '@/utils/transforms'
@@ -30,6 +32,7 @@ function MyClassPage() {
     isLoading: academicLoading,
   } = useAcademicData()
   const { settings: centerSettings } = useCenterSettings()
+  const { calendarEvents } = useBookings()
   const hideSubjects = !!centerSettings.hide_subjects
   const hideClassmates = !!centerSettings.hide_classmates
 
@@ -161,6 +164,13 @@ function MyClassPage() {
   // Jours de présence
   const attendanceDays = currentClass?.attendanceDays || []
 
+  // Export iCal filtré par classes de l'étudiant
+  const handleExportICal = useCallback(async () => {
+    const myEvents = calendarEvents.filter(ev => ev.classId && myClassIds.includes(ev.classId))
+    const { exportToICal } = await import('@/utils/export')
+    exportToICal(myEvents, 'mon-emploi-du-temps')
+  }, [calendarEvents, myClassIds])
+
   if (academicLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -199,6 +209,13 @@ function MyClassPage() {
             Informations sur votre classe, matières et camarades
           </p>
         </div>
+        <button
+          onClick={handleExportICal}
+          className="mt-3 sm:mt-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+        >
+          <Download size={16} />
+          Exporter emploi du temps
+        </button>
       </div>
 
       {/* Tabs multi-classe */}

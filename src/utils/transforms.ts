@@ -3,7 +3,7 @@
  * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
-import type { Booking, Room, User, Program } from '@/types'
+import type { Booking, Room, User, Program, InAppNotification } from '@/types'
 
 // ==================== BOOKING (from training_sessions) ====================
 
@@ -118,6 +118,25 @@ export function transformProgram(raw: Record<string, any>): Program {
 export function parseFullName(fullName: string | null | undefined): { firstName: string; lastName: string } {
   const parts = (fullName || '').split(' ')
   return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' }
+}
+
+// ==================== USER (from profiles) ====================
+
+// ==================== NOTIFICATION (from in_app_notifications) ====================
+
+export function transformInAppNotification(raw: Record<string, any>): InAppNotification {
+  return {
+    id: raw.id,
+    userId: raw.user_id,
+    centerId: raw.center_id,
+    title: raw.title,
+    message: raw.message,
+    type: raw.type || 'system',
+    link: raw.link ?? undefined,
+    isRead: raw.is_read ?? false,
+    sessionId: raw.session_id ?? undefined,
+    createdAt: raw.created_at,
+  }
 }
 
 // ==================== USER (from profiles) ====================

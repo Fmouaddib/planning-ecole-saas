@@ -257,10 +257,12 @@ function CalendarPage() {
     )
   }
 
-  const handleExport = async (fmt: ExportFormat, mode: 'list' | 'calendar' = 'list') => {
+  const handleExport = async (fmt: ExportFormat, mode: 'list' | 'calendar' | 'ical' = 'list') => {
     const exportModule = await import('@/utils/export')
     const filename = `planning-${format(currentDate, 'yyyy-MM-dd')}`
-    if (mode === 'calendar') {
+    if (mode === 'ical') {
+      exportModule.exportToICal(filteredEvents, filename)
+    } else if (mode === 'calendar') {
       const calFilename = `${filename}-calendrier`
       switch (fmt) {
         case 'excel': await exportModule.exportToExcelCalendar(filteredEvents, currentDate, calFilename); break
@@ -563,6 +565,15 @@ function CalendarPage() {
                     <span className="text-[10px] text-neutral-400">{ext}</span>
                   </button>
                 ))}
+                <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">Agenda</div>
+                <button
+                  className="w-full text-left px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-primary-50 dark:hover:bg-neutral-800 hover:text-primary-700 transition-colors flex items-center justify-between"
+                  onClick={() => handleExport('ical', 'ical')}
+                >
+                  <span>iCal (Google, Apple, Outlook)</span>
+                  <span className="text-[10px] text-neutral-400">.ics</span>
+                </button>
               </div>
             )}
           </div>

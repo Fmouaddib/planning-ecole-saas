@@ -80,6 +80,97 @@ function eventToRow(event: CalendarEvent) {
 
 const COLUMNS = ['Titre', 'Salle', 'Date', 'Début', 'Fin', 'Type', 'Matière', 'Diplôme', 'Niveau', 'Statut']
 
+// ==================== ICAL (RFC 5545) ====================
+
+function toICalDate(dateValue: string | Date): string {
+  const d = typeof dateValue === 'string' ? parseISO(dateValue) : dateValue
+  // Format UTC : YYYYMMDDTHHmmssZ
+  return format(d, "yyyyMMdd'T'HHmmss'Z'")
+}
+
+function escapeICalText(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n')
+}
+
+function foldLine(line: string): string {
+  const maxLen = 75
+  if (line.length <= maxLen) return line
+  const parts: string[] = []
+  parts.push(line.substring(0, maxLen))
+  let pos = maxLen
+  while (pos < line.length) {
+    parts.push(' ' + line.substring(pos, pos + maxLen - 1))
+    pos += maxLen - 1
+  }
+  return parts.join('\r\n')
+}
+
+const STATUS_MAP: Record<string, string> = {
+  scheduled: 'CONFIRMED',
+  confirmed: 'CONFIRMED',
+  in_progress: 'CONFIRMED',
+  completed: 'CONFIRMED',
+  cancelled: 'CANCELLED',
+  pending: 'TENTATIVE',
+}
+
+export function exportToICal(events: CalendarEvent[], filename = 'planning') {
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//AntiPlanning//Planning SaaS//FR',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${escapeICalText(filename)}`,
+  ]
+
+  for (const ev of events) {
+    const uid = `${ev.id}@antiplanning`
+    const summary = escapeICalText(ev.title)
+    const dtStart = toICalDate(ev.start)
+    const dtEnd = toICalDate(ev.end)
+
+    const descParts: string[] = []
+    if (ev.teacher) descParts.push(`Professeur: ${ev.teacher}`)
+    if (ev.matiere) descParts.push(`Matière: ${ev.matiere}`)
+    if (ev.diplome) descParts.push(`Diplôme: ${ev.diplome}`)
+    if (ev.niveau) descParts.push(`Classe: ${ev.niveau}`)
+    if (ev.type) descParts.push(`Type: ${typeLabels[ev.type] || ev.type}`)
+    const description = escapeICalText(descParts.join('\\n'))
+
+    const location = ev.roomName ? escapeICalText(ev.roomName) : ''
+    const status = STATUS_MAP[ev.status || ''] || 'CONFIRMED'
+
+    lines.push('BEGIN:VEVENT')
+    lines.push(foldLine(`UID:${uid}`))
+    lines.push(foldLine(`DTSTART:${dtStart}`))
+    lines.push(foldLine(`DTEND:${dtEnd}`))
+    lines.push(foldLine(`SUMMARY:${summary}`))
+    if (description) lines.push(foldLine(`DESCRIPTION:${description}`))
+    if (location) lines.push(foldLine(`LOCATION:${location}`))
+    if (ev.meetingUrl) lines.push(foldLine(`URL:${ev.meetingUrl}`))
+    lines.push(foldLine(`STATUS:${status}`))
+    lines.push(`DTSTAMP:${toICalDate(new Date())}`)
+    // Rappel 15 minutes avant
+    lines.push('BEGIN:VALARM')
+    lines.push('TRIGGER:-PT15M')
+    lines.push('ACTION:DISPLAY')
+    lines.push(`DESCRIPTION:${summary} dans 15 minutes`)
+    lines.push('END:VALARM')
+    lines.push('END:VEVENT')
+  }
+
+  lines.push('END:VCALENDAR')
+
+  const content = lines.map(l => foldLine(l)).join('\r\n')
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
+  saveAs(blob, `${filename}.ics`)
+}
+
 // ==================== CALENDAR GRID DATA ====================
 
 interface CalendarGridCell {

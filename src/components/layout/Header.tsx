@@ -33,6 +33,7 @@ interface HeaderProps {
   onNavigate?: (path: string) => void
   onLogout?: () => void
   className?: string
+  unreadCount?: number
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -43,7 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
   onNotificationsClick,
   onNavigate,
   onLogout,
-  className
+  className,
+  unreadCount = 0,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -137,7 +139,11 @@ export const Header: React.FC<HeaderProps> = ({
           title="Notifications"
         >
           <Bell size={20} className="text-neutral-600 dark:text-neutral-400" />
-          <span className="absolute top-0 right-0 h-2 w-2 bg-error-500 rounded-full"></span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold text-white bg-error-500 rounded-full leading-none">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </button>
 
         {/* User menu with dropdown */}

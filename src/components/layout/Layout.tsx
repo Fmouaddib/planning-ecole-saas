@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
+import { NotificationPanel } from './NotificationPanel'
+import { useNotifications } from '@/hooks/useNotifications'
 import { User } from '@/types'
 
 interface LayoutProps {
@@ -9,7 +11,6 @@ interface LayoutProps {
   currentPath?: string
   onNavigate?: (path: string) => void
   onLogout?: () => void
-  onNotificationsClick?: () => void
 }
 
 function getInitialTheme(): boolean {
@@ -26,10 +27,17 @@ export const Layout: React.FC<LayoutProps> = ({
   currentPath = '/',
   onNavigate,
   onLogout,
-  onNotificationsClick,
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(getInitialTheme)
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false)
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+  } = useNotifications()
 
   // Appliquer le thème au montage et à chaque changement
   useEffect(() => {
@@ -65,16 +73,28 @@ export const Layout: React.FC<LayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 transition-colors">
-      {/* Header */}
-      <Header
-        user={user}
-        onMenuToggle={handleMenuToggle}
-        isDarkMode={isDarkMode}
-        onThemeToggle={handleThemeToggle}
-        onNotificationsClick={onNotificationsClick}
-        onNavigate={onNavigate}
-        onLogout={onLogout}
-      />
+      {/* Header + Notification Panel */}
+      <div className="relative">
+        <Header
+          user={user}
+          onMenuToggle={handleMenuToggle}
+          isDarkMode={isDarkMode}
+          onThemeToggle={handleThemeToggle}
+          onNotificationsClick={() => setNotifPanelOpen(prev => !prev)}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          unreadCount={unreadCount}
+        />
+        <NotificationPanel
+          isOpen={notifPanelOpen}
+          onClose={() => setNotifPanelOpen(false)}
+          notifications={notifications}
+          onMarkAsRead={markAsRead}
+          onMarkAllAsRead={markAllAsRead}
+          onDelete={deleteNotification}
+          onNavigate={(path) => { onNavigate?.(path); setNotifPanelOpen(false) }}
+        />
+      </div>
 
       <div className="flex">
         {/* Sidebar */}

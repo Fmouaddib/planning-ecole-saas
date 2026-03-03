@@ -38,6 +38,7 @@ async function getCenterEmailPolicy(centerId: string): Promise<typeof EMAIL_POLI
 interface Recipient {
   email: string
   name?: string
+  userId?: string
 }
 
 const SESSION_TYPE_LABELS: Record<string, string> = {
@@ -93,25 +94,25 @@ async function getSessionRecipients(session: Booking): Promise<Recipient[]> {
   if (session.userId) {
     const { data: trainer } = await supabase
       .from('profiles')
-      .select('email, full_name')
+      .select('id, email, full_name')
       .eq('id', session.userId)
       .single()
 
     if (trainer?.email) {
-      recipients.push({ email: trainer.email, name: trainer.full_name || undefined })
+      recipients.push({ email: trainer.email, name: trainer.full_name || undefined, userId: trainer.id })
     }
   }
 
   // 2. Participants inscrits
   const { data: participants } = await supabase
     .from('session_participants')
-    .select('participant_email, participant_name')
+    .select('participant_email, participant_name, participant_id')
     .eq('session_id', session.id)
 
   if (participants) {
     for (const p of participants) {
       if (p.participant_email && !recipients.some(r => r.email === p.participant_email)) {
-        recipients.push({ email: p.participant_email, name: p.participant_name || undefined })
+        recipients.push({ email: p.participant_email, name: p.participant_name || undefined, userId: p.participant_id || undefined })
       }
     }
   }
@@ -120,20 +121,42 @@ async function getSessionRecipients(session: Booking): Promise<Recipient[]> {
   if (session.classId) {
     const { data: students } = await supabase
       .from('class_students')
-      .select('student:profiles!class_students_student_id_fkey(email, full_name)')
+      .select('student:profiles!class_students_student_id_fkey(id, email, full_name)')
       .eq('class_id', session.classId)
 
     if (students) {
       for (const s of students) {
-        const student = s.student as unknown as { email: string; full_name: string } | null
+        const student = s.student as unknown as { id: string; email: string; full_name: string } | null
         if (student?.email && !recipients.some(r => r.email === student.email)) {
-          recipients.push({ email: student.email, name: student.full_name || undefined })
+          recipients.push({ email: student.email, name: student.full_name || undefined, userId: student.id })
         }
       }
     }
   }
 
   return recipients
+}
+
+const NOTIF_TITLES: Record<EmailType, string> = {
+  session_created: 'Nouvelle séance',
+  session_updated: 'Séance modifiée',
+  session_cancelled: 'Séance annulée',
+}
+
+function buildNotifMessage(type: EmailType, session: Booking, roomName?: string): string {
+  const date = format(new Date(session.startTime), 'EEEE d MMMM', { locale: fr })
+  const start = format(new Date(session.startTime), 'HH:mm')
+  const end = format(new Date(session.endTime), 'HH:mm')
+  const room = roomName ? ` en ${roomName}` : ''
+
+  switch (type) {
+    case 'session_created':
+      return `${session.title} — ${date} de ${start} à ${end}${room}`
+    case 'session_updated':
+      return `${session.title} a été modifiée — ${date} de ${start} à ${end}${room}`
+    case 'session_cancelled':
+      return `${session.title} du ${date} (${start}-${end}) a été annulée`
+  }
 }
 
 export function useEmailNotifications() {
@@ -149,12 +172,38 @@ export function useEmailNotifications() {
     try {
       // 0. Vérifier la politique email du centre
       const centerId = session.establishmentId || session.schoolId
+
+      // Récupérer tous les destinataires (pour in-app + email)
+      const allRecipients = await getSessionRecipients(session)
+
+      // --- IN-APP NOTIFICATIONS (toujours, indépendant de la politique email) ---
+      if (centerId && allRecipients.length > 0) {
+        const notifRows = allRecipients
+          .filter(r => r.userId)
+          .map(r => ({
+            user_id: r.userId!,
+            center_id: centerId,
+            title: NOTIF_TITLES[type],
+            message: buildNotifMessage(type, session, roomName),
+            type: type as string,
+            link: '/planning',
+            session_id: session.id,
+          }))
+
+        if (notifRows.length > 0) {
+          supabase.from('in_app_notifications').insert(notifRows).then(({ error }) => {
+            if (error) console.error('In-app notification insert error:', error)
+          })
+        }
+      }
+
+      // --- EMAIL NOTIFICATIONS (soumis à la politique) ---
       const policy = centerId ? await getCenterEmailPolicy(centerId) : null
 
       if (policy) {
         const settingKey = EMAIL_TYPE_TO_SETTING[type]
         if (!policy[settingKey]) {
-          console.info(`[EmailPolicy] "${type}" disabled for center ${centerId} — skipping`)
+          console.info(`[EmailPolicy] "${type}" disabled for center ${centerId} — skipping email`)
           return
         }
       }
@@ -173,14 +222,13 @@ export function useEmailNotifications() {
         return
       }
 
-      // 2. Récupérer les destinataires
-      let recipients = await getSessionRecipients(session)
+      // 2. Filtrer les destinataires email selon la politique
+      let recipients = [...allRecipients]
       if (recipients.length === 0) {
         console.info(`No recipients for session ${session.id} — skipping email`)
         return
       }
 
-      // 3. Filtrer les destinataires selon la politique
       if (policy) {
         if (!policy.email_notify_trainers && session.userId) {
           const { data: trainer } = await supabase
@@ -209,21 +257,21 @@ export function useEmailNotifications() {
         }
 
         if (recipients.length === 0) {
-          console.info(`[EmailPolicy] No recipients after policy filter for session ${session.id} — skipping`)
+          console.info(`[EmailPolicy] No recipients after policy filter for session ${session.id} — skipping email`)
           return
         }
       }
 
-      // 4. Construire le contenu
+      // 3. Construire le contenu
       const htmlContent = renderTemplate(template.body_html, session, roomName)
       const subject = template.subject.replace(/\{\{session_title\}\}/g, session.title)
 
-      // 5. Appeler l'Edge Function
+      // 4. Appeler l'Edge Function
       const { error } = await supabase.functions.invoke('send-email', {
         body: { to: recipients, subject, htmlContent, tags: [type] },
       })
 
-      // 6. Logger dans email_logs
+      // 5. Logger dans email_logs
       const logs = recipients.map(r => ({
         session_id: session.id,
         participant_email: r.email,
