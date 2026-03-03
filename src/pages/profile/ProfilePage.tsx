@@ -298,7 +298,7 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
                             variant="primary"
                             size="sm"
                             fullWidth
-                            onClick={() => openCheckout({ planSlug: p.slug, billingCycle: annualBilling ? 'yearly' : 'monthly' })}
+                            onClick={() => openCheckout({ planSlug: p.slug, billingCycle: annualBilling ? 'yearly' : 'monthly', successUrl: `${window.location.origin}/#/checkout-success`, cancelUrl: `${window.location.origin}/#/profile` })}
                             isLoading={portalLoading}
                           >
                             Choisir

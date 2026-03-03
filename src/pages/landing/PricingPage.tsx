@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Check, X, ChevronDown, ShieldCheck } from 'lucide-react'
+import { Check, X, ChevronDown, ShieldCheck, Loader2 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { useAuthContext } from '@/contexts/AuthContext'
+import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import LandingLayout from '@/components/landing/LandingLayout'
 
 const plans = [
@@ -66,10 +68,31 @@ interface CompareRow {
 export default function PricingPage() {
   const { t } = useLang()
   const { reveal } = useScrollReveal()
+  const { user } = useAuthContext()
+  const { openCheckout, isLoading: checkoutLoading } = useStripeCheckout()
   const [annualBilling, setAnnualBilling] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [loadingSlug, setLoadingSlug] = useState<string | null>(null)
+
+  const isAuthenticated = !!user
 
   useEffect(() => { window.scrollTo(0, 0) }, [])
+
+  const handlePlanClick = async (slug: string) => {
+    if (!isAuthenticated) return // fallback: le <a> href gère la nav
+    if (slug === 'free') {
+      window.location.hash = '#/onboarding'
+      return
+    }
+    setLoadingSlug(slug)
+    await openCheckout({
+      planSlug: slug,
+      billingCycle: annualBilling ? 'yearly' : 'monthly',
+      successUrl: `${window.location.origin}/#/checkout-success`,
+      cancelUrl: `${window.location.origin}/#/pricing?checkout=cancelled`,
+    })
+    setLoadingSlug(null)
+  }
 
   const compareRows: CompareRow[] = [
     // Ordre : Free, École en ligne, Pro, Enterprise
@@ -162,12 +185,26 @@ export default function PricingPage() {
                       </li>
                     ))}
                   </ul>
-                  <a
-                    href={ctaHref}
-                    className={`landing-pricing-card-btn ${plan.btnStyle}`}
-                  >
-                    {t(plan.ctaKey)}
-                  </a>
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => handlePlanClick(plan.slug)}
+                      disabled={checkoutLoading}
+                      className={`landing-pricing-card-btn ${plan.btnStyle}`}
+                    >
+                      {loadingSlug === plan.slug ? (
+                        <><Loader2 size={16} className="animate-spin inline mr-2" />Redirection...</>
+                      ) : (
+                        plan.slug === 'free' ? 'Commencer gratuitement' : 'Souscrire maintenant'
+                      )}
+                    </button>
+                  ) : (
+                    <a
+                      href={ctaHref}
+                      className={`landing-pricing-card-btn ${plan.btnStyle}`}
+                    >
+                      {t(plan.ctaKey)}
+                    </a>
+                  )}
                 </div>
               )
             })}

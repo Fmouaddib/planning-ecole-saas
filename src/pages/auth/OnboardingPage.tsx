@@ -256,7 +256,7 @@ export default function OnboardingPage() {
     await openCheckout({
       planSlug,
       billingCycle: annualBilling ? 'yearly' : 'monthly',
-      successUrl: `${window.location.origin}/#/onboarding?checkout=success`,
+      successUrl: `${window.location.origin}/#/checkout-success`,
       cancelUrl: `${window.location.origin}/#/onboarding?checkout=cancelled`,
     })
   }

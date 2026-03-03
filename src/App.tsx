@@ -22,6 +22,7 @@ const PricingPage = lazy(() => import('@/pages/landing/PricingPage'))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
+const CheckoutSuccessPage = lazy(() => import('@/pages/checkout/CheckoutSuccessPage'))
 
 // Lazy-loaded pages
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'))
@@ -215,22 +216,22 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  // Gérer le retour Stripe Checkout (?checkout=success ou ?checkout=cancelled)
+  // Gérer le retour Stripe Checkout (?checkout=cancelled — success est géré par #/checkout-success)
   useEffect(() => {
-    const h = window.location.hash
-    const qIdx = h.indexOf('?')
-    if (qIdx === -1) return
-    const params = new URLSearchParams(h.slice(qIdx))
-    if (params.get('checkout') === 'success') {
-      toast.success('Paiement réussi ! Votre abonnement est maintenant actif.')
-      // Nettoyer l'URL en gardant la route de base
-      const basePath = h.slice(0, qIdx) || '#/'
-      window.location.hash = basePath
-    } else if (params.get('checkout') === 'cancelled') {
-      toast.error('Paiement annulé.')
-      const basePath = h.slice(0, qIdx) || '#/'
-      window.location.hash = basePath
+    const handleCheckoutReturn = () => {
+      const h = window.location.hash
+      const qIdx = h.indexOf('?')
+      if (qIdx === -1) return
+      const params = new URLSearchParams(h.slice(qIdx))
+      if (params.get('checkout') === 'cancelled') {
+        toast.error('Paiement annulé. Vous pouvez réessayer à tout moment.')
+        const basePath = h.slice(0, qIdx) || '#/'
+        window.location.hash = basePath
+      }
     }
+    handleCheckoutReturn()
+    window.addEventListener('hashchange', handleCheckoutReturn)
+    return () => window.removeEventListener('hashchange', handleCheckoutReturn)
   }, [])
 
   const handleLogin = async (credentials: LoginForm): Promise<void> => {
@@ -463,7 +464,21 @@ export default function App() {
       )
     }
 
-    if (hash === '#/onboarding') {
+    if (hash === '#/checkout-success') {
+      return (
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+              <LoadingState size="lg" text="Chargement..." />
+            </div>
+          }
+        >
+          <CheckoutSuccessPage />
+        </Suspense>
+      )
+    }
+
+    if (hash === '#/onboarding' || hash.startsWith('#/onboarding?')) {
       return (
         <Suspense
           fallback={
@@ -500,8 +515,23 @@ export default function App() {
     return landingSuspense(LandingPage)
   }
 
+  // Page de succès Stripe Checkout
+  if (hash === '#/checkout-success') {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+            <LoadingState size="lg" text="Chargement..." />
+          </div>
+        }
+      >
+        <CheckoutSuccessPage />
+      </Suspense>
+    )
+  }
+
   // Pricing accessible aux utilisateurs authentifiés (upgrade depuis ProfilePage)
-  if (hash === '#/pricing') {
+  if (hash === '#/pricing' || hash.startsWith('#/pricing?')) {
     return (
       <Suspense
         fallback={
