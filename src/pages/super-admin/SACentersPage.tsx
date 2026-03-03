@@ -52,6 +52,7 @@ export const SACentersPage = () => {
       name: form.get('name') as string,
       acronym: form.get('acronym') as string || undefined,
       address: form.get('address') as string || undefined,
+      address_line_2: form.get('address_line_2') as string || undefined,
       postal_code: form.get('postal_code') as string || undefined,
       city: form.get('city') as string || undefined,
       phone: form.get('phone') as string || undefined,
@@ -274,8 +275,12 @@ export const SACentersPage = () => {
                 <input name="email" type="email" className="sa-form-input" defaultValue={editingCenter?.email || ''} />
               </div>
               <div className="sa-form-group">
-                <label className="sa-form-label">Adresse</label>
-                <input name="address" className="sa-form-input" placeholder="Rue, numéro" defaultValue={editingCenter?.address || ''} />
+                <label className="sa-form-label">Adresse (ligne 1)</label>
+                <input name="address" className="sa-form-input" placeholder="Numéro et rue" defaultValue={editingCenter?.address || ''} />
+              </div>
+              <div className="sa-form-group">
+                <label className="sa-form-label">Adresse (ligne 2) <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)' }}>(optionnel)</span></label>
+                <input name="address_line_2" className="sa-form-input" placeholder="Bâtiment, étage, complément" defaultValue={editingCenter?.address_line_2 || ''} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
                 <div className="sa-form-group">

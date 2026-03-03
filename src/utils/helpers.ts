@@ -297,7 +297,7 @@ export function centerDisplayName(center: { name: string; acronym?: string | nul
 /**
  * Formate l'adresse complète d'un centre à partir de ses composants.
  */
-export function formatCenterAddress(center: { address?: string | null; postal_code?: string | null; city?: string | null }): string {
-  const parts = [center.address, [center.postal_code, center.city].filter(Boolean).join(' ')].filter(Boolean)
+export function formatCenterAddress(center: { address?: string | null; address_line_2?: string | null; postal_code?: string | null; city?: string | null }): string {
+  const parts = [center.address, center.address_line_2, [center.postal_code, center.city].filter(Boolean).join(' ')].filter(Boolean)
   return parts.join(', ')
 }

@@ -125,6 +125,7 @@ export interface SuperAdminCenter {
   name: string;
   acronym?: string;
   address?: string;
+  address_line_2?: string;
   postal_code?: string;
   city?: string;
   phone?: string;
@@ -173,6 +174,7 @@ export interface CreateCenterData {
   name: string;
   acronym?: string;
   address?: string;
+  address_line_2?: string;
   postal_code?: string;
   city?: string;
   phone?: string;

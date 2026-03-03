@@ -54,6 +54,7 @@ export class SACentersService {
       name: data.name,
       acronym: data.acronym || null,
       address: data.address || null,
+      address_line_2: data.address_line_2 || null,
       postal_code: data.postal_code || null,
       city: data.city || null,
       phone: data.phone || null,
