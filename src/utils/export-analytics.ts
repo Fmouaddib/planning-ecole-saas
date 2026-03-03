@@ -8,15 +8,42 @@ import { fr } from 'date-fns/locale'
 // ==================== TYPES ====================
 
 export interface AnalyticsExportData {
-  kpis: { totalSessions: number; occupancyRate: number; roomCount: number; userCount: number }
+  kpis: {
+    totalSessions: number
+    totalSessionsTrend: string
+    occupancyRate: number
+    occupancySub: string
+    studentCount: number
+    studentSub: string
+    activeTeacherCount: number
+    activeTeacherSub: string
+    diplomaCount: number
+    diplomaSub: string
+    classCount: number
+    classSub: string
+    subjectCount: number
+    subjectSub: string
+    onlineCount: number
+    onlineSub: string
+  }
   weekBarData: { label: string; value: number }[]
   statusData: { label: string; value: number }[]
   heatmapData: number[][]
   dayLabels: string[]
   slotLabels: string[]
   teacherData: { label: string; value: number }[]
-  typeData: { label: string; value: number }[]
+  modalityData: { label: string; value: number }[]
   roomData: { label: string; value: number }[]
+  // Academic
+  subjectsByProgramData: { label: string; value: number }[]
+  hoursByDiplomaData: { label: string; value: number }[]
+  classesByProfileData: { label: string; value: number }[]
+  teacherCoverageData: { label: string; value: number }[]
+  // Enrollment
+  enrollmentTypeData: { label: string; value: number }[]
+  enrollmentStatusData: { label: string; value: number }[]
+  studentsByClassData: { label: string; value: number }[]
+  dispensationsBySubjectData: { label: string; value: number }[]
 }
 
 // ==================== SHARED STYLES ====================
@@ -64,14 +91,12 @@ const SECTION_FONT: Partial<ExcelJS.Font> = {
   bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Arial',
 }
 
-// ==================== PDF EXPORT ====================
+// ==================== PDF HELPERS ====================
 
-export function exportAnalyticsToPDF(data: AnalyticsExportData, filename = 'statistiques') {
-  const doc = new jsPDF({ orientation: 'landscape' })
+function createPDFHelpers(doc: jsPDF) {
   const pageW = doc.internal.pageSize.getWidth()
   let cursorY = 0
 
-  // --- Helper: ajouter section avec vérification de page ---
   function ensureSpace(needed: number) {
     const pageH = doc.internal.pageSize.getHeight()
     if (cursorY + needed > pageH - 20) {
@@ -88,7 +113,6 @@ export function exportAnalyticsToPDF(data: AnalyticsExportData, filename = 'stat
     doc.setFont('helvetica', 'bold')
     doc.text(title, 14, cursorY)
     cursorY += 2
-    // Ligne de séparation
     doc.setDrawColor(...ACCENT_COLOR)
     doc.setLineWidth(0.3)
     doc.line(14, cursorY, pageW - 14, cursorY)
@@ -96,83 +120,125 @@ export function exportAnalyticsToPDF(data: AnalyticsExportData, filename = 'stat
     doc.setFont('helvetica', 'normal')
   }
 
-  // ==================== EN-TÊTE ====================
-  doc.setFillColor(...HEADER_COLOR)
-  doc.rect(0, 0, pageW, 18, 'F')
-  doc.setFontSize(14)
-  doc.setTextColor(255, 255, 255)
-  doc.text('Rapport Statistiques', 14, 12)
-  doc.setFontSize(8)
-  doc.text(todayLabel(), pageW - 14, 12, { align: 'right' })
+  function getCursorY() { return cursorY }
+  function setCursorY(y: number) { cursorY = y }
+  function advanceCursor(delta: number) { cursorY += delta }
 
-  doc.setTextColor(100, 100, 100)
-  doc.setFontSize(8)
-  doc.text(`Exporté le ${exportTimestamp()}`, 14, 25)
-  cursorY = 30
+  return { ensureSpace, sectionTitle, getCursorY, setCursorY, advanceCursor, pageW }
+}
 
-  // ==================== KPIs ====================
-  sectionTitle('Indicateurs clés')
+function getFinalY(doc: jsPDF): number {
+  return (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY
+}
+
+/** Render a simple 2-column table (label + value) */
+function renderLabelValueTable(doc: jsPDF, h: ReturnType<typeof createPDFHelpers>, title: string, data: { label: string; value: number }[], labelHeader: string, valueHeader: string) {
+  if (data.length === 0) return
+  h.sectionTitle(title)
   autoTable(doc, {
-    head: [['Total séances', 'Taux d\'occupation', 'Salles', 'Utilisateurs']],
-    body: [[
-      String(data.kpis.totalSessions),
-      `${data.kpis.occupancyRate}%`,
-      String(data.kpis.roomCount),
-      String(data.kpis.userCount),
-    ]],
-    startY: cursorY,
-    styles: { fontSize: 9, cellPadding: 4, halign: 'center', lineColor: [220, 220, 220], lineWidth: 0.2 },
+    head: [[labelHeader, valueHeader]],
+    body: data.map(d => [d.label, String(d.value)]),
+    startY: h.getCursorY(),
+    styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 220, 220], lineWidth: 0.2 },
     headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold' },
-    bodyStyles: { fontStyle: 'bold', fontSize: 12 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: { 1: { halign: 'center' } },
     theme: 'grid',
   })
-  cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+  h.setCursorY(getFinalY(doc) + 6)
+}
 
-  // ==================== SÉANCES PAR JOUR ====================
-  sectionTitle('Séances par jour (semaine courante)')
+/** Render a donut-style table (label + value + %) */
+function renderDonutTable(doc: jsPDF, h: ReturnType<typeof createPDFHelpers>, title: string, data: { label: string; value: number }[], labelHeader: string) {
+  if (data.length === 0) return
+  h.sectionTitle(title)
+  const total = data.reduce((s, d) => s + d.value, 0)
   autoTable(doc, {
-    head: [data.weekBarData.map(d => d.label)],
-    body: [data.weekBarData.map(d => String(d.value))],
-    startY: cursorY,
-    styles: { fontSize: 9, cellPadding: 3, halign: 'center', lineColor: [220, 220, 220], lineWidth: 0.2 },
-    headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold' },
-    bodyStyles: { fontStyle: 'bold', fontSize: 11 },
-    theme: 'grid',
-  })
-  cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
-
-  // ==================== RÉPARTITION PAR STATUT ====================
-  sectionTitle('Répartition par statut')
-  const totalStatus = data.statusData.reduce((s, d) => s + d.value, 0)
-  autoTable(doc, {
-    head: [['Statut', 'Nombre', '%']],
-    body: data.statusData.map(d => [
+    head: [[labelHeader, 'Nombre', '%']],
+    body: data.map(d => [
       d.label,
       String(d.value),
-      totalStatus > 0 ? `${Math.round((d.value / totalStatus) * 100)}%` : '0%',
+      total > 0 ? `${Math.round((d.value / total) * 100)}%` : '0%',
     ]),
-    startY: cursorY,
+    startY: h.getCursorY(),
     styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 220, 220], lineWidth: 0.2 },
     headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
     theme: 'grid',
   })
-  cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+  h.setCursorY(getFinalY(doc) + 6)
+}
 
-  // ==================== HEATMAP OCCUPATION SALLES ====================
-  sectionTitle('Occupation des salles (semaine courante)')
+// ==================== PDF EXPORT ====================
 
+export function exportAnalyticsToPDF(data: AnalyticsExportData, filename = 'statistiques') {
+  const doc = new jsPDF({ orientation: 'landscape' })
+  const h = createPDFHelpers(doc)
+
+  // ==================== EN-TÊTE ====================
+  doc.setFillColor(...HEADER_COLOR)
+  doc.rect(0, 0, h.pageW, 18, 'F')
+  doc.setFontSize(14)
+  doc.setTextColor(255, 255, 255)
+  doc.text('Rapport Statistiques', 14, 12)
+  doc.setFontSize(8)
+  doc.text(todayLabel(), h.pageW - 14, 12, { align: 'right' })
+
+  doc.setTextColor(100, 100, 100)
+  doc.setFontSize(8)
+  doc.text(`Exporté le ${exportTimestamp()}`, 14, 25)
+  h.setCursorY(30)
+
+  // ==================== KPIs ====================
+  h.sectionTitle('Indicateurs clés')
+  autoTable(doc, {
+    head: [['Total séances', 'Occupation', 'Étudiants', 'Ens. actifs', 'Diplômes', 'Classes', 'Matières', 'En ligne']],
+    body: [[
+      String(data.kpis.totalSessions),
+      `${data.kpis.occupancyRate}%`,
+      String(data.kpis.studentCount),
+      String(data.kpis.activeTeacherCount),
+      String(data.kpis.diplomaCount),
+      String(data.kpis.classCount),
+      String(data.kpis.subjectCount),
+      String(data.kpis.onlineCount),
+    ]],
+    startY: h.getCursorY(),
+    styles: { fontSize: 8, cellPadding: 3, halign: 'center', lineColor: [220, 220, 220], lineWidth: 0.2 },
+    headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7 },
+    bodyStyles: { fontStyle: 'bold', fontSize: 10 },
+    theme: 'grid',
+  })
+  h.setCursorY(getFinalY(doc) + 6)
+
+  // ==================== SÉANCES PAR JOUR ====================
+  h.sectionTitle('Séances par jour (semaine courante)')
+  autoTable(doc, {
+    head: [data.weekBarData.map(d => d.label)],
+    body: [data.weekBarData.map(d => String(d.value))],
+    startY: h.getCursorY(),
+    styles: { fontSize: 9, cellPadding: 3, halign: 'center', lineColor: [220, 220, 220], lineWidth: 0.2 },
+    headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold' },
+    bodyStyles: { fontStyle: 'bold', fontSize: 11 },
+    theme: 'grid',
+  })
+  h.setCursorY(getFinalY(doc) + 6)
+
+  // ==================== RÉPARTITION PAR STATUT ====================
+  renderDonutTable(doc, h, 'Répartition par statut', data.statusData, 'Statut')
+
+  // ==================== HEATMAP ====================
+  h.sectionTitle('Occupation des salles (semaine courante)')
   const heatHead = ['', ...data.slotLabels]
   const heatBody = data.heatmapData.map((row, ri) => [
     data.dayLabels[ri],
     ...row.map(v => `${Math.round(v * 100)}%`),
   ])
-
   autoTable(doc, {
     head: [heatHead],
     body: heatBody,
-    startY: cursorY,
+    startY: h.getCursorY(),
     styles: { fontSize: 7, cellPadding: 2, halign: 'center', lineColor: [220, 220, 220], lineWidth: 0.2 },
     headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold', fontSize: 7 },
     columnStyles: { 0: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
@@ -193,54 +259,30 @@ export function exportAnalyticsToPDF(data: AnalyticsExportData, filename = 'stat
     },
     theme: 'grid',
   })
-  cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+  h.setCursorY(getFinalY(doc) + 6)
 
   // ==================== CHARGE ENSEIGNANTE ====================
-  if (data.teacherData.length > 0) {
-    sectionTitle('Charge enseignante (top 8)')
-    autoTable(doc, {
-      head: [['Enseignant', 'Séances']],
-      body: data.teacherData.map(d => [d.label, String(d.value)]),
-      startY: cursorY,
-      styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 220, 220], lineWidth: 0.2 },
-      headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 1: { halign: 'center' } },
-      theme: 'grid',
-    })
-    cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
-  }
+  renderLabelValueTable(doc, h, 'Charge enseignante (top 8)', data.teacherData, 'Enseignant', 'Séances')
 
-  // ==================== SÉANCES PAR TYPE ====================
-  sectionTitle('Séances par type')
-  autoTable(doc, {
-    head: [['Type', 'Nombre']],
-    body: data.typeData.map(d => [d.label, String(d.value)]),
-    startY: cursorY,
-    styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 220, 220], lineWidth: 0.2 },
-    headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: { 1: { halign: 'center' } },
-    theme: 'grid',
-  })
-  cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+  // ==================== SÉANCES PAR MODALITÉ ====================
+  renderDonutTable(doc, h, 'Séances par modalité', data.modalityData, 'Modalité')
 
   // ==================== UTILISATION DES SALLES ====================
-  if (data.roomData.length > 0) {
-    sectionTitle('Utilisation des salles (top 10)')
-    autoTable(doc, {
-      head: [['Salle', 'Séances']],
-      body: data.roomData.map(d => [d.label, String(d.value)]),
-      startY: cursorY,
-      styles: { fontSize: 8, cellPadding: 2.5, lineColor: [220, 220, 220], lineWidth: 0.2 },
-      headStyles: { fillColor: HEADER_COLOR, textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 1: { halign: 'center' } },
-      theme: 'grid',
-    })
-  }
+  renderLabelValueTable(doc, h, 'Utilisation des salles (top 10)', data.roomData, 'Salle', 'Séances')
 
-  // ==================== FOOTER (chaque page) ====================
+  // ==================== RÉFÉRENTIEL ACADÉMIQUE ====================
+  renderLabelValueTable(doc, h, 'Matières par programme', data.subjectsByProgramData, 'Programme', 'Matières')
+  renderLabelValueTable(doc, h, 'Volume horaire par diplôme', data.hoursByDiplomaData, 'Diplôme', 'Heures')
+  renderDonutTable(doc, h, 'Classes par profil', data.classesByProfileData, 'Profil')
+  renderDonutTable(doc, h, 'Couverture enseignants', data.teacherCoverageData, 'Couverture')
+
+  // ==================== INSCRIPTIONS ÉTUDIANTS ====================
+  renderDonutTable(doc, h, 'Type d\'inscriptions', data.enrollmentTypeData, 'Type')
+  renderDonutTable(doc, h, 'Statut des inscriptions', data.enrollmentStatusData, 'Statut')
+  renderLabelValueTable(doc, h, 'Étudiants par classe (top 10)', data.studentsByClassData, 'Classe', 'Étudiants')
+  renderLabelValueTable(doc, h, 'Dispensations par matière (top 10)', data.dispensationsBySubjectData, 'Matière', 'Dispensations')
+
+  // ==================== FOOTER ====================
   const pageCount = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
@@ -248,7 +290,7 @@ export function exportAnalyticsToPDF(data: AnalyticsExportData, filename = 'stat
     doc.setFontSize(7)
     doc.setTextColor(160, 160, 160)
     doc.text(`Statistiques — ${exportTimestamp()}`, 14, pageH - 6)
-    doc.text(`Page ${i}/${pageCount}`, pageW - 14, pageH - 6, { align: 'right' })
+    doc.text(`Page ${i}/${pageCount}`, h.pageW - 14, pageH - 6, { align: 'right' })
   }
 
   doc.save(`${filename}.pdf`)
@@ -262,7 +304,7 @@ export async function exportAnalyticsToExcel(data: AnalyticsExportData, filename
 
   let rowNum = 1
 
-  // --- Helper: titre section ---
+  // --- Helpers ---
   function addSectionTitle(title: string, colSpan: number) {
     const row = ws.addRow([title])
     ws.mergeCells(rowNum, 1, rowNum, colSpan)
@@ -301,30 +343,58 @@ export async function exportAnalyticsToExcel(data: AnalyticsExportData, filename
     rowNum++
   }
 
+  /** Render a label-value section */
+  function addLabelValueSection(title: string, items: { label: string; value: number }[], labelHeader: string, valueHeader: string) {
+    if (items.length === 0) return
+    addSectionTitle(title, 2)
+    addTableHeader([labelHeader, valueHeader])
+    items.forEach((d, i) => addTableRow([d.label, d.value], i % 2 === 1))
+    addBlankRow()
+  }
+
+  /** Render a donut-style section (label + value + %) */
+  function addDonutSection(title: string, items: { label: string; value: number }[], labelHeader: string) {
+    if (items.length === 0) return
+    const total = items.reduce((s, d) => s + d.value, 0)
+    addSectionTitle(title, 3)
+    addTableHeader([labelHeader, 'Nombre', '%'])
+    items.forEach((d, i) => {
+      addTableRow([
+        d.label,
+        d.value,
+        total > 0 ? `${Math.round((d.value / total) * 100)}%` : '0%',
+      ], i % 2 === 1)
+    })
+    addBlankRow()
+  }
+
   // ==================== TITRE ====================
   const titleRow = ws.addRow(['Rapport Statistiques — ' + todayLabel()])
-  ws.mergeCells(1, 1, 1, 6)
+  ws.mergeCells(1, 1, 1, 8)
   titleRow.getCell(1).font = { bold: true, size: 16, color: { argb: 'FF1E3A5F' }, name: 'Arial' }
   titleRow.height = 32
   rowNum++
 
   const subRow = ws.addRow([`Exporté le ${exportTimestamp()}`])
-  ws.mergeCells(2, 1, 2, 6)
+  ws.mergeCells(2, 1, 2, 8)
   subRow.getCell(1).font = { size: 10, color: { argb: 'FF64748B' }, name: 'Arial' }
   rowNum++
 
   addBlankRow()
 
   // ==================== KPIs ====================
-  addSectionTitle('Indicateurs clés', 4)
-  addTableHeader(['Total séances', 'Taux d\'occupation', 'Salles', 'Utilisateurs'])
+  addSectionTitle('Indicateurs clés', 8)
+  addTableHeader(['Total séances', 'Occupation', 'Étudiants', 'Ens. actifs', 'Diplômes', 'Classes', 'Matières', 'En ligne'])
   addTableRow([
     data.kpis.totalSessions,
     `${data.kpis.occupancyRate}%`,
-    data.kpis.roomCount,
-    data.kpis.userCount,
+    data.kpis.studentCount,
+    data.kpis.activeTeacherCount,
+    data.kpis.diplomaCount,
+    data.kpis.classCount,
+    data.kpis.subjectCount,
+    data.kpis.onlineCount,
   ], false)
-  // Bold + bigger font for KPI values
   const kpiRow = ws.getRow(rowNum - 1)
   kpiRow.eachCell(cell => {
     cell.font = { ...BODY_FONT, bold: true, size: 14 }
@@ -340,18 +410,7 @@ export async function exportAnalyticsToExcel(data: AnalyticsExportData, filename
   addBlankRow()
 
   // ==================== RÉPARTITION PAR STATUT ====================
-  const totalStatus = data.statusData.reduce((s, d) => s + d.value, 0)
-  addSectionTitle('Répartition par statut', 3)
-  addTableHeader(['Statut', 'Nombre', '%'])
-  data.statusData.forEach((d, i) => {
-    addTableRow([
-      d.label,
-      d.value,
-      totalStatus > 0 ? `${Math.round((d.value / totalStatus) * 100)}%` : '0%',
-    ], i % 2 === 1)
-  })
-
-  addBlankRow()
+  addDonutSection('Répartition par statut', data.statusData, 'Statut')
 
   // ==================== HEATMAP ====================
   addSectionTitle('Occupation des salles (semaine courante)', data.slotLabels.length + 1)
@@ -362,8 +421,6 @@ export async function exportAnalyticsToExcel(data: AnalyticsExportData, filename
     dataRow.getCell(1).fill = ZEBRA_FILL
     dataRow.getCell(1).border = THIN_BORDER
     dataRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' }
-
-    // Colorier chaque cellule proportionnellement
     row.forEach((val, ci) => {
       const cell = dataRow.getCell(ci + 2)
       cell.font = BODY_FONT
@@ -384,26 +441,25 @@ export async function exportAnalyticsToExcel(data: AnalyticsExportData, filename
   addBlankRow()
 
   // ==================== CHARGE ENSEIGNANTE ====================
-  if (data.teacherData.length > 0) {
-    addSectionTitle('Charge enseignante (top 8)', 2)
-    addTableHeader(['Enseignant', 'Séances'])
-    data.teacherData.forEach((d, i) => addTableRow([d.label, d.value], i % 2 === 1))
-    addBlankRow()
-  }
+  addLabelValueSection('Charge enseignante (top 8)', data.teacherData, 'Enseignant', 'Séances')
 
-  // ==================== SÉANCES PAR TYPE ====================
-  addSectionTitle('Séances par type', 2)
-  addTableHeader(['Type', 'Nombre'])
-  data.typeData.forEach((d, i) => addTableRow([d.label, d.value], i % 2 === 1))
-
-  addBlankRow()
+  // ==================== SÉANCES PAR MODALITÉ ====================
+  addDonutSection('Séances par modalité', data.modalityData, 'Modalité')
 
   // ==================== UTILISATION SALLES ====================
-  if (data.roomData.length > 0) {
-    addSectionTitle('Utilisation des salles (top 10)', 2)
-    addTableHeader(['Salle', 'Séances'])
-    data.roomData.forEach((d, i) => addTableRow([d.label, d.value], i % 2 === 1))
-  }
+  addLabelValueSection('Utilisation des salles (top 10)', data.roomData, 'Salle', 'Séances')
+
+  // ==================== RÉFÉRENTIEL ACADÉMIQUE ====================
+  addLabelValueSection('Matières par programme', data.subjectsByProgramData, 'Programme', 'Matières')
+  addLabelValueSection('Volume horaire par diplôme', data.hoursByDiplomaData, 'Diplôme', 'Heures')
+  addDonutSection('Classes par profil', data.classesByProfileData, 'Profil')
+  addDonutSection('Couverture enseignants', data.teacherCoverageData, 'Couverture')
+
+  // ==================== INSCRIPTIONS ÉTUDIANTS ====================
+  addDonutSection('Type d\'inscriptions', data.enrollmentTypeData, 'Type')
+  addDonutSection('Statut des inscriptions', data.enrollmentStatusData, 'Statut')
+  addLabelValueSection('Étudiants par classe (top 10)', data.studentsByClassData, 'Classe', 'Étudiants')
+  addLabelValueSection('Dispensations par matière (top 10)', data.dispensationsBySubjectData, 'Matière', 'Dispensations')
 
   // ==================== LARGEURS COLONNES ====================
   ws.columns = Array.from({ length: 12 }, (_, i) => ({ width: i === 0 ? 20 : 14 }))
