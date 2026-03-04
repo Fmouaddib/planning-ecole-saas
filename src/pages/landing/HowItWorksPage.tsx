@@ -33,15 +33,15 @@ export default function HowItWorksPage() {
       icon: CalendarCheck,
       titleKey: 'howItWorksPage.step3.title',
       descKey: 'howItWorksPage.step3.desc',
-      bullets: ['howItWorksPage.step3.b1', 'howItWorksPage.step3.b2', 'howItWorksPage.step3.b3', 'howItWorksPage.step3.b4'],
+      bullets: ['howItWorksPage.step3.b1', 'howItWorksPage.step3.b2', 'howItWorksPage.step3.b3', 'howItWorksPage.step3.b4', 'howItWorksPage.step3.b5', 'howItWorksPage.step3.b6'],
     },
   ]
 
   const personas = [
-    { icon: ShieldCheck, color: '#FF5B46', titleKey: 'howItWorksPage.persona.admin.title', descKey: 'howItWorksPage.persona.admin.desc' },
-    { icon: GraduationCap, color: '#3b82f6', titleKey: 'howItWorksPage.persona.teacher.title', descKey: 'howItWorksPage.persona.teacher.desc' },
-    { icon: Users, color: '#14b8a6', titleKey: 'howItWorksPage.persona.student.title', descKey: 'howItWorksPage.persona.student.desc' },
-    { icon: ClipboardList, color: '#8b5cf6', titleKey: 'howItWorksPage.persona.coordinator.title', descKey: 'howItWorksPage.persona.coordinator.desc' },
+    { icon: ShieldCheck, color: '#FF5B46', titleKey: 'howItWorksPage.persona.admin.title', descKey: 'howItWorksPage.persona.admin.desc.v2' },
+    { icon: GraduationCap, color: '#3b82f6', titleKey: 'howItWorksPage.persona.teacher.title', descKey: 'howItWorksPage.persona.teacher.desc.v2' },
+    { icon: Users, color: '#14b8a6', titleKey: 'howItWorksPage.persona.student.title', descKey: 'howItWorksPage.persona.student.desc.v2' },
+    { icon: ClipboardList, color: '#8b5cf6', titleKey: 'howItWorksPage.persona.coordinator.title', descKey: 'howItWorksPage.persona.coordinator.desc.v2' },
   ]
 
   return (

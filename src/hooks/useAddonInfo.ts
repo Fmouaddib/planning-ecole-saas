@@ -65,5 +65,29 @@ export function useAddonInfo() {
     refresh()
   }, [refresh])
 
-  return { activeAddons, addonPlans, effectiveQuotas, isLoading, refresh }
+  /**
+   * Poll center_addons toutes les 2s jusqu'à trouver un addon actif du type demandé.
+   * Retourne true si trouvé, false si timeout (max 30s / 15 essais).
+   */
+  const pollForAddon = useCallback(async (addonType: string, maxAttempts = 15): Promise<boolean> => {
+    for (let i = 0; i < maxAttempts; i++) {
+      await refresh()
+      // Vérifier après refresh si l'addon est actif
+      if (!centerId) return false
+      const { data: addonsWithType } = await supabase
+        .from('center_addons')
+        .select('id, addon_plan:addon_plans!inner(addon_type)')
+        .eq('center_id', centerId)
+        .eq('status', 'active')
+        .eq('addon_plans.addon_type', addonType)
+        .limit(1)
+      if (addonsWithType && addonsWithType.length > 0) return true
+      if (i < maxAttempts - 1) {
+        await new Promise(r => setTimeout(r, 2000))
+      }
+    }
+    return false
+  }, [centerId, refresh])
+
+  return { activeAddons, addonPlans, effectiveQuotas, isLoading, refresh, pollForAddon }
 }

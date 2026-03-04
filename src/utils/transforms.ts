@@ -3,7 +3,7 @@
  * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
-import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage, AvailabilityRequest, AvailabilityRequestResponse, ReplacementRequest, ReplacementCandidate } from '@/types'
+import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage, AvailabilityRequest, AvailabilityRequestResponse, ReplacementRequest, ReplacementCandidate, StudentContact, Bulletin } from '@/types'
 
 // ==================== BOOKING (from training_sessions) ====================
 
@@ -66,6 +66,7 @@ export function transformBooking(raw: Record<string, any>): Booking {
     meetingUrl: raw.meeting_url ?? undefined,
     sessionType: raw.session_type ?? undefined,
     needsReschedule: raw.needs_reschedule ?? false,
+    attendanceMarkingEnabled: raw.attendance_marking_enabled ?? true,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }
@@ -442,6 +443,65 @@ export function transformReplacementCandidate(raw: Record<string, any>): Replace
     responseMessage: raw.response_message ?? undefined,
     respondedAt: raw.responded_at ?? undefined,
     teacher: teacher ? { id: teacher.id, firstName: t.firstName, lastName: t.lastName, email: teacher.email || '' } : undefined,
+    createdAt: raw.created_at,
+  }
+}
+
+// ==================== STUDENT CONTACT ====================
+
+export function transformStudentContact(raw: Record<string, any>): StudentContact {
+  return {
+    id: raw.id,
+    studentId: raw.student_id,
+    centerId: raw.center_id,
+    firstName: raw.first_name,
+    lastName: raw.last_name,
+    email: raw.email,
+    phone: raw.phone ?? undefined,
+    relationship: raw.relationship || 'autre',
+    receiveBulletins: raw.receive_bulletins ?? true,
+    receiveAbsences: raw.receive_absences ?? true,
+    notes: raw.notes ?? undefined,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== BULLETIN ====================
+
+export function transformBulletin(raw: Record<string, any>): Bulletin {
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    studentId: raw.student_id,
+    classId: raw.class_id,
+    generatedBy: raw.generated_by,
+    periodLabel: raw.period_label,
+    periodStart: raw.period_start,
+    periodEnd: raw.period_end,
+    bulletinData: typeof raw.bulletin_data === 'string' ? JSON.parse(raw.bulletin_data) : raw.bulletin_data,
+    generalAverage: raw.general_average != null ? parseFloat(raw.general_average) : null,
+    classRank: raw.class_rank ?? null,
+    pdfUrl: raw.pdf_url ?? undefined,
+    sentAt: raw.sent_at ?? undefined,
+    sentTo: Array.isArray(raw.sent_to) ? raw.sent_to : (typeof raw.sent_to === 'string' ? JSON.parse(raw.sent_to) : []),
+    createdAt: raw.created_at,
+  }
+}
+
+// ==================== PUSH SUBSCRIPTION ====================
+
+export function transformPushSubscription(raw: Record<string, any>): import('@/types').PushSubscriptionRecord {
+  return {
+    id: raw.id,
+    userId: raw.user_id,
+    centerId: raw.center_id,
+    endpoint: raw.endpoint,
+    p256dh: raw.p256dh,
+    authKey: raw.auth_key,
+    deviceName: raw.device_name ?? undefined,
+    isActive: raw.is_active ?? true,
+    lastUsedAt: raw.last_used_at ?? undefined,
     createdAt: raw.created_at,
   }
 }

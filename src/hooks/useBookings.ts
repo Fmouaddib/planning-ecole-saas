@@ -632,6 +632,21 @@ export function useBookings(): UseBookingsReturn {
     }
   }, [user?.establishmentId, fetchBookings])
 
+  const toggleAttendanceMarking = useCallback(async (sessionId: string, enabled: boolean) => {
+    try {
+      const { error: updateError } = await supabase
+        .from('training_sessions')
+        .update({ attendance_marking_enabled: enabled })
+        .eq('id', sessionId)
+      if (updateError) throw updateError
+      setBookings(prev => prev.map(b => b.id === sessionId ? { ...b, attendanceMarkingEnabled: enabled } : b))
+      toast.success(enabled ? 'Saisie présences activée' : 'Saisie présences désactivée')
+    } catch (err) {
+      console.error('Error toggling attendance marking:', err)
+      toast.error('Erreur lors de la modification')
+    }
+  }, [])
+
   return {
     bookings,
     isLoading,
@@ -649,6 +664,7 @@ export function useBookings(): UseBookingsReturn {
     getBookingsByUser,
     refreshBookings,
     clearError,
+    toggleAttendanceMarking,
     // Valeurs calculées additionnelles
     calendarEvents,
     upcomingBookings,

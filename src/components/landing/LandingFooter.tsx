@@ -1,4 +1,4 @@
-import { Twitter, Linkedin, Github } from 'lucide-react'
+import { Twitter, Linkedin, Github, Shield, Lock, Globe } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 
 export default function LandingFooter() {
@@ -22,6 +22,8 @@ export default function LandingFooter() {
         <div className="landing-footer-col">
           <h4>{t('footer.product')}</h4>
           <a href="#/features">{t('footer.features')}</a>
+          <a href="#/features#feat-attendance">{t('footer.attendance')}</a>
+          <a href="#/features#feat-grades">{t('footer.grades')}</a>
           <a href="#/ecole-en-ligne">{t('footer.onlineSchool')}</a>
           <a href="#/how-it-works">{t('footer.howItWorks')}</a>
           <a href="#/pricing">{t('footer.pricing')}</a>
@@ -44,6 +46,11 @@ export default function LandingFooter() {
           <a href="#/">{t('footer.privacy')}</a>
           <a href="#/about">{t('nav.about')}</a>
         </div>
+      </div>
+      <div className="landing-footer-trust">
+        <div className="landing-footer-trust-item"><Shield size={14} /> {t('footer.trust.rgpd')}</div>
+        <div className="landing-footer-trust-item"><Lock size={14} /> {t('footer.trust.ssl')}</div>
+        <div className="landing-footer-trust-item"><Globe size={14} /> {t('footer.trust.eu')}</div>
       </div>
       <div className="landing-footer-bottom">
         {t('footer.copyright')}

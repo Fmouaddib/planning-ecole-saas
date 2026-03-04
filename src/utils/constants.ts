@@ -33,6 +33,7 @@ export const ROUTES = {
   GRADES: '/grades',
   NOTIFICATIONS: '/notifications',
   TEACHER_COLLAB: '/teacher-collab',
+  BILLING: '/billing',
 } as const
 
 export const USER_ROLES = {

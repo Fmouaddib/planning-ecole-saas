@@ -12,7 +12,7 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navLinks = [
-    { href: '#/features', label: t('nav.features') },
+    { href: '#/features', label: t('nav.features'), badge: true },
     { href: '#/ecole-en-ligne', label: t('nav.onlineSchool') },
     { href: '#/how-it-works', label: t('nav.howItWorks') },
     { href: '#/pricing', label: t('nav.pricing') },
@@ -30,7 +30,10 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
 
           <div className="landing-nav-links">
             {navLinks.map((link) => (
-              <a key={link.href} href={link.href} className="landing-nav-link">{link.label}</a>
+              <a key={link.href} href={link.href} className="landing-nav-link">
+                {link.label}
+                {link.badge && <span className="landing-nav-badge-new">{t('nav.badge.new')}</span>}
+              </a>
             ))}
           </div>
 
@@ -79,6 +82,7 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
             onClick={() => setMobileMenuOpen(false)}
           >
             {link.label}
+            {link.badge && <span className="landing-nav-badge-new">{t('nav.badge.new')}</span>}
           </a>
         ))}
         <div className="landing-lang-toggle" style={{ marginTop: '1rem' }}>

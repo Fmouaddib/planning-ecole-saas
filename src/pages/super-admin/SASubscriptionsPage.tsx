@@ -8,11 +8,12 @@ import {
   useUpdateSubscription,
 } from '@/hooks/super-admin/useSuperAdminSubscriptions';
 import { useSuperAdminCenters } from '@/hooks/super-admin/useSuperAdminCenters';
+import { useCenterAddons } from '@/hooks/super-admin/useSuperAdminAddons';
 import { usePagination } from '@/hooks/usePagination';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { exportToCSV } from '@/utils/csv-export';
 import { SAPagination } from '@/components/super-admin/components/SAPagination';
-import type { CenterSubscription } from '@/types/super-admin';
+import type { CenterSubscription, CenterAddon } from '@/types/super-admin';
 import { centerDisplayName } from '@/utils/helpers';
 
 /** Calculer le prix Enterprise en fonction du nombre d'etudiants */
@@ -25,11 +26,30 @@ const computeEnterprisePrice = (maxStudents: number): number => {
 
 const STATUS_OPTIONS = ['active', 'trialing', 'past_due', 'cancelled', 'expired'] as const;
 
+const ADDON_TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  email: { label: 'Email', color: '#2563eb', bg: '#dbeafe' },
+  teacher: { label: 'Profs', color: '#7c3aed', bg: '#ede9fe' },
+  student: { label: 'Etudiants', color: '#059669', bg: '#d1fae5' },
+  attendance: { label: 'Presences', color: '#0d9488', bg: '#ccfbf1' },
+  grades: { label: 'Notes', color: '#ea580c', bg: '#ffedd5' },
+};
+
 export const SASubscriptionsPage = () => {
   const { data: subscriptions, isLoading } = useSuperAdminSubscriptions();
   const { data: plans } = useSuperAdminPlans();
   const { data: centers } = useSuperAdminCenters();
   const { data: billing } = useBillingHistory();
+  const { data: allAddons } = useCenterAddons();
+
+  // Index addons by center_id for quick lookup
+  const addonsByCenter = useMemo(() => {
+    const map: Record<string, CenterAddon[]> = {};
+    for (const a of allAddons || []) {
+      if (!map[a.center_id]) map[a.center_id] = [];
+      map[a.center_id].push(a);
+    }
+    return map;
+  }, [allAddons]);
   const assignPlan = useAssignPlan();
   const cancelSub = useCancelSubscription();
   const updateSub = useUpdateSubscription();
@@ -114,6 +134,7 @@ export const SASubscriptionsPage = () => {
     exportToCSV(filteredSubs, [
       { header: 'Centre', accessor: (s) => centerDisplayName(s.center) || s.center_id || '' },
       { header: 'Plan', accessor: (s) => s.plan?.name || s.plan_id || '' },
+      { header: 'Options', accessor: (s) => (addonsByCenter[s.center_id] || []).filter(a => a.status === 'active').map(a => `${a.addon_plan?.name || '?'} x${a.quantity}`).join(', ') || '—' },
       { header: 'Statut', accessor: (s) => s.status },
       { header: 'Cycle', accessor: (s) => s.billing_cycle || '' },
       { header: 'Debut', accessor: (s) => formatDate(s.current_period_start) },
@@ -198,6 +219,7 @@ export const SASubscriptionsPage = () => {
                     <tr>
                       <th>Centre</th>
                       <th>Plan</th>
+                      <th>Options</th>
                       <th>Statut</th>
                       <th>Cycle</th>
                       <th>Periode</th>
@@ -205,52 +227,81 @@ export const SASubscriptionsPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {subsPagination.paginatedData.map((sub) => (
-                      <tr key={sub.id}>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>{centerDisplayName(sub.center) || sub.center_id}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.center?.email || ''}</div>
-                        </td>
-                        <td>
-                          <strong>{sub.plan?.name || sub.plan_id}</strong>
-                          {sub.plan?.price_monthly != null && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.plan.price_monthly}{'\u20AC'}/mois</div>
-                          )}
-                        </td>
-                        <td>
-                          <span className={`sa-status ${sub.status}`}>
-                            {sub.status}
-                          </span>
-                          {sub.cancel_at_period_end && (
-                            <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Annulation en fin de periode</div>
-                          )}
-                        </td>
-                        <td style={{ textTransform: 'capitalize' }}>{sub.billing_cycle}</td>
-                        <td style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>
-                          {formatDate(sub.current_period_start)} - {formatDate(sub.current_period_end)}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              className="sa-btn sa-btn-secondary"
-                              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                              onClick={() => openEditSub(sub)}
-                            >
-                              Modifier
-                            </button>
-                            {sub.status === 'active' && (
-                              <button
-                                className="sa-btn sa-btn-danger"
-                                style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                                onClick={() => setCancelConfirmId(sub.id)}
-                              >
-                                Annuler
-                              </button>
+                    {subsPagination.paginatedData.map((sub) => {
+                      const centerAddons = addonsByCenter[sub.center_id] || [];
+                      const activeAddons = centerAddons.filter(a => a.status === 'active');
+                      return (
+                        <tr key={sub.id}>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{centerDisplayName(sub.center) || sub.center_id}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.center?.email || ''}</div>
+                          </td>
+                          <td>
+                            <strong>{sub.plan?.name || sub.plan_id}</strong>
+                            {sub.plan?.price_monthly != null && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.plan.price_monthly}{'\u20AC'}/mois</div>
                             )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td>
+                            {activeAddons.length === 0 ? (
+                              <span style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>—</span>
+                            ) : (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {activeAddons.map(a => {
+                                  const cfg = ADDON_TYPE_CONFIG[a.addon_plan?.addon_type || ''] || { label: a.addon_plan?.name || '?', color: '#6b7280', bg: '#f3f4f6' };
+                                  return (
+                                    <span
+                                      key={a.id}
+                                      title={`${a.addon_plan?.name || ''} x${a.quantity}`}
+                                      style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                        padding: '2px 8px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 600,
+                                        color: cfg.color, background: cfg.bg, whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {cfg.label}
+                                      {a.quantity > 1 && <span style={{ opacity: 0.7 }}>x{a.quantity}</span>}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`sa-status ${sub.status}`}>
+                              {sub.status}
+                            </span>
+                            {sub.cancel_at_period_end && (
+                              <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Annulation en fin de periode</div>
+                            )}
+                          </td>
+                          <td style={{ textTransform: 'capitalize' }}>{sub.billing_cycle}</td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)' }}>
+                            {formatDate(sub.current_period_start)} - {formatDate(sub.current_period_end)}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button
+                                className="sa-btn sa-btn-secondary"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                                onClick={() => openEditSub(sub)}
+                              >
+                                Modifier
+                              </button>
+                              {sub.status === 'active' && (
+                                <button
+                                  className="sa-btn sa-btn-danger"
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                                  onClick={() => setCancelConfirmId(sub.id)}
+                                >
+                                  Annuler
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 <SAPagination

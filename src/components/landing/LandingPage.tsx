@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import {
-  Calendar, ShieldCheck, Video, Mail, Check, ArrowRight,
+  Calendar, ShieldCheck, Video, Mail, Check, ArrowRight, ArrowDown,
   FileBarChart, Building2, GraduationCap, Smartphone,
   UserPlus, Settings, CalendarCheck, ChevronDown,
-  Star, Quote,
+  Star, Quote, ClipboardCheck, BarChart3, UserCog, Upload,
+  Shield, Lock, Globe, Zap, TrendingUp,
 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
@@ -24,6 +25,10 @@ export default function LandingPage() {
     { icon: Building2, color: 'rose', titleKey: 'features.multiCampus.title', descKey: 'features.multiCampus.desc' },
     { icon: GraduationCap, color: 'indigo', titleKey: 'features.academic.title', descKey: 'features.academic.desc' },
     { icon: Smartphone, color: 'emerald', titleKey: 'features.mobile.title', descKey: 'features.mobile.desc' },
+    { icon: ClipboardCheck, color: 'cyan', titleKey: 'features.attendance.title', descKey: 'features.attendance.desc' },
+    { icon: BarChart3, color: 'orange', titleKey: 'features.grades.title', descKey: 'features.grades.desc' },
+    { icon: UserCog, color: 'pink', titleKey: 'features.teacherCollab.title', descKey: 'features.teacherCollab.desc' },
+    { icon: Upload, color: 'lime', titleKey: 'features.import.title', descKey: 'features.import.desc' },
   ]
 
   const plans = [
@@ -72,6 +77,10 @@ export default function LandingPage() {
     { qKey: 'faq.4.q', aKey: 'faq.4.a' },
     { qKey: 'faq.5.q', aKey: 'faq.5.a' },
     { qKey: 'faq.6.q', aKey: 'faq.6.a' },
+    { qKey: 'faq.7.q', aKey: 'faq.7.a' },
+    { qKey: 'faq.8.q', aKey: 'faq.8.a' },
+    { qKey: 'faq.9.q', aKey: 'faq.9.a' },
+    { qKey: 'faq.10.q', aKey: 'faq.10.a' },
   ]
 
   const mockupSlots = [
@@ -79,6 +88,21 @@ export default function LandingPage() {
     'filled-blue', '', 'filled-teal', '', 'filled-coral',
     '', 'filled-amber', '', '', 'filled-teal',
     'filled-teal', '', 'filled-coral', 'filled-amber', '',
+  ]
+
+  const painPoints = [
+    { beforeKey: 'landing.pain.1.before', afterKey: 'landing.pain.1.after' },
+    { beforeKey: 'landing.pain.2.before', afterKey: 'landing.pain.2.after' },
+    { beforeKey: 'landing.pain.3.before', afterKey: 'landing.pain.3.after' },
+  ]
+
+  const testimonials = [
+    { quoteKey: 'testimonial.1.quote', nameKey: 'testimonial.1.name', roleKey: 'testimonial.1.role', color: '#3b82f6', initials: 'MD' },
+    { quoteKey: 'testimonial.2.quote', nameKey: 'testimonial.2.name', roleKey: 'testimonial.2.role', color: '#8b5cf6', initials: 'TB' },
+    { quoteKey: 'testimonial.3.quote', nameKey: 'testimonial.3.name', roleKey: 'testimonial.3.role', color: '#14b8a6', initials: 'SM' },
+    { quoteKey: 'testimonial.4.quote', nameKey: 'testimonial.4.name', roleKey: 'testimonial.4.role', color: '#f97316', initials: 'LC' },
+    { quoteKey: 'testimonial.5.quote', nameKey: 'testimonial.5.name', roleKey: 'testimonial.5.role', color: '#ec4899', initials: 'PD' },
+    { quoteKey: 'testimonial.6.quote', nameKey: 'testimonial.6.name', roleKey: 'testimonial.6.role', color: '#06b6d4', initials: 'AR' },
   ]
 
   return (
@@ -96,7 +120,7 @@ export default function LandingPage() {
               <span>{t('hero.title').split(' ').slice(2).join(' ')}</span>
             </h1>
             <p className="landing-hero-subtitle landing-hero-animate-delay-1">
-              {t('hero.subtitle')}
+              {t('hero.subtitle.enhanced')}
             </p>
             <div className="landing-hero-buttons landing-hero-animate-delay-2">
               <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
@@ -105,6 +129,24 @@ export default function LandingPage() {
               <a href="#/features" className="landing-hero-btn-secondary">
                 {t('hero.cta.secondary')}
               </a>
+            </div>
+
+            {/* Social Proof Bar */}
+            <div className="landing-hero-proof landing-hero-animate-delay-3">
+              <div className="landing-hero-proof-item">
+                <span className="landing-hero-proof-number">250+</span>
+                <span>{t('landing.hero.proof.establishments').replace('250+ ', '')}</span>
+              </div>
+              <div className="landing-hero-proof-divider" />
+              <div className="landing-hero-proof-item">
+                <span className="landing-hero-proof-number">5 000+</span>
+                <span>{t('landing.hero.proof.sessions').replace('5 000+ ', '').replace('5,000+ ', '')}</span>
+              </div>
+              <div className="landing-hero-proof-divider" />
+              <div className="landing-hero-proof-item">
+                <span className="landing-hero-proof-number">99.9%</span>
+                <span>uptime</span>
+              </div>
             </div>
           </div>
 
@@ -128,7 +170,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* =================== FEATURES =================== */}
+      {/* =================== FEATURES (12 cards) =================== */}
       <section className="landing-features" id="features">
         <div className="landing-features-inner">
           <div ref={reveal}>
@@ -158,6 +200,35 @@ export default function LandingPage() {
             <a href="#/features" className="landing-link-more">
               {t('features.learnMore')} <ArrowRight size={18} />
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== PAIN POINTS =================== */}
+      <section className="landing-pain-section">
+        <div className="landing-pain-inner">
+          <div ref={reveal} style={{ textAlign: 'center' }}>
+            <span className="landing-section-label">{t('landing.pain.title')}</span>
+            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>{t('landing.pain.title')}</h2>
+            <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>{t('landing.pain.subtitle')}</p>
+          </div>
+
+          <div className="landing-pain-grid">
+            {painPoints.map((pain, i) => (
+              <div key={i} className="landing-pain-card" ref={reveal} data-reveal-delay={i + 1}>
+                <div className="landing-pain-before">
+                  <div className="icon"><Zap size={14} /></div>
+                  {t(pain.beforeKey)}
+                </div>
+                <div className="landing-pain-arrow">
+                  <ArrowDown size={20} />
+                </div>
+                <div className="landing-pain-after">
+                  <div className="icon"><Check size={14} /></div>
+                  {t(pain.afterKey)}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -196,9 +267,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* =================== FEATURE SHOWCASE =================== */}
+      {/* =================== FEATURE SHOWCASE (6 blocks) =================== */}
       <section className="landing-showcase">
         <div className="landing-showcase-inner">
+          {/* Block 1: Calendar */}
           <div className="landing-showcase-block" ref={reveal}>
             <div className="landing-showcase-text">
               <span className="landing-showcase-label">{t('showcase.calendar.label')}</span>
@@ -219,6 +291,7 @@ export default function LandingPage() {
             </div>
           </div>
 
+          {/* Block 2: Conflicts */}
           <div className="landing-showcase-block reversed" ref={reveal}>
             <div className="landing-showcase-text">
               <span className="landing-showcase-label">{t('showcase.conflict.label')}</span>
@@ -253,6 +326,7 @@ export default function LandingPage() {
             </div>
           </div>
 
+          {/* Block 3: Academic */}
           <div className="landing-showcase-block" ref={reveal}>
             <div className="landing-showcase-text">
               <span className="landing-showcase-label">{t('showcase.academic.label')}</span>
@@ -299,10 +373,118 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+
+          {/* Block 4: Attendance */}
+          <div className="landing-showcase-block reversed" ref={reveal}>
+            <div className="landing-showcase-text">
+              <span className="landing-showcase-label">{t('showcase.attendance.label')}</span>
+              <h3>{t('showcase.attendance.title')}</h3>
+              <p>{t('showcase.attendance.desc')}</p>
+              <ul className="landing-showcase-bullets">
+                {['showcase.attendance.b1', 'showcase.attendance.b2', 'showcase.attendance.b3', 'showcase.attendance.b4'].map(k => (
+                  <li key={k}><Check size={18} /> {t(k)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="landing-showcase-visual">
+              <div className="landing-showcase-mockup-conflict">
+                <div className="landing-showcase-conflict-row">
+                  <div className="dot" style={{ background: '#22c55e' }} />
+                  <div className="line" style={{ background: 'rgba(34,197,94,0.3)', width: '70%' }} />
+                </div>
+                <div className="landing-showcase-conflict-row">
+                  <div className="dot" style={{ background: '#22c55e' }} />
+                  <div className="line" style={{ background: 'rgba(34,197,94,0.3)', width: '60%' }} />
+                </div>
+                <div className="landing-showcase-conflict-row conflict">
+                  <div className="dot" style={{ background: '#ef4444' }} />
+                  <div className="line" style={{ background: 'rgba(239,68,68,0.3)', width: '50%' }} />
+                  <div className="badge" style={{ background: 'rgba(239,68,68,0.2)', color: '#fca5a5' }}>Absent</div>
+                </div>
+                <div className="landing-showcase-conflict-row">
+                  <div className="dot" style={{ background: '#f59e0b' }} />
+                  <div className="line" style={{ background: 'rgba(245,158,11,0.3)', width: '55%' }} />
+                  <div className="badge" style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d' }}>Retard</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Block 5: Grades */}
+          <div className="landing-showcase-block" ref={reveal}>
+            <div className="landing-showcase-text">
+              <span className="landing-showcase-label">{t('showcase.grades.label')}</span>
+              <h3>{t('showcase.grades.title')}</h3>
+              <p>{t('showcase.grades.desc')}</p>
+              <ul className="landing-showcase-bullets">
+                {['showcase.grades.b1', 'showcase.grades.b2', 'showcase.grades.b3', 'showcase.grades.b4'].map(k => (
+                  <li key={k}><Check size={18} /> {t(k)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="landing-showcase-visual">
+              <div className="landing-showcase-mockup-conflict">
+                {[
+                  { label: '85%', w: '85%', color: '#3b82f6' },
+                  { label: '72%', w: '72%', color: '#14b8a6' },
+                  { label: '91%', w: '91%', color: '#8b5cf6' },
+                  { label: '68%', w: '68%', color: '#FBA625' },
+                ].map((item, i) => (
+                  <div key={i} className="landing-showcase-conflict-row">
+                    <div className="dot" style={{ background: item.color }} />
+                    <div className="line" style={{ background: `${item.color}40`, width: item.w }} />
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', marginLeft: 'auto' }}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Block 6: Teacher Collaboration */}
+          <div className="landing-showcase-block reversed" ref={reveal}>
+            <div className="landing-showcase-text">
+              <span className="landing-showcase-label">{t('showcase.teacherCollab.label')}</span>
+              <h3>{t('showcase.teacherCollab.title')}</h3>
+              <p>{t('showcase.teacherCollab.desc')}</p>
+              <ul className="landing-showcase-bullets">
+                {['showcase.teacherCollab.b1', 'showcase.teacherCollab.b2', 'showcase.teacherCollab.b3', 'showcase.teacherCollab.b4'].map(k => (
+                  <li key={k}><Check size={18} /> {t(k)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="landing-showcase-visual">
+              <div className="landing-showcase-mockup-academic">
+                <div className="landing-showcase-academic-item">
+                  <div className="icon-box" style={{ background: 'rgba(236,72,153,0.2)' }}>
+                    <UserCog size={14} style={{ color: '#ec4899' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(236,72,153,0.2)', width: '65%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent">
+                  <div className="icon-box" style={{ background: 'rgba(34,197,94,0.2)' }}>
+                    <Check size={14} style={{ color: '#22c55e' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(34,197,94,0.2)', width: '50%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent">
+                  <div className="icon-box" style={{ background: 'rgba(59,130,246,0.2)' }}>
+                    <Mail size={14} style={{ color: '#3b82f6' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(59,130,246,0.2)', width: '55%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent">
+                  <div className="icon-box" style={{ background: 'rgba(251,166,37,0.2)' }}>
+                    <CalendarCheck size={14} style={{ color: '#FBA625' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(251,166,37,0.2)', width: '45%' }} />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* =================== TESTIMONIALS =================== */}
+      {/* =================== TESTIMONIALS (6) =================== */}
       <section className="landing-testimonials" id="testimonials">
         <div className="landing-testimonials-inner">
           <div ref={reveal} style={{ textAlign: 'center' }}>
@@ -312,11 +494,7 @@ export default function LandingPage() {
           </div>
 
           <div className="landing-testimonials-grid">
-            {[
-              { quoteKey: 'testimonial.1.quote', nameKey: 'testimonial.1.name', roleKey: 'testimonial.1.role', color: '#3b82f6', initials: 'MD' },
-              { quoteKey: 'testimonial.2.quote', nameKey: 'testimonial.2.name', roleKey: 'testimonial.2.role', color: '#8b5cf6', initials: 'TB' },
-              { quoteKey: 'testimonial.3.quote', nameKey: 'testimonial.3.name', roleKey: 'testimonial.3.role', color: '#14b8a6', initials: 'SM' },
-            ].map((item, i) => (
+            {testimonials.map((item, i) => (
               <div key={i} className="landing-testimonial-card" ref={reveal} data-reveal-delay={i + 1}>
                 <div className="landing-testimonial-stars">
                   {[...Array(5)].map((_, j) => <Star key={j} size={16} fill="currentColor" />)}
@@ -337,6 +515,15 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* =================== TRUST BADGES =================== */}
+      <div className="landing-trust">
+        <div className="landing-trust-item"><Shield size={16} /> {t('landing.trust.rgpd')}</div>
+        <div className="landing-trust-item"><Lock size={16} /> {t('landing.trust.tls')}</div>
+        <div className="landing-trust-item"><Globe size={16} /> {t('landing.trust.europe')}</div>
+        <div className="landing-trust-item"><Smartphone size={16} /> {t('landing.trust.pwa')}</div>
+        <div className="landing-trust-item"><ShieldCheck size={16} /> {t('landing.trust.stripe')}</div>
+      </div>
 
       {/* =================== PRICING =================== */}
       <section className="landing-pricing" id="pricing">
@@ -441,14 +628,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* =================== CTA =================== */}
+      {/* =================== CTA (enhanced) =================== */}
       <section className="landing-cta">
         <div className="landing-cta-inner" ref={reveal}>
+          <div className="landing-cta-urgency">
+            <TrendingUp size={16} />
+            {t('cta.urgency')}
+          </div>
           <h2>{t('cta.title')}</h2>
           <p>{t('cta.subtitle')}</p>
-          <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
-            {t('cta.button')}
-          </a>
+          <div className="landing-cta-buttons">
+            <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
+              {t('cta.button')}
+            </a>
+            <a href="#/about" className="landing-btn-ghost-light">
+              {t('cta.demo')}
+            </a>
+          </div>
           <div className="landing-cta-quote">
             <p className="landing-cta-quote-text">{t('cta.quote')}</p>
             <p className="landing-cta-quote-author">{t('cta.quoteAuthor')}</p>

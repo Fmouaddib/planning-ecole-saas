@@ -43,6 +43,7 @@ const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'))
 const GradesPage = lazy(() => import('@/pages/grades/GradesPage'))
 const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage'))
 const TeacherCollabPage = lazy(() => import('@/pages/teacher-collab/TeacherCollabPage'))
+const BillingPage = lazy(() => import('@/pages/billing/BillingPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -78,6 +79,7 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.GRADES]: GradesPage,
   [ROUTES.NOTIFICATIONS]: NotificationsPage,
   [ROUTES.TEACHER_COLLAB]: TeacherCollabPage,
+  [ROUTES.BILLING]: BillingPage,
 }
 
 export default function App() {
@@ -475,7 +477,8 @@ export default function App() {
       )
     }
 
-    if (hash === '#/checkout-success') {
+    if (hash === '#/checkout-success' || hash.startsWith('#/checkout-success?')) {
+      const hashParams = new URLSearchParams(hash.split('?')[1] || '')
       return (
         <Suspense
           fallback={
@@ -484,7 +487,11 @@ export default function App() {
             </div>
           }
         >
-          <CheckoutSuccessPage />
+          <CheckoutSuccessPage
+            checkoutType={hashParams.get('type') || 'plan'}
+            addonType={hashParams.get('addon_type') || undefined}
+            addonName={decodeURIComponent(hashParams.get('addon_name') || '')}
+          />
         </Suspense>
       )
     }
@@ -527,7 +534,8 @@ export default function App() {
   }
 
   // Page de succès Stripe Checkout
-  if (hash === '#/checkout-success') {
+  if (hash === '#/checkout-success' || hash.startsWith('#/checkout-success?')) {
+    const hashParams = new URLSearchParams(hash.split('?')[1] || '')
     return (
       <Suspense
         fallback={
@@ -536,7 +544,11 @@ export default function App() {
           </div>
         }
       >
-        <CheckoutSuccessPage />
+        <CheckoutSuccessPage
+          checkoutType={hashParams.get('type') || 'plan'}
+          addonType={hashParams.get('addon_type') || undefined}
+          addonName={decodeURIComponent(hashParams.get('addon_name') || '')}
+        />
       </Suspense>
     )
   }
@@ -577,14 +589,14 @@ export default function App() {
   // Render the current page based on path
   const renderPage = () => {
     // Route guards : les professeurs n'ont pas accès aux pages admin
-    const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.VISIO, ROUTES.EMAILS, ROUTES.MY_CLASS]
+    const teacherForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.VISIO, ROUTES.EMAILS, ROUTES.MY_CLASS, ROUTES.BILLING]
     if (isTeacherRole(effectiveUser?.role) && teacherForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />
     }
 
     // Route guards : les étudiants n'ont accès qu'au dashboard et au planning
-    const studentForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.BOOKINGS, ROUTES.VISIO, ROUTES.EMAILS, ROUTES.TEACHER_COLLAB]
+    const studentForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.BOOKINGS, ROUTES.VISIO, ROUTES.EMAILS, ROUTES.TEACHER_COLLAB, ROUTES.BILLING]
     if (isStudentRole(effectiveUser?.role) && studentForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />

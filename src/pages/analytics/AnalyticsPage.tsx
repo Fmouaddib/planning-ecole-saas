@@ -4,6 +4,7 @@ import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useUsers } from '@/hooks/useUsers'
 import { useAcademicData } from '@/hooks/useAcademicData'
+import { useGrades } from '@/hooks/useGrades'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingSpinner, BarChart, DonutChart, HeatmapGrid } from '@/components/ui'
 import { CalendarCheck, Gauge, GraduationCap, Users, Award, School, BookOpen, Monitor, Download, ChevronDown } from 'lucide-react'
@@ -173,6 +174,23 @@ const DEMO_DISPENSATIONS_BY_SUBJECT = [
   { label: 'Sport', value: 4, color: '#f87171' },
   { label: 'Droit', value: 3, color: '#ef4444' },
   { label: 'Économie', value: 2, color: '#f87171' },
+]
+
+const DEMO_GRADE_DISTRIBUTION = [
+  { label: '<8', value: 8, color: '#ef4444' },
+  { label: '8-10', value: 15, color: '#f97316' },
+  { label: '10-12', value: 28, color: '#f59e0b' },
+  { label: '12-14', value: 35, color: '#3b82f6' },
+  { label: '14-16', value: 22, color: '#2563eb' },
+  { label: '16-20', value: 12, color: '#22c55e' },
+]
+
+const DEMO_CLASS_AVERAGES_CHART = [
+  { label: 'BTS SIO 1', value: 12.4, color: '#3b82f6' },
+  { label: 'BTS SIO 2', value: 13.1, color: '#2563eb' },
+  { label: 'LP Web 1', value: 11.8, color: '#60a5fa' },
+  { label: 'M1 RH', value: 14.2, color: '#3b82f6' },
+  { label: 'BTS MCO 1', value: 10.5, color: '#2563eb' },
 ]
 
 // ==================== SECTION HEADER ====================
@@ -613,6 +631,74 @@ function AnalyticsPage() {
       }))
   }, [studentSubjects, subjects])
 
+  // ==================== SECTION 5 — RÉSULTATS ACADÉMIQUES ====================
+
+  const { computeBulletin } = useGrades()
+  const [gradeDistributionData, setGradeDistributionData] = useState(DEMO_GRADE_DISTRIBUTION)
+  const [classAveragesData, setClassAveragesData] = useState(DEMO_CLASS_AVERAGES_CHART)
+
+  useEffect(() => {
+    if (isDemoMode || classes.length === 0 || students.length === 0) return
+
+    async function fetchGradeData() {
+      const allAverages: number[] = []
+      const classAvgs: { label: string; value: number; color: string }[] = []
+      const barColors = ['#3b82f6', '#2563eb', '#60a5fa', '#3b82f6', '#2563eb']
+
+      for (const cls of classes.slice(0, 10)) {
+        const classStudentIds = classStudents
+          .filter(cs => cs.class_id === cls.id)
+          .map(cs => cs.student_id)
+
+        const studentAvgs: number[] = []
+        for (const sid of classStudentIds.slice(0, 30)) {
+          const student = students.find(s => s.id === sid)
+          if (!student) continue
+          const bul = await computeBulletin(sid, cls.id, `${student.firstName} ${student.lastName}`, cls.name)
+          if (bul?.generalAverage != null) {
+            studentAvgs.push(bul.generalAverage)
+            allAverages.push(bul.generalAverage)
+          }
+        }
+
+        if (studentAvgs.length > 0) {
+          const avg = Math.round((studentAvgs.reduce((s, v) => s + v, 0) / studentAvgs.length) * 100) / 100
+          classAvgs.push({
+            label: cls.name.length > 14 ? cls.name.slice(0, 12) + '…' : cls.name,
+            value: avg,
+            color: barColors[classAvgs.length % barColors.length],
+          })
+        }
+      }
+
+      if (classAvgs.length > 0) {
+        setClassAveragesData(classAvgs.sort((a, b) => b.value - a.value))
+      }
+
+      if (allAverages.length > 0) {
+        const dist = [
+          { label: '<8', value: 0, color: '#ef4444' },
+          { label: '8-10', value: 0, color: '#f97316' },
+          { label: '10-12', value: 0, color: '#f59e0b' },
+          { label: '12-14', value: 0, color: '#3b82f6' },
+          { label: '14-16', value: 0, color: '#2563eb' },
+          { label: '16-20', value: 0, color: '#22c55e' },
+        ]
+        for (const avg of allAverages) {
+          if (avg < 8) dist[0].value++
+          else if (avg < 10) dist[1].value++
+          else if (avg < 12) dist[2].value++
+          else if (avg < 14) dist[3].value++
+          else if (avg < 16) dist[4].value++
+          else dist[5].value++
+        }
+        setGradeDistributionData(dist)
+      }
+    }
+
+    fetchGradeData()
+  }, [classes.length, students.length, classStudents.length])
+
   // ==================== RENDU ====================
 
   if (isLoading && !isDemoMode) {
@@ -811,7 +897,7 @@ function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="card">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Étudiants par classe</h3>
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Top 10 — effectifs</p>
@@ -828,6 +914,26 @@ function AnalyticsPage() {
             <BarChart data={dispensationsBySubjectData} horizontal showValues />
           ) : (
             <p className="text-sm text-neutral-400 text-center py-6">Aucune donnée</p>
+          )}
+        </div>
+      </div>
+
+      {/* ==================== SECTION 5 — Résultats académiques ==================== */}
+      <SectionHeader title="Résultats académiques" description="Distribution des notes et moyennes par classe" />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Distribution des notes</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Répartition par tranche de notation</p>
+          <BarChart data={gradeDistributionData} height={55} showValues />
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Moyenne par classe</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Comparaison entre les classes</p>
+          {classAveragesData.length > 0 ? (
+            <BarChart data={classAveragesData} horizontal showValues />
+          ) : (
+            <p className="text-sm text-neutral-400 text-center py-6">Aucune donnée de notes</p>
           )}
         </div>
       </div>

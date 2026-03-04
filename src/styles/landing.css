@@ -2282,3 +2282,496 @@
     padding: 2.5rem 1rem;
   }
 }
+
+/* ===================== SOCIAL PROOF BAR ===================== */
+
+.landing-hero-proof {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-top: 2.5rem;
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.landing-hero-proof-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 2rem;
+}
+
+.landing-hero-proof-number {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--landing-coral);
+  line-height: 1;
+}
+
+.landing-hero-proof-item span:last-child {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.landing-hero-proof-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .landing-hero-proof {
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  .landing-hero-proof-divider {
+    display: none;
+  }
+  .landing-hero-proof-item {
+    padding: 0 1rem;
+  }
+}
+
+/* ===================== PAIN POINTS SECTION ===================== */
+
+.landing-pain-section {
+  padding: 5rem 2rem;
+  background: var(--landing-navy);
+}
+
+.landing-pain-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.landing-pain-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.landing-pain-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.landing-pain-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.landing-pain-before {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fca5a5;
+}
+
+.landing-pain-before .icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fca5a5;
+}
+
+.landing-pain-arrow {
+  display: flex;
+  justify-content: center;
+  margin: 0.75rem 0;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.landing-pain-after {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #86efac;
+}
+
+.landing-pain-after .icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #86efac;
+}
+
+@media (max-width: 768px) {
+  .landing-pain-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===================== TRUST BADGES ===================== */
+
+.landing-trust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 3rem 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.landing-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.landing-trust-item svg {
+  color: var(--landing-coral);
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .landing-trust {
+    gap: 1rem;
+    padding: 2rem 1rem;
+  }
+  .landing-trust-item {
+    font-size: 0.75rem;
+  }
+}
+
+/* ===================== FEATURE NAV (STICKY) ===================== */
+
+.landing-feature-nav {
+  position: sticky;
+  top: 64px;
+  z-index: 30;
+  background: var(--landing-navy);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 2rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.landing-feature-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.landing-feature-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0;
+  white-space: nowrap;
+}
+
+.landing-feature-nav-link {
+  padding: 0.875rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.landing-feature-nav-link:hover {
+  color: rgba(255, 255, 255, 0.8);
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ===================== COMPARE SECTION HEADER ===================== */
+
+.landing-compare-section-header td {
+  background: rgba(255, 91, 70, 0.06) !important;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--landing-coral);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 91, 70, 0.15);
+}
+
+/* ===================== ADDON CARDS V2 ===================== */
+
+.landing-addon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.landing-addon-card {
+  background: var(--landing-card-bg, #fff);
+  border-radius: 16px;
+  padding: 1.75rem;
+  border: 1px solid var(--landing-border, #e5e7eb);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.landing-addon-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.landing-addon-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.landing-addon-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.landing-addon-card-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--landing-text, #1e293b);
+}
+
+.landing-addon-card-header .landing-addon-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.landing-addon-card-desc {
+  font-size: 0.8rem;
+  color: var(--landing-text-muted, #6b7280);
+  margin-bottom: 1rem;
+}
+
+.landing-addon-card-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.landing-addon-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.landing-addon-option-name {
+  font-weight: 500;
+  color: var(--landing-text, #1e293b);
+}
+
+.landing-addon-option-price {
+  font-weight: 700;
+  color: var(--landing-text, #1e293b);
+}
+
+/* ===================== NAVBAR BADGE ===================== */
+
+.landing-nav-badge-new {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--landing-coral);
+  color: white;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+/* ===================== NUMBERS SECTION (ABOUT) ===================== */
+
+.landing-numbers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  max-width: 900px;
+  margin: 3rem auto 0;
+}
+
+.landing-numbers-card {
+  text-align: center;
+  padding: 2rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.landing-numbers-card .number {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--landing-coral);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.landing-numbers-card .label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .landing-numbers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ===================== FOOTER TRUST BAR ===================== */
+
+.landing-footer-trust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1.5rem 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.landing-footer-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.landing-footer-trust-item svg {
+  width: 14px;
+  height: 14px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ===================== CTA URGENCY ===================== */
+
+.landing-cta-urgency {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.landing-cta-urgency svg {
+  color: var(--landing-coral);
+}
+
+.landing-cta-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.landing-btn-ghost-light {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: all 0.2s;
+  background: transparent;
+}
+
+.landing-btn-ghost-light:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 640px) {
+  .landing-cta-buttons {
+    flex-direction: column;
+  }
+}
+
+/* ===================== FEATURE CARD COLORS - NEW ===================== */
+
+.landing-feature-icon.cyan {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+}
+
+.landing-feature-icon.orange {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+}
+
+.landing-feature-icon.pink {
+  background: rgba(236, 72, 153, 0.15);
+  color: #ec4899;
+}
+
+.landing-feature-icon.lime {
+  background: rgba(132, 204, 22, 0.15);
+  color: #84cc16;
+}

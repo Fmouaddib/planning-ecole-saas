@@ -9,9 +9,11 @@ import {
   BookOpen, Clock, ChevronDown, MailCheck,
   BellOff, X, ClipboardCheck, FileBarChart, Upload, Info,
   AlertTriangle, CheckCircle, UserCog,
-  CalendarClock, CalendarX, UserCheck, UserPlus, XCircle, RefreshCw, MessageSquare, Award,
+  CalendarClock, CalendarX, UserCheck, UserPlus, XCircle, RefreshCw, MessageSquare, Award, Send,
+  Smartphone,
 } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
+import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { Button, Badge, LoadingSpinner } from '@/components/ui'
 import { formatDistanceToNow } from 'date-fns'
@@ -59,6 +61,9 @@ const TYPE_TO_TAB: Record<InAppNotificationType, FilterTab> = {
   replacement_candidate_accepted: 'collaboration',
   replacement_selected: 'collaboration',
   session_needs_reschedule: 'collaboration',
+  bulletin_generated: 'academic',
+  bulletin_sent: 'academic',
+  absence_report_sent: 'academic',
 }
 
 const TYPE_CONFIG: Record<InAppNotificationType, { label: string; color: string; borderColor: string; icon: typeof Bell; bgColor: string }> = {
@@ -251,6 +256,27 @@ const TYPE_CONFIG: Record<InAppNotificationType, { label: string; color: string;
     icon: AlertTriangle,
     bgColor: 'bg-red-100 dark:bg-red-900/30',
   },
+  bulletin_generated: {
+    label: 'Bulletin genere',
+    color: 'text-green-600',
+    borderColor: 'border-l-green-500',
+    icon: FileBarChart,
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  bulletin_sent: {
+    label: 'Bulletin envoye',
+    color: 'text-blue-600',
+    borderColor: 'border-l-blue-500',
+    icon: Send,
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+  },
+  absence_report_sent: {
+    label: 'Signalement absence',
+    color: 'text-amber-600',
+    borderColor: 'border-l-amber-500',
+    icon: AlertTriangle,
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+  },
 }
 
 const PAGE_SIZE = 20
@@ -267,6 +293,8 @@ interface NotificationPrefs {
 }
 
 function PreferencesSection({ onClose }: { onClose: () => void }) {
+  const { isSupported, isSubscribed, subscribe, unsubscribe, permissionState } = usePushSubscription()
+  const [pushToggling, setPushToggling] = useState(false)
   const [prefs, setPrefs] = useState<NotificationPrefs>({
     session_created: true,
     session_updated: true,
@@ -278,6 +306,16 @@ function PreferencesSection({ onClose }: { onClose: () => void }) {
 
   const togglePref = (key: keyof NotificationPrefs) => {
     setPrefs(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handlePushToggle = async () => {
+    setPushToggling(true)
+    try {
+      if (isSubscribed) await unsubscribe()
+      else await subscribe()
+    } finally {
+      setPushToggling(false)
+    }
   }
 
   const prefItems: Array<{ key: keyof NotificationPrefs; label: string; description: string }> = [
@@ -300,6 +338,40 @@ function PreferencesSection({ onClose }: { onClose: () => void }) {
           <X size={18} className="text-neutral-500" />
         </button>
       </div>
+
+      {/* Push notification toggle */}
+      {isSupported && (
+        <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 bg-violet-50 dark:bg-violet-950/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Smartphone size={16} className="text-violet-600" />
+              <div>
+                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Notifications push</p>
+                <p className="text-xs text-neutral-500">
+                  {permissionState === 'denied'
+                    ? 'Bloquées par le navigateur'
+                    : isSubscribed
+                      ? 'Activées sur cet appareil'
+                      : 'Recevez des alertes en temps réel'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handlePushToggle}
+              disabled={pushToggling || permissionState === 'denied'}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                isSubscribed ? 'bg-violet-600' : 'bg-neutral-300 dark:bg-neutral-600'
+              } ${pushToggling || permissionState === 'denied' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                isSubscribed ? 'translate-x-[18px]' : 'translate-x-[3px]'
+              }`} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
         {prefItems.map(item => (
           <div key={item.key} className="flex items-center justify-between px-4 py-3">

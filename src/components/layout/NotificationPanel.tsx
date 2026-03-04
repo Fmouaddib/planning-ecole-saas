@@ -12,7 +12,7 @@ import {
   X,
   ClipboardCheck,
   FileBarChart,
-  Upload,
+  Upload, Send,
   AlertTriangle,
   CheckCircle,
   UserCheck,
@@ -64,6 +64,9 @@ const TYPE_CONFIG: Record<InAppNotificationType, { icon: React.ElementType; colo
   replacement_candidate_accepted: { icon: UserCheck, color: 'text-success-600 bg-success-50' },
   replacement_selected: { icon: Award, color: 'text-success-600 bg-success-50' },
   session_needs_reschedule: { icon: AlertTriangle, color: 'text-error-600 bg-error-50' },
+  bulletin_generated: { icon: FileBarChart, color: 'text-success-600 bg-success-50' },
+  bulletin_sent: { icon: Send, color: 'text-primary-600 bg-primary-50' },
+  absence_report_sent: { icon: AlertTriangle, color: 'text-warning-600 bg-warning-50' },
 }
 
 export const NotificationPanel: React.FC<NotificationPanelProps> = ({

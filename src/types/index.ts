@@ -114,6 +114,7 @@ export interface Booking {
   meetingUrl?: string
   sessionType?: 'in_person' | 'online' | 'hybrid'
   needsReschedule?: boolean
+  attendanceMarkingEnabled?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -349,6 +350,9 @@ export type InAppNotificationType =
   | 'replacement_candidate_accepted'
   | 'replacement_selected'
   | 'session_needs_reschedule'
+  | 'bulletin_generated'
+  | 'bulletin_sent'
+  | 'absence_report_sent'
 
 export interface InAppNotification {
   id: string
@@ -562,6 +566,7 @@ export interface UseBookingsReturn {
   getBookingsByUser: (userId: UUID) => Booking[]
   refreshBookings: () => Promise<void>
   clearError: () => void
+  toggleAttendanceMarking: (sessionId: string, enabled: boolean) => Promise<void>
   calendarEvents: CalendarEvent[]
   upcomingBookings: Booking[]
   bookingsByStatus: Record<string, Booking[]>
@@ -811,6 +816,44 @@ export interface StudentBulletin {
   classRank?: number
 }
 
+// ==================== CONTACTS & BULLETINS ====================
+
+export type ContactRelationship = 'parent' | 'tuteur_pro' | 'responsable_legal' | 'autre'
+
+export interface StudentContact {
+  id: string
+  studentId: string
+  centerId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string
+  relationship: ContactRelationship
+  receiveBulletins: boolean
+  receiveAbsences: boolean
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Bulletin {
+  id: string
+  centerId: string
+  studentId: string
+  classId: string
+  generatedBy: string
+  periodLabel: string
+  periodStart: string
+  periodEnd: string
+  bulletinData: StudentBulletin
+  generalAverage: number | null
+  classRank: number | null
+  pdfUrl?: string
+  sentAt?: string
+  sentTo: { email: string; name: string; type: 'student' | 'contact' }[]
+  createdAt: string
+}
+
 // ==================== TYPES NOTIFICATIONS (enhanced) ====================
 
 export type NotificationCategory = 'all' | 'sessions' | 'reminders' | 'system' | 'academic'
@@ -835,6 +878,22 @@ export interface NotificationPreferences {
   changeRequestPending: boolean
   changeRequestResponse: boolean
   planningMessage: boolean
+  pushEnabled: boolean
+}
+
+// ==================== TYPES PUSH SUBSCRIPTION ====================
+
+export interface PushSubscriptionRecord {
+  id: string
+  userId: string
+  centerId: string
+  endpoint: string
+  p256dh: string
+  authKey: string
+  deviceName?: string
+  isActive: boolean
+  lastUsedAt?: string
+  createdAt: string
 }
 
 // ==================== TYPES TEACHER COLLABORATION ====================

@@ -2,19 +2,30 @@
  * Page Notes & Evaluations
  * 3 vues selon le role: Teacher / Admin / Student
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   FileBarChart, BookOpen, Award,
   Plus, Eye, EyeOff,
   Filter, Save, X,
   AlertTriangle, BarChart3, TrendingUp,
+  Download, Send, Loader2, FileText, CheckCircle,
 } from 'lucide-react'
 import { isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { FeatureGate } from '@/components/addons/FeatureGate'
 import { Button, Badge, Card, CardContent } from '@/components/ui'
+import { useGrades } from '@/hooks/useGrades'
+import { useBulletins } from '@/hooks/useBulletins'
+import { useStudentContacts } from '@/hooks/useStudentContacts'
+import { useAcademicData } from '@/hooks/useAcademicData'
+import { useUsers } from '@/hooks/useUsers'
+import { useAttendance } from '@/hooks/useAttendance'
+import { generateBulletinPDF, generateBulkBulletinPDF, generateBulkBulletinExcel } from '@/utils/export-bulletin'
+import { exportClassReportToPDF, exportClassReportToExcel } from '@/utils/export-class-report'
+import type { ClassReportStudent } from '@/utils/export-class-report'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import type { Bulletin, StudentBulletin } from '@/types'
 
 // ==================== TYPES ====================
 
@@ -404,8 +415,98 @@ function TeacherView() {
 // ==================== ADMIN VIEW ====================
 
 function AdminView() {
+  const { user } = useAuthContext()
   const [classFilter, setClassFilter] = useState('all')
   const classes = useMemo(() => Array.from(new Set(DEMO_CLASS_AVERAGES.map(a => a.className))), [])
+
+  // Bulletin section
+  const { classes: realClasses } = useAcademicData()
+  const { users } = useUsers()
+  const { computeBulletin } = useGrades()
+  const { bulletins, fetchBulletins, generateClassBulletins, sendBulletin } = useBulletins()
+  const { fetchContacts, getContactsForStudent } = useStudentContacts()
+  const { getAttendanceForClass, computeAttendanceStats } = useAttendance()
+  const [bulClassId, setBulClassId] = useState('')
+  const [bulPeriodLabel, setBulPeriodLabel] = useState('')
+  const [bulPeriodStart, setBulPeriodStart] = useState('')
+  const [bulPeriodEnd, setBulPeriodEnd] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [showSendModal, setShowSendModal] = useState<Bulletin | null>(null)
+  const [sendToContacts, setSendToContacts] = useState(true)
+
+  useEffect(() => { fetchBulletins(); fetchContacts() }, [fetchBulletins, fetchContacts])
+
+  const students = useMemo(() =>
+    users.filter(u => u.role === 'student'),
+  [users])
+
+  const handleGenerateBulletins = useCallback(async () => {
+    if (!bulClassId || !bulPeriodLabel || !bulPeriodStart || !bulPeriodEnd) return
+    setGenerating(true)
+    try {
+      // Generate for all students — computeBulletin filters by classId internally
+      const classStudents = students
+      const selectedClass = realClasses.find(c => c.id === bulClassId)
+      const className = selectedClass?.name || 'Classe'
+
+      // Compute bulletins for all students
+      const studentsData: { studentId: string; bulletin: StudentBulletin }[] = []
+      for (const st of classStudents) {
+        const bul = await computeBulletin(st.id, bulClassId, `${st.firstName} ${st.lastName}`, className)
+        if (bul && bul.subjects.length > 0) {
+          studentsData.push({ studentId: st.id, bulletin: bul })
+        }
+      }
+
+      if (studentsData.length === 0) {
+        const toast = (await import('react-hot-toast')).default
+        toast.error('Aucun bulletin à générer (pas de notes publiées)')
+        return
+      }
+
+      // Compute class ranks
+      const sorted = [...studentsData]
+        .filter(s => s.bulletin.generalAverage != null)
+        .sort((a, b) => (b.bulletin.generalAverage ?? 0) - (a.bulletin.generalAverage ?? 0))
+      sorted.forEach((s, i) => { s.bulletin.classRank = i + 1 })
+
+      await generateClassBulletins(bulClassId, bulPeriodLabel, bulPeriodStart, bulPeriodEnd, studentsData)
+    } finally {
+      setGenerating(false)
+    }
+  }, [bulClassId, bulPeriodLabel, bulPeriodStart, bulPeriodEnd, students, realClasses, computeBulletin, generateClassBulletins])
+
+  const handleSendBulletin = useCallback(async (bul: Bulletin) => {
+    const student = users.find(u => u.id === bul.studentId)
+    if (!student) return
+    const recipients: { email: string; name: string; type: 'student' | 'contact' }[] = [
+      { email: student.email, name: `${student.firstName} ${student.lastName}`, type: 'student' },
+    ]
+    if (sendToContacts) {
+      const sc = getContactsForStudent(bul.studentId).filter(c => c.receiveBulletins)
+      for (const c of sc) {
+        recipients.push({ email: c.email, name: `${c.firstName} ${c.lastName}`, type: 'contact' })
+      }
+    }
+    await sendBulletin(bul.id, recipients, {
+      studentName: bul.bulletinData.studentName,
+      periodLabel: bul.periodLabel,
+      generalAverage: bul.generalAverage,
+      classRank: bul.classRank,
+    })
+    setShowSendModal(null)
+  }, [users, sendToContacts, getContactsForStudent, sendBulletin])
+
+  const handleDownloadPDF = useCallback((bul: Bulletin) => {
+    const centerName = user?.establishmentId ? 'Mon Centre' : 'Centre'
+    const doc = generateBulletinPDF(bul.bulletinData, {
+      centerName,
+      periodLabel: bul.periodLabel,
+      periodStart: bul.periodStart,
+      periodEnd: bul.periodEnd,
+    })
+    doc.save(`bulletin_${bul.bulletinData.studentName.replace(/\s+/g, '_')}_${bul.periodLabel.replace(/\s+/g, '_')}.pdf`)
+  }, [user?.establishmentId])
 
   const filtered = useMemo(() => {
     if (classFilter === 'all') return DEMO_CLASS_AVERAGES
@@ -508,7 +609,6 @@ function AdminView() {
                   <td className="px-4 py-3 text-center text-red-600 font-medium">{row.minGrade.toFixed(1)}</td>
                   <td className="px-4 py-3 text-center text-emerald-600 font-medium">{row.maxGrade.toFixed(1)}</td>
                   <td className="px-4 py-3">
-                    {/* Mini bar chart */}
                     <div className="flex items-center justify-end gap-1">
                       <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full w-24 overflow-hidden">
                         <div
@@ -526,6 +626,218 @@ function AdminView() {
           </table>
         </div>
       </div>
+
+      {/* ── Bulletins Section ── */}
+      <div className="border-t border-neutral-200 dark:border-neutral-700 pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+            <FileText size={18} className="text-indigo-600" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">Bulletins de notes</h2>
+        </div>
+
+        {/* Generate form */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Classe</label>
+                <select value={bulClassId} onChange={e => setBulClassId(e.target.value)}
+                  className="w-full text-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2">
+                  <option value="">Choisir...</option>
+                  {realClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Periode</label>
+                <input type="text" value={bulPeriodLabel} onChange={e => setBulPeriodLabel(e.target.value)}
+                  placeholder="Semestre 1 2025-2026"
+                  className="w-full text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 bg-white dark:bg-neutral-900" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Debut</label>
+                <input type="date" value={bulPeriodStart} onChange={e => setBulPeriodStart(e.target.value)}
+                  className="w-full text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 bg-white dark:bg-neutral-900" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Fin</label>
+                <input type="date" value={bulPeriodEnd} onChange={e => setBulPeriodEnd(e.target.value)}
+                  className="w-full text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 bg-white dark:bg-neutral-900" />
+              </div>
+              <Button
+                onClick={handleGenerateBulletins}
+                disabled={!bulClassId || !bulPeriodLabel || !bulPeriodStart || !bulPeriodEnd || generating}
+                leftIcon={generating ? Loader2 : FileBarChart}
+                size="sm"
+              >
+                {generating ? 'Generation...' : 'Generer bulletins'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bulletins list */}
+        {bulletins.length > 0 && (
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+              {bulletins.map(bul => (
+                <div key={bul.id} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                      <FileText size={16} className="text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                        {bul.bulletinData.studentName}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {bul.periodLabel} &middot; Moy: {bul.generalAverage?.toFixed(2) ?? '-'}/20
+                        {bul.classRank && ` &middot; Rang: ${bul.classRank}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {bul.sentAt ? (
+                      <Badge variant="success" size="sm" icon={CheckCircle}>Envoye</Badge>
+                    ) : (
+                      <Badge variant="neutral" size="sm">Non envoye</Badge>
+                    )}
+                    <Button variant="ghost" size="sm" leftIcon={Download} onClick={() => handleDownloadPDF(bul)}>
+                      PDF
+                    </Button>
+                    {!bul.sentAt && (
+                      <Button variant="secondary" size="sm" leftIcon={Send} onClick={() => setShowSendModal(bul)}>
+                        Envoyer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bulk export buttons */}
+        {bulletins.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" leftIcon={Download} onClick={() => {
+              const centerName = user?.establishmentId ? 'Mon Centre' : 'Centre'
+              const first = bulletins[0]
+              const opts = { centerName, periodLabel: first.periodLabel, periodStart: first.periodStart, periodEnd: first.periodEnd }
+              const doc = generateBulkBulletinPDF(bulletins.map(b => b.bulletinData), opts)
+              doc.save(`bulletins_${first.periodLabel.replace(/\s+/g, '_')}.pdf`)
+            }}>
+              Tous les bulletins (PDF)
+            </Button>
+            <Button variant="secondary" leftIcon={Download} onClick={() => {
+              const centerName = user?.establishmentId ? 'Mon Centre' : 'Centre'
+              const first = bulletins[0]
+              generateBulkBulletinExcel(bulletins.map(b => b.bulletinData), {
+                centerName, periodLabel: first.periodLabel, periodStart: first.periodStart, periodEnd: first.periodEnd,
+              })
+            }}>
+              Tous les bulletins (Excel)
+            </Button>
+            <Button variant="secondary" leftIcon={BarChart3} onClick={async () => {
+              const first = bulletins[0]
+              const classId = first.classId
+              const className = first.bulletinData.className
+              const centerName = user?.establishmentId ? 'Mon Centre' : 'Centre'
+              // Build report data
+              const attRecords = await getAttendanceForClass(classId)
+              const attStats = computeAttendanceStats(attRecords)
+              const reportStudents: ClassReportStudent[] = bulletins.map(b => {
+                const att = attStats.find(a => a.studentId === b.studentId)
+                return {
+                  name: b.bulletinData.studentName,
+                  average: b.generalAverage,
+                  rank: b.classRank,
+                  attendanceRate: att?.attendanceRate ?? null,
+                  present: att?.present ?? 0,
+                  absent: att?.absent ?? 0,
+                  late: att?.late ?? 0,
+                  excused: att?.excused ?? 0,
+                  totalSessions: att?.totalSessions ?? 0,
+                }
+              })
+              const classAvg = bulletins.filter(b => b.generalAverage != null).length > 0
+                ? bulletins.reduce((s, b) => s + (b.generalAverage ?? 0), 0) / bulletins.filter(b => b.generalAverage != null).length
+                : null
+              const classAtt = reportStudents.filter(s => s.attendanceRate != null).length > 0
+                ? Math.round(reportStudents.reduce((s, st) => s + (st.attendanceRate ?? 0), 0) / reportStudents.filter(s => s.attendanceRate != null).length)
+                : null
+              const reportData = { className, centerName, periodLabel: first.periodLabel, students: reportStudents, classAverage: classAvg != null ? Math.round(classAvg * 100) / 100 : null, classAttendanceRate: classAtt }
+              const doc = exportClassReportToPDF(reportData)
+              doc.save(`bilan_classe_${className.replace(/\s+/g, '_')}.pdf`)
+            }}>
+              Bilan de classe (PDF)
+            </Button>
+            <Button variant="secondary" leftIcon={BarChart3} onClick={async () => {
+              const first = bulletins[0]
+              const classId = first.classId
+              const className = first.bulletinData.className
+              const centerName = user?.establishmentId ? 'Mon Centre' : 'Centre'
+              const attRecords = await getAttendanceForClass(classId)
+              const attStats = computeAttendanceStats(attRecords)
+              const reportStudents: ClassReportStudent[] = bulletins.map(b => {
+                const att = attStats.find(a => a.studentId === b.studentId)
+                return {
+                  name: b.bulletinData.studentName,
+                  average: b.generalAverage,
+                  rank: b.classRank,
+                  attendanceRate: att?.attendanceRate ?? null,
+                  present: att?.present ?? 0,
+                  absent: att?.absent ?? 0,
+                  late: att?.late ?? 0,
+                  excused: att?.excused ?? 0,
+                  totalSessions: att?.totalSessions ?? 0,
+                }
+              })
+              const classAvg = bulletins.filter(b => b.generalAverage != null).length > 0
+                ? bulletins.reduce((s, b) => s + (b.generalAverage ?? 0), 0) / bulletins.filter(b => b.generalAverage != null).length
+                : null
+              const classAtt = reportStudents.filter(s => s.attendanceRate != null).length > 0
+                ? Math.round(reportStudents.reduce((s, st) => s + (st.attendanceRate ?? 0), 0) / reportStudents.filter(s => s.attendanceRate != null).length)
+                : null
+              await exportClassReportToExcel({ className, centerName, periodLabel: first.periodLabel, students: reportStudents, classAverage: classAvg != null ? Math.round(classAvg * 100) / 100 : null, classAttendanceRate: classAtt })
+            }}>
+              Bilan de classe (Excel)
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Send bulletin modal */}
+      {showSendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSendModal(null)}>
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-4">
+              Envoyer le bulletin
+            </h3>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+              Bulletin de <strong>{showSendModal.bulletinData.studentName}</strong> — {showSendModal.periodLabel}
+            </p>
+            <div className="space-y-3 mb-4">
+              <p className="text-xs text-neutral-500">Destinataires :</p>
+              <p className="text-sm">- {showSendModal.bulletinData.studentName} (etudiant)</p>
+              {sendToContacts && getContactsForStudent(showSendModal.studentId)
+                .filter(c => c.receiveBulletins)
+                .map(c => (
+                  <p key={c.id} className="text-sm">- {c.firstName} {c.lastName} ({c.relationship})</p>
+                ))}
+            </div>
+            <label className="flex items-center gap-2 text-sm mb-4">
+              <input type="checkbox" checked={sendToContacts} onChange={e => setSendToContacts(e.target.checked)}
+                className="rounded border-neutral-300" />
+              Envoyer aussi aux contacts
+            </label>
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowSendModal(null)}>Annuler</Button>
+              <Button leftIcon={Send} onClick={() => handleSendBulletin(showSendModal)}>Envoyer</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -533,6 +845,23 @@ function AdminView() {
 // ==================== STUDENT VIEW (BULLETIN) ====================
 
 function StudentView() {
+  const { user } = useAuthContext()
+  const { bulletins, fetchBulletins } = useBulletins()
+
+  useEffect(() => {
+    if (user?.id) fetchBulletins({ studentId: user.id })
+  }, [user?.id, fetchBulletins])
+
+  const handleDownloadStudentPDF = useCallback((bul: Bulletin) => {
+    const doc = generateBulletinPDF(bul.bulletinData, {
+      centerName: 'Mon Centre',
+      periodLabel: bul.periodLabel,
+      periodStart: bul.periodStart,
+      periodEnd: bul.periodEnd,
+    })
+    doc.save(`bulletin_${bul.periodLabel.replace(/\s+/g, '_')}.pdf`)
+  }, [])
+
   const generalAvg = useMemo(() => {
     const withGrade = DEMO_STUDENT_GRADES.filter(g => g.average !== null)
     if (withGrade.length === 0) return null
@@ -623,6 +952,30 @@ function StudentView() {
           </div>
         ))}
       </div>
+
+      {/* Mes bulletins */}
+      {bulletins.length > 0 && (
+        <div className="border-t border-neutral-200 dark:border-neutral-700 pt-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <FileText size={18} className="text-indigo-600" />
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">Mes bulletins</h2>
+          </div>
+          {bulletins.map(bul => (
+            <div key={bul.id} className="flex items-center justify-between bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{bul.periodLabel}</p>
+                <p className="text-xs text-neutral-500">
+                  Moyenne : {bul.generalAverage?.toFixed(2) ?? '-'}/20
+                  {bul.classRank && ` — Rang : ${bul.classRank}`}
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" leftIcon={Download} onClick={() => handleDownloadStudentPDF(bul)}>
+                Telecharger PDF
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

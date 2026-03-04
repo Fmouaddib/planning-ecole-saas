@@ -3,10 +3,11 @@ import { useAuthContext } from '@/contexts/AuthContext'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { useAddonInfo } from '@/hooks/useAddonInfo'
+import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { Button, Input, Modal, ModalFooter } from '@/components/ui'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType } from '@/types'
-import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X } from 'lucide-react'
+import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import { SAAddonsService } from '@/services/super-admin/addons'
 import toast from 'react-hot-toast'
@@ -320,6 +321,9 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
       {/* Section Mes options */}
       <AddonsSection />
 
+      {/* Section Notifications push */}
+      <PushNotificationSection />
+
       {/* Actions du compte */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -427,6 +431,64 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Section Notifications push
+// ═══════════════════════════════════════════════════════════
+
+function PushNotificationSection() {
+  const { isSupported, isSubscribed, isLoading, permissionState, subscribe, unsubscribe } = usePushSubscription()
+  const [toggling, setToggling] = useState(false)
+
+  if (!isSupported) return null
+
+  const handleToggle = async () => {
+    setToggling(true)
+    try {
+      if (isSubscribed) {
+        const ok = await unsubscribe()
+        if (ok) toast.success('Notifications push désactivées')
+      } else {
+        const ok = await subscribe()
+        if (ok) toast.success('Notifications push activées')
+        else if (permissionState === 'denied') toast.error('Notifications bloquées par le navigateur. Modifiez les permissions du site.')
+      }
+    } finally {
+      setToggling(false)
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-violet-100 rounded-lg shrink-0">
+          <Bell size={20} className="text-violet-600" />
+        </div>
+        <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Notifications push</h3>
+      </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">
+            {isSubscribed ? 'Vous recevez des notifications push sur cet appareil' : 'Activez les notifications push pour être alerté en temps réel'}
+          </p>
+          {permissionState === 'denied' && (
+            <p className="text-xs text-red-500 mt-1">Les notifications sont bloquées. Autorisez-les dans les paramètres du navigateur.</p>
+          )}
+        </div>
+        <button
+          onClick={handleToggle}
+          disabled={toggling || isLoading}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            isSubscribed ? 'bg-primary-600' : 'bg-neutral-300 dark:bg-neutral-600'
+          } ${toggling ? 'opacity-50' : ''}`}
+        >
+          <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+            isSubscribed ? 'translate-x-[22px]' : 'translate-x-[3px]'
+          }`} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // Section Mes options (add-ons actifs + barres d'utilisation)
 // ═══════════════════════════════════════════════════════════
 

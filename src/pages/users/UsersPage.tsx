@@ -1,12 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useUsers } from '@/hooks/useUsers'
 import { useAcademicData } from '@/hooks/useAcademicData'
+import { useStudentContacts } from '@/hooks/useStudentContacts'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
-import type { User, UserRole } from '@/types'
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload } from 'lucide-react'
+import type { User, UserRole, ContactRelationship } from '@/types'
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus } from 'lucide-react'
 import { ImportModal } from '@/components/import/ImportModal'
 
 const roleLabels: Record<string, string> = {
@@ -75,6 +76,12 @@ function UsersPage() {
   const [freeSubjectIds, setFreeSubjectIds] = useState<string[]>([])
   const [addingFreeSubject, setAddingFreeSubject] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const { fetchContacts, getContactsForStudent, createContact, updateContact, removeContact } = useStudentContacts()
+  const [contactForm, setContactForm] = useState({ firstName: '', lastName: '', email: '', phone: '', relationship: 'parent' as ContactRelationship, receiveBulletins: true, receiveAbsences: true })
+  const [editingContactId, setEditingContactId] = useState<string | null>(null)
+  const [showContactForm, setShowContactForm] = useState(false)
+
+  useEffect(() => { fetchContacts() }, [fetchContacts])
 
   const filtered = useMemo(() => {
     let result = users
@@ -550,6 +557,118 @@ function UsersPage() {
               </div>
             )
           })()}
+
+          {/* Section Contacts (visible si étudiant en édition) */}
+          {modalMode === 'edit' && form.role === 'student' && selectedUser && (
+            <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2">
+                  <Phone size={14} /> Contacts ({getContactsForStudent(selectedUser.id).length})
+                </h4>
+                <Button size="sm" variant="secondary" leftIcon={UserPlus} onClick={() => {
+                  setContactForm({ firstName: '', lastName: '', email: '', phone: '', relationship: 'parent', receiveBulletins: true, receiveAbsences: true })
+                  setEditingContactId(null)
+                  setShowContactForm(true)
+                }}>
+                  Ajouter
+                </Button>
+              </div>
+
+              {/* Contact list */}
+              {getContactsForStudent(selectedUser.id).map(c => (
+                <div key={c.id} className="flex items-center justify-between bg-neutral-50 dark:bg-neutral-800 rounded-lg px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                      {c.firstName} {c.lastName}
+                      <span className="ml-2 text-xs text-neutral-500">
+                        ({c.relationship === 'parent' ? 'Parent' : c.relationship === 'tuteur_pro' ? 'Tuteur pro' : c.relationship === 'responsable_legal' ? 'Resp. légal' : 'Autre'})
+                      </span>
+                    </p>
+                    <p className="text-xs text-neutral-500 flex items-center gap-2">
+                      <Mail size={10} /> {c.email}
+                      {c.phone && <><Phone size={10} /> {c.phone}</>}
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      {c.receiveBulletins && <Badge size="sm" variant="info">Bulletins</Badge>}
+                      {c.receiveAbsences && <Badge size="sm" variant="warning">Absences</Badge>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => {
+                      setContactForm({
+                        firstName: c.firstName, lastName: c.lastName, email: c.email,
+                        phone: c.phone || '', relationship: c.relationship,
+                        receiveBulletins: c.receiveBulletins, receiveAbsences: c.receiveAbsences,
+                      })
+                      setEditingContactId(c.id)
+                      setShowContactForm(true)
+                    }} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded">
+                      <Pencil size={14} className="text-neutral-500" />
+                    </button>
+                    <button onClick={() => removeContact(c.id)} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">
+                      <Trash2 size={14} className="text-red-500" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Contact form (add/edit) */}
+              {showContactForm && (
+                <div className="bg-primary-50 dark:bg-primary-900/10 rounded-lg p-3 space-y-2 border border-primary-200 dark:border-primary-800">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Prénom" value={contactForm.firstName}
+                      onChange={e => setContactForm(f => ({ ...f, firstName: e.target.value }))}
+                      className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900" />
+                    <input type="text" placeholder="Nom" value={contactForm.lastName}
+                      onChange={e => setContactForm(f => ({ ...f, lastName: e.target.value }))}
+                      className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="email" placeholder="Email" value={contactForm.email}
+                      onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))}
+                      className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900" />
+                    <input type="tel" placeholder="Téléphone" value={contactForm.phone}
+                      onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))}
+                      className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <select value={contactForm.relationship}
+                      onChange={e => setContactForm(f => ({ ...f, relationship: e.target.value as ContactRelationship }))}
+                      className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900">
+                      <option value="parent">Parent</option>
+                      <option value="tuteur_pro">Tuteur professionnel</option>
+                      <option value="responsable_legal">Responsable légal</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                    <label className="flex items-center gap-1.5 text-xs">
+                      <input type="checkbox" checked={contactForm.receiveBulletins}
+                        onChange={e => setContactForm(f => ({ ...f, receiveBulletins: e.target.checked }))} />
+                      Bulletins
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs">
+                      <input type="checkbox" checked={contactForm.receiveAbsences}
+                        onChange={e => setContactForm(f => ({ ...f, receiveAbsences: e.target.checked }))} />
+                      Absences
+                    </label>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="secondary" onClick={() => setShowContactForm(false)}>Annuler</Button>
+                    <Button size="sm" disabled={!contactForm.firstName || !contactForm.lastName || !contactForm.email}
+                      onClick={async () => {
+                        if (editingContactId) {
+                          await updateContact(editingContactId, contactForm)
+                        } else {
+                          await createContact({ ...contactForm, studentId: selectedUser!.id })
+                        }
+                        setShowContactForm(false)
+                      }}>
+                      {editingContactId ? 'Modifier' : 'Ajouter'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>

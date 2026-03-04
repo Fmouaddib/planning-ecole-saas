@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Monitor, Video, Users, Calendar, Check } from 'lucide-react'
+import { Monitor, Video, Users, Calendar, Check, LayoutDashboard, Bell } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import LandingLayout from '@/components/landing/LandingLayout'
@@ -36,6 +36,22 @@ const featureBlocks = [
     descKey: 'onlineSchoolPage.planning.desc',
     bullets: ['onlineSchoolPage.planning.b1', 'onlineSchoolPage.planning.b2', 'onlineSchoolPage.planning.b3', 'onlineSchoolPage.planning.b4'],
     mockup: 'planning',
+  },
+  {
+    icon: LayoutDashboard,
+    color: 'indigo',
+    titleKey: 'onlineSchoolPage.portal.title',
+    descKey: 'onlineSchoolPage.portal.desc',
+    bullets: ['onlineSchoolPage.portal.b1', 'onlineSchoolPage.portal.b2', 'onlineSchoolPage.portal.b3', 'onlineSchoolPage.portal.b4'],
+    mockup: 'portal',
+  },
+  {
+    icon: Bell,
+    color: 'violet',
+    titleKey: 'onlineSchoolPage.pwa.title',
+    descKey: 'onlineSchoolPage.pwa.desc',
+    bullets: ['onlineSchoolPage.pwa.b1', 'onlineSchoolPage.pwa.b2', 'onlineSchoolPage.pwa.b3', 'onlineSchoolPage.pwa.b4'],
+    mockup: 'pwa',
   },
 ]
 
@@ -77,6 +93,30 @@ function FeatureMockup({ type }: { type: string }) {
           {['', 'filled-coral', '', 'filled-blue', '', 'filled-blue', '', 'filled-teal', '', '', '', 'filled-coral', '', 'filled-teal', '', 'filled-amber', '', '', 'filled-blue', ''].map((cls, i) => (
             <div key={i} className={`landing-mockup-slot ${cls}`} />
           ))}
+        </div>
+      )
+    case 'portal':
+      return (
+        <div className="landing-detail-mockup-icon-box">
+          <LayoutDashboard size={48} style={{ color: 'rgba(255,255,255,0.6)' }} />
+          <div className="landing-detail-mockup-lines">
+            <div className="line" style={{ width: '70%' }} />
+            <div className="line" style={{ width: '55%' }} />
+          </div>
+        </div>
+      )
+    case 'pwa':
+      return (
+        <div className="landing-detail-mockup-phone">
+          <div className="phone-screen">
+            <div className="phone-header" />
+            <div className="phone-rows">
+              <div className="phone-row filled-coral" />
+              <div className="phone-row filled-blue" />
+              <div className="phone-row filled-teal" />
+              <div className="phone-row filled-amber" />
+            </div>
+          </div>
         </div>
       )
     default:

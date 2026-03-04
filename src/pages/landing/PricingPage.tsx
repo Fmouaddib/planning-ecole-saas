@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, X, ChevronDown, ShieldCheck, Loader2 } from 'lucide-react'
+import { Check, X, ChevronDown, ShieldCheck, Loader2, Mail, UserCog, GraduationCap, ClipboardCheck } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { useAuthContext } from '@/contexts/AuthContext'
@@ -56,13 +56,18 @@ const faqItems = [
   { qKey: 'faq.4.q', aKey: 'faq.4.a' },
   { qKey: 'faq.5.q', aKey: 'faq.5.a' },
   { qKey: 'faq.6.q', aKey: 'faq.6.a' },
+  { qKey: 'faq.7.q', aKey: 'faq.7.a' },
+  { qKey: 'faq.8.q', aKey: 'faq.8.a' },
+  { qKey: 'faq.9.q', aKey: 'faq.9.a' },
+  { qKey: 'faq.10.q', aKey: 'faq.10.a' },
 ]
 
 type CellValue = boolean | string
 
 interface CompareRow {
   labelKey: string
-  values: [CellValue, CellValue, CellValue, CellValue] // free, pro, ecole, enterprise
+  values: [CellValue, CellValue, CellValue, CellValue]
+  isSection?: boolean
 }
 
 export default function PricingPage() {
@@ -79,7 +84,7 @@ export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0) }, [])
 
   const handlePlanClick = async (slug: string) => {
-    if (!isAuthenticated) return // fallback: le <a> href gère la nav
+    if (!isAuthenticated) return
     if (slug === 'free') {
       window.location.hash = '#/onboarding'
       return
@@ -95,9 +100,10 @@ export default function PricingPage() {
   }
 
   const compareRows: CompareRow[] = [
-    // Ordre : Free, École en ligne, Pro, Enterprise
+    // Section: Planning
+    { labelKey: 'pricingPage.section.planning', values: ['', '', '', ''], isSection: true },
     { labelKey: 'pricingPage.row.teachers', values: ['3', '15', '50', t('plan.enterprise.f1').split(' ')[0]] },
-    { labelKey: 'pricingPage.row.students', values: ['—', '200', '—', t('plan.enterprise.f1').split(' ')[0]] },
+    { labelKey: 'pricingPage.row.students', values: ['\u2014', '200', '\u2014', t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.rooms', values: ['3', t('plan.pro.f2').split(' ')[0], t('plan.pro.f2').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.sessions', values: ['50', t('plan.ecole.f4').split(' ')[0], t('plan.pro.f3').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
     { labelKey: 'pricingPage.row.calendar', values: [true, true, true, true] },
@@ -108,9 +114,32 @@ export default function PricingPage() {
     { labelKey: 'pricingPage.row.visio', values: [false, true, true, true] },
     { labelKey: 'pricingPage.row.studentAccess', values: [false, false, false, true] },
     { labelKey: 'pricingPage.row.multiCampus', values: [false, false, false, true] },
+
+    // Section: Pedagogy
+    { labelKey: 'pricingPage.section.pedagogy', values: ['', '', '', ''], isSection: true },
+    { labelKey: 'pricingPage.row.attendance', values: [false, true, true, true] },
+    { labelKey: 'pricingPage.row.grades', values: [false, true, true, true] },
+    { labelKey: 'pricingPage.row.bulletins', values: [false, false, true, true] },
+    { labelKey: 'pricingPage.row.certificates', values: [false, false, false, true] },
+    { labelKey: 'pricingPage.row.parentContacts', values: [false, false, true, true] },
+    { labelKey: 'pricingPage.row.absenceReports', values: [false, false, true, true] },
+
+    // Section: Collaboration
+    { labelKey: 'pricingPage.section.collaboration', values: ['', '', '', ''], isSection: true },
+    { labelKey: 'pricingPage.row.teacherCollab', values: [false, false, true, true] },
+    { labelKey: 'pricingPage.row.replacements', values: [false, false, true, true] },
+    { labelKey: 'pricingPage.row.assignments', values: [false, false, true, true] },
+    { labelKey: 'pricingPage.row.planningMessages', values: [false, false, true, true] },
+
+    // Section: Technical
+    { labelKey: 'pricingPage.section.technical', values: ['', '', '', ''], isSection: true },
+    { labelKey: 'pricingPage.row.csvImport', values: [false, true, true, true] },
+    { labelKey: 'pricingPage.row.pwa', values: [true, true, true, true] },
+    { labelKey: 'pricingPage.row.pushNotif', values: [false, true, true, true] },
+    { labelKey: 'pricingPage.row.billing', values: [false, true, true, true] },
     { labelKey: 'pricingPage.row.api', values: [false, false, false, true] },
     { labelKey: 'pricingPage.row.sso', values: [false, false, false, true] },
-    { labelKey: 'pricingPage.row.sla', values: ['—', '—', '—', '99.9%'] },
+    { labelKey: 'pricingPage.row.sla', values: ['\u2014', '\u2014', '\u2014', '99.9%'] },
     { labelKey: 'pricingPage.row.support', values: [t('pricingPage.support.email'), t('pricingPage.support.priority'), t('pricingPage.support.priority'), t('pricingPage.support.dedicated')] },
     { labelKey: 'pricingPage.row.manager', values: [false, false, false, true] },
   ]
@@ -120,6 +149,67 @@ export default function PricingPage() {
     if (val === false) return <X size={18} className="text-neutral-300 mx-auto" />
     return <span className="text-sm text-neutral-700">{val}</span>
   }
+
+  const addonCards = [
+    {
+      icon: Mail,
+      color: 'rgba(59,130,246,0.1)',
+      iconColor: '#3b82f6',
+      bgTint: 'rgba(59,130,246,0.04)',
+      borderTint: 'rgba(59,130,246,0.1)',
+      titleKey: 'pricingPage.addon.email.title',
+      descKey: 'pricingPage.addon.email.desc',
+      includedKey: 'pricingPage.addon.email.included',
+      options: [
+        { name: '25 emails/jour', nameEn: '25 emails/day', price: '9,90' },
+        { name: '50 emails/jour', nameEn: '50 emails/day', price: '14,90' },
+        { name: '200 emails/jour', nameEn: '200 emails/day', price: '19,90' },
+      ],
+    },
+    {
+      icon: UserCog,
+      color: 'rgba(139,92,246,0.1)',
+      iconColor: '#8b5cf6',
+      bgTint: 'rgba(139,92,246,0.04)',
+      borderTint: 'rgba(139,92,246,0.1)',
+      titleKey: 'pricingPage.addon.teacher.title',
+      descKey: 'pricingPage.addon.teacher.desc',
+      options: [
+        { name: '+5 profs', nameEn: '+5 teachers', price: '9,90' },
+        { name: '+15 profs', nameEn: '+15 teachers', price: '19,90' },
+        { name: '+30 profs', nameEn: '+30 teachers', price: '29,90' },
+      ],
+    },
+    {
+      icon: GraduationCap,
+      color: 'rgba(16,185,129,0.1)',
+      iconColor: '#10b981',
+      bgTint: 'rgba(16,185,129,0.04)',
+      borderTint: 'rgba(16,185,129,0.1)',
+      titleKey: 'pricingPage.addon.student.title',
+      descKey: 'pricingPage.addon.student.desc',
+      options: [
+        { name: '+50 \u00E9tudiants', nameEn: '+50 students', price: '9,90' },
+        { name: '+150 \u00E9tudiants', nameEn: '+150 students', price: '19,90' },
+        { name: '+500 \u00E9tudiants', nameEn: '+500 students', price: '29,90' },
+      ],
+    },
+    {
+      icon: ClipboardCheck,
+      color: 'rgba(249,115,22,0.1)',
+      iconColor: '#f97316',
+      bgTint: 'rgba(249,115,22,0.04)',
+      borderTint: 'rgba(249,115,22,0.1)',
+      titleKey: 'pricingPage.addon.pedagogy.title',
+      descKey: 'pricingPage.addon.pedagogy.desc',
+      includedKey: 'pricingPage.addon.email.included',
+      options: [
+        { name: 'Starter', nameEn: 'Starter', price: '19,90' },
+        { name: 'Standard', nameEn: 'Standard', price: '24,90' },
+        { name: 'Premium', nameEn: 'Premium', price: '39,90' },
+      ],
+    },
+  ]
 
   return (
     <LandingLayout isDetailPage>
@@ -233,89 +323,64 @@ export default function PricingPage() {
                 </tr>
               </thead>
               <tbody>
-                {compareRows.map((row) => (
-                  <tr key={row.labelKey}>
-                    <td className="landing-compare-label">{t(row.labelKey)}</td>
-                    {row.values.map((val, i) => (
-                      <td key={i} className={plans[i].popular ? 'popular' : ''}>
-                        {renderCell(val)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {compareRows.map((row) => {
+                  if (row.isSection) {
+                    return (
+                      <tr key={row.labelKey} className="landing-compare-section-header">
+                        <td colSpan={5}>{t(row.labelKey)}</td>
+                      </tr>
+                    )
+                  }
+                  return (
+                    <tr key={row.labelKey}>
+                      <td className="landing-compare-label">{t(row.labelKey)}</td>
+                      {row.values.map((val, i) => (
+                        <td key={i} className={plans[i].popular ? 'popular' : ''}>
+                          {renderCell(val)}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      {/* Options supplementaires */}
+      {/* Options supplementaires (redesigned) */}
       <section className="landing-pricing-compare">
         <div className="landing-pricing-compare-inner">
           <div ref={reveal} style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>Options supplementaires</h2>
-            <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
-              Ajoutez des packs pour etendre les capacites de votre plan
-            </p>
+            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>{t('pricingPage.addons.title')}</h2>
+            <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>{t('pricingPage.addons.subtitle')}</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', maxWidth: '1000px', margin: '0 auto' }} ref={reveal} data-reveal-delay="1">
-            {/* Email Packs */}
-            <div style={{ background: 'var(--landing-card-bg, #fff)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--landing-border, #e5e7eb)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                  📧
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Packs Email</h3>
-                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Inclus dans Enterprise</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {[{ name: '25 emails/jour', price: '9,90' }, { name: '50 emails/jour', price: '14,90' }, { name: '200 emails/jour', price: '19,90' }].map(p => (
-                  <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderRadius: '8px', background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.1)' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{p.name}</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{p.price}{'\u20AC'}/mois</span>
+          <div className="landing-addon-grid" ref={reveal} data-reveal-delay="1">
+            {addonCards.map((card) => (
+              <div key={card.titleKey} className="landing-addon-card">
+                <div className="landing-addon-card-header">
+                  <div className="landing-addon-card-icon" style={{ background: card.color }}>
+                    <card.icon size={20} style={{ color: card.iconColor }} />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Teacher Packs */}
-            <div style={{ background: 'var(--landing-card-bg, #fff)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--landing-border, #e5e7eb)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                  👨‍🏫
-                </div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Packs Professeurs</h3>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {[{ name: '+5 profs', price: '9,90' }, { name: '+15 profs', price: '19,90' }, { name: '+30 profs', price: '29,90' }].map(p => (
-                  <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderRadius: '8px', background: 'rgba(139,92,246,0.04)', border: '1px solid rgba(139,92,246,0.1)' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{p.name}</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{p.price}{'\u20AC'}/mois</span>
+                  <div>
+                    <h3>{t(card.titleKey)}</h3>
+                    {card.includedKey && (
+                      <span className="landing-addon-badge">{t(card.includedKey)}</span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Student Packs */}
-            <div style={{ background: 'var(--landing-card-bg, #fff)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--landing-border, #e5e7eb)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                  🎓
                 </div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Packs Etudiants</h3>
+                <p className="landing-addon-card-desc">{t(card.descKey)}</p>
+                <div className="landing-addon-card-options">
+                  {card.options.map((opt) => (
+                    <div key={opt.name} className="landing-addon-option" style={{ background: card.bgTint, border: `1px solid ${card.borderTint}` }}>
+                      <span className="landing-addon-option-name">{opt.name}</span>
+                      <span className="landing-addon-option-price">{opt.price}{'\u20AC'}{t('pricingPage.addon.perMonth')}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {[{ name: '+50 etudiants', price: '9,90' }, { name: '+150 etudiants', price: '19,90' }, { name: '+500 etudiants', price: '29,90' }].map(p => (
-                  <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderRadius: '8px', background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.1)' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{p.name}</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{p.price}{'\u20AC'}/mois</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>

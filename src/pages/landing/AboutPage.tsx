@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import {
   Sparkles, Shield, Lock, Users, Check,
   GraduationCap, Zap, Globe, Server,
-  ShieldCheck, FileCheck, Database,
+  ShieldCheck, FileCheck, Database, Smartphone,
 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
@@ -26,6 +26,7 @@ export default function AboutPage() {
     { icon: Zap, color: '#3b82f6', titleKey: 'aboutPage.diff.conflicts.title', descKey: 'aboutPage.diff.conflicts.desc' },
     { icon: Check, color: '#14b8a6', titleKey: 'aboutPage.diff.onboarding.title', descKey: 'aboutPage.diff.onboarding.desc' },
     { icon: Globe, color: '#8b5cf6', titleKey: 'aboutPage.diff.bilingual.title', descKey: 'aboutPage.diff.bilingual.desc' },
+    { icon: Smartphone, color: '#06b6d4', titleKey: 'aboutPage.diff.pwa.title', descKey: 'aboutPage.diff.pwa.desc' },
   ]
 
   const securityItems = [
@@ -54,8 +55,30 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Values */}
+      {/* Numbers */}
       <section className="landing-detail-section landing-detail-section-alt">
+        <div className="landing-detail-section-inner">
+          <div ref={reveal} style={{ textAlign: 'center' }}>
+            <h2 className="landing-section-title" style={{ textAlign: 'center' }}>{t('aboutPage.numbers.title')}</h2>
+          </div>
+          <div className="landing-numbers">
+            {[
+              { numKey: 'aboutPage.numbers.establishments', labelKey: 'aboutPage.numbers.establishments.label' },
+              { numKey: 'aboutPage.numbers.sessions', labelKey: 'aboutPage.numbers.sessions.label' },
+              { numKey: 'aboutPage.numbers.users', labelKey: 'aboutPage.numbers.users.label' },
+              { numKey: 'aboutPage.numbers.uptime', labelKey: 'aboutPage.numbers.uptime.label' },
+            ].map((item, i) => (
+              <div key={item.numKey} className="landing-numbers-card" ref={reveal} data-reveal-delay={i + 1}>
+                <div className="number">{t(item.numKey)}</div>
+                <div className="label">{t(item.labelKey)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Values */}
+      <section className="landing-detail-section">
         <div className="landing-detail-section-inner">
           <div ref={reveal} style={{ textAlign: 'center' }}>
             <h2 className="landing-section-title" style={{ textAlign: 'center' }}>{t('aboutPage.values.title')}</h2>

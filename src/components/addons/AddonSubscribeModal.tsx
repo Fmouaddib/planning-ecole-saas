@@ -10,6 +10,7 @@ import { useAddonInfo } from '@/hooks/useAddonInfo'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { SAAddonsService } from '@/services/super-admin/addons'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
+import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import toast from 'react-hot-toast'
 import type { AddonPlanInfo, AddonType } from '@/types'
 
@@ -38,7 +39,9 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
   const { user } = useAuthContext()
   const { addonPlans, refresh } = useAddonInfo()
   const { subscription } = useSubscriptionInfo()
+  const { openAddonCheckout } = useStripeCheckout()
   const centerId = user?.establishmentId
+  const isSuperAdmin = user?.role === 'super_admin'
 
   const [selectedType, setSelectedType] = useState<AddonType>(initialType || 'email')
   const [selectedPlan, setSelectedPlan] = useState<AddonPlanInfo | null>(null)
@@ -68,15 +71,26 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
     if (!selectedPlan || !centerId) return
     setIsSubmitting(true)
     try {
-      await SAAddonsService.assignAddonToCenter({
-        center_id: centerId,
-        addon_plan_id: selectedPlan.id,
-        quantity,
-        billing_cycle: billingCycle,
-      })
-      toast.success('Option souscrite avec succes !')
-      refresh()
-      onClose()
+      // Super admin: direct DB assignment (free)
+      if (isSuperAdmin) {
+        await SAAddonsService.assignAddonToCenter({
+          center_id: centerId,
+          addon_plan_id: selectedPlan.id,
+          quantity,
+          billing_cycle: billingCycle,
+        })
+        toast.success('Option souscrite avec succes !')
+        refresh()
+        onClose()
+      } else {
+        // Regular admin: Stripe checkout
+        await openAddonCheckout({
+          addonSlug: selectedPlan.slug,
+          addonName: selectedPlan.name,
+          quantity,
+          billingCycle,
+        })
+      }
     } catch {
       toast.error('Erreur lors de la souscription')
     } finally {

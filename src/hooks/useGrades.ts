@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { transformEvaluation, transformGrade } from '@/utils/transforms'
-import type { Evaluation, Grade, EvaluationType, StudentBulletin } from '@/types'
+import type { Evaluation, Grade, EvaluationType, StudentBulletin, SubjectAverage } from '@/types'
 import toast from 'react-hot-toast'
 
 export function useGrades() {
@@ -191,10 +191,86 @@ export function useGrades() {
     return totalCoeff > 0 ? Math.round((totalWeighted / totalCoeff) * 100) / 100 : null
   }, [])
 
-  const computeBulletin = useCallback(async (_studentId: string, _classId: string): Promise<StudentBulletin | null> => {
-    // This would be more complex in production, simplified for now
-    return null
-  }, [])
+  const computeBulletin = useCallback(async (
+    studentId: string,
+    classId: string,
+    studentName: string,
+    className: string,
+  ): Promise<StudentBulletin | null> => {
+    try {
+      // 1. Fetch published evaluations for this class
+      const { data: evalData } = await supabase
+        .from('evaluations')
+        .select('*, subject:subjects!subject_id(id, name)')
+        .eq('class_id', classId)
+        .eq('is_published', true)
+      if (!evalData?.length) return null
+      const evaluations: Evaluation[] = evalData.map(transformEvaluation)
+
+      // 2. Fetch grades for this student across those evaluations
+      const evalIds = evaluations.map(e => e.id)
+      const { data: gradeData } = await supabase
+        .from('grades')
+        .select('*')
+        .eq('student_id', studentId)
+        .in('evaluation_id', evalIds)
+      const grades: Grade[] = (gradeData || []).map(transformGrade)
+
+      // 3. Group evaluations by subject
+      const subjectMap = new Map<string, { name: string; evals: Evaluation[]; grades: Grade[] }>()
+      for (const ev of evaluations) {
+        if (!ev.subjectId) continue
+        if (!subjectMap.has(ev.subjectId)) {
+          subjectMap.set(ev.subjectId, { name: ev.subject?.name || 'Matière', evals: [], grades: [] })
+        }
+        subjectMap.get(ev.subjectId)!.evals.push(ev)
+      }
+      for (const g of grades) {
+        const ev = evaluations.find(e => e.id === g.evaluationId)
+        if (ev?.subjectId && subjectMap.has(ev.subjectId)) {
+          subjectMap.get(ev.subjectId)!.grades.push(g)
+        }
+      }
+
+      // 4. Fetch class_subjects coefficients
+      const { data: csData } = await supabase
+        .from('class_subjects')
+        .select('subject_id, coefficient')
+        .eq('class_id', classId)
+      const csCoeffMap = new Map<string, number>()
+      for (const cs of csData || []) {
+        csCoeffMap.set(cs.subject_id, parseFloat(cs.coefficient) || 1)
+      }
+
+      // 5. Compute subject averages
+      const subjects: SubjectAverage[] = []
+      for (const [subjectId, info] of subjectMap) {
+        const avg = computeSubjectAverage(info.grades, info.evals)
+        subjects.push({
+          subjectId,
+          subjectName: info.name,
+          coefficient: csCoeffMap.get(subjectId) || 1,
+          average: avg,
+          evaluationCount: info.evals.length,
+        })
+      }
+
+      // 6. Compute general average (weighted by class_subjects coefficient)
+      let totalWeighted = 0
+      let totalCoeff = 0
+      for (const s of subjects) {
+        if (s.average == null) continue
+        totalWeighted += s.average * s.coefficient
+        totalCoeff += s.coefficient
+      }
+      const generalAverage = totalCoeff > 0 ? Math.round((totalWeighted / totalCoeff) * 100) / 100 : null
+
+      return { studentId, studentName, classId, className, subjects, generalAverage }
+    } catch (err) {
+      console.error('Error computing bulletin:', err)
+      return null
+    }
+  }, [computeSubjectAverage])
 
   return {
     isLoading,

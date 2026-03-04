@@ -15,6 +15,11 @@ import {
   GraduationCap,
   BookOpen,
   Layers,
+  Bell,
+  TrendingUp,
+  CheckCircle,
+  FileBarChart,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useBookings } from '@/hooks/useBookings'
@@ -22,10 +27,13 @@ import { useRooms } from '@/hooks/useRooms'
 import { useUsers } from '@/hooks/useUsers'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { useAcademicData } from '@/hooks/useAcademicData'
+import { useGrades } from '@/hooks/useGrades'
+import { useAttendance } from '@/hooks/useAttendance'
+import { useNotifications } from '@/hooks/useNotifications'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingState } from '@/components/ui'
-import type { UsageSummary } from '@/types'
+import type { UsageSummary, Evaluation } from '@/types'
 
 // ==================== CONSTANTES DÉMO ====================
 
@@ -123,6 +131,14 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { rooms, isLoading: roomsLoading, totalCapacity } = useRooms()
   const { userStats, isLoading: usersLoading, teachers } = useUsers()
   const { subjects, classes, classSubjects, getSubjectIdsForTeacher, getClassIdsForStudent, teacherSubjects, teachers: academicTeachers, studentSubjects } = useAcademicData()
+  const { computeBulletin, getEvaluationsForClass } = useGrades()
+  const { getAttendanceForStudent, computeAttendanceStats } = useAttendance()
+  const { notifications } = useNotifications()
+
+  // Student enriched data
+  const [studentAttendanceRate, setStudentAttendanceRate] = useState<number | null>(null)
+  const [studentAverage, setStudentAverage] = useState<number | null>(null)
+  const [upcomingEvals, setUpcomingEvals] = useState<Evaluation[]>([])
 
   // Quotas d'utilisation
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null)
@@ -388,6 +404,39 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
     }
   }, [isStudent, user?.id, classes, subjects, classSubjects, bookings, teacherSubjects, academicTeachers, getClassIdsForStudent, studentSubjects])
 
+  // ==================== DONNÉES ENRICHIES ÉTUDIANT ====================
+
+  useEffect(() => {
+    if (!isStudent || !user?.id || !studentData || isDemoMode) return
+
+    // Fetch attendance stats
+    getAttendanceForStudent(user.id).then(records => {
+      if (records.length > 0) {
+        const stats = computeAttendanceStats(records)
+        const myStats = stats.find(s => s.studentId === user.id)
+        if (myStats) setStudentAttendanceRate(myStats.attendanceRate)
+      }
+    })
+
+    // Fetch bulletin (average)
+    if (studentData.myClasses.length > 0) {
+      const cls = studentData.myClasses[0]
+      computeBulletin(user.id, cls.id, '', cls.name).then(b => {
+        if (b) setStudentAverage(b.generalAverage)
+      })
+
+      // Fetch upcoming evaluations
+      getEvaluationsForClass(cls.id).then(evals => {
+        const now = new Date()
+        const future = evals
+          .filter(e => e.isPublished && e.date && new Date(e.date) >= now)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(0, 3)
+        setUpcomingEvals(future)
+      })
+    }
+  }, [isStudent, user?.id, studentData?.myClasses[0]?.id])
+
   // ==================== DONNÉES PROFESSEUR ====================
 
   const teacherData = useMemo(() => {
@@ -467,7 +516,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
@@ -504,6 +553,40 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               </div>
             </div>
           </div>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Assiduité</p>
+                <p className={`text-2xl sm:text-3xl font-bold mt-1 ${
+                  studentAttendanceRate == null ? 'text-neutral-400' :
+                  studentAttendanceRate >= 90 ? 'text-success-600' :
+                  studentAttendanceRate >= 75 ? 'text-warning-600' : 'text-error-600'
+                }`}>
+                  {studentAttendanceRate != null ? `${studentAttendanceRate}%` : '–'}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-100">
+                <CheckCircle size={22} className="text-amber-600" />
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Moyenne générale</p>
+                <p className={`text-2xl sm:text-3xl font-bold mt-1 ${
+                  studentAverage == null ? 'text-neutral-400' :
+                  studentAverage >= 14 ? 'text-success-600' :
+                  studentAverage >= 10 ? 'text-primary-600' : 'text-error-600'
+                }`}>
+                  {studentAverage != null ? `${studentAverage.toFixed(1)}/20` : '–'}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-violet-100">
+                <TrendingUp size={22} className="text-violet-600" />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Prochaine séance mise en avant */}
@@ -532,8 +615,32 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           </div>
         )}
 
-        {/* Two columns: upcoming + subjects/teachers */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Upcoming evaluations */}
+        {upcomingEvals.length > 0 && (
+          <div className="card mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <FileBarChart size={20} className="text-violet-600" />
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaines évaluations</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {upcomingEvals.map(ev => (
+                <div key={ev.id} className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50">
+                  <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">{ev.title}</p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">{ev.subject?.name || 'Matière'}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs font-medium text-primary-600">
+                      {format(new Date(ev.date), 'EEE d MMM', { locale: fr })}
+                    </span>
+                    <span className="text-xs text-neutral-400">Coeff. {ev.coefficient}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Three columns: upcoming sessions + subjects/teachers + notifications */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Prochaines séances */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
@@ -575,7 +682,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               {studentData.mySubjects.length === 0 ? (
                 <p className="text-sm text-neutral-400">Aucune matière assignée</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {studentData.mySubjects.map(s => (
                     <div
                       key={s.id}
@@ -600,7 +707,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               {studentData.myTeachers.length === 0 ? (
                 <p className="text-sm text-neutral-400">Aucun professeur assigné</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {studentData.myTeachers.map(t => (
                     <div
                       key={t.id}
@@ -616,12 +723,49 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               )}
             </div>
           </div>
+
+          {/* Notifications récentes */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Bell size={18} className="text-neutral-500" />
+                <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Notifications</h2>
+              </div>
+              <button
+                onClick={() => onNavigate?.('/notifications')}
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Voir tout
+              </button>
+            </div>
+            <div className="space-y-3">
+              {notifications.length === 0 ? (
+                <p className="text-sm text-neutral-400 text-center py-6">Aucune notification</p>
+              ) : (
+                notifications.slice(0, 5).map(n => (
+                  <div
+                    key={n.id}
+                    className={`p-3 rounded-lg border transition-colors ${
+                      n.isRead
+                        ? 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50'
+                        : 'border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20'
+                    }`}
+                  >
+                    <p className="text-sm text-neutral-900 dark:text-neutral-100 line-clamp-2">{n.title}</p>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: fr })}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Accès rapide */}
         <div>
           <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Accès rapides</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <button
               className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
               onClick={() => onNavigate?.('/planning')}
@@ -643,7 +787,31 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               </div>
               <div>
                 <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Ma classe</p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">Matières, professeurs, camarades</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Matières, professeurs</p>
+              </div>
+            </button>
+            <button
+              className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
+              onClick={() => onNavigate?.('/attendance')}
+            >
+              <div className="p-3 bg-amber-50 rounded-xl">
+                <ClipboardCheck size={20} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mes présences</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Suivi d'assiduité</p>
+              </div>
+            </button>
+            <button
+              className="card flex items-center gap-4 hover:border-primary-200 hover:shadow-medium transition-all text-left"
+              onClick={() => onNavigate?.('/grades')}
+            >
+              <div className="p-3 bg-violet-50 rounded-xl">
+                <FileBarChart size={20} className="text-violet-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mes notes</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">Bulletin et résultats</p>
               </div>
             </button>
           </div>

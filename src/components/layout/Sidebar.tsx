@@ -15,6 +15,7 @@ import {
   ClipboardCheck,
   FileBarChart,
   UserCog,
+  CreditCard,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
@@ -131,6 +132,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/analytics',
       active: currentPath === '/analytics',
       roles: ['admin', 'staff']
+    },
+    {
+      icon: CreditCard,
+      label: 'Facturation',
+      href: '/billing',
+      active: currentPath === '/billing',
+      roles: ['admin'] as UserRole[],
     },
     {
       icon: Mail,

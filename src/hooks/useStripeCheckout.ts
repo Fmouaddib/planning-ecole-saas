@@ -69,5 +69,44 @@ export function useStripeCheckout() {
     }
   }, [])
 
-  return { openCheckout, openPortal, isLoading }
+  /**
+   * Ouvre un checkout Stripe pour un addon
+   */
+  const openAddonCheckout = useCallback(async (params: {
+    addonSlug: string
+    addonName?: string
+    quantity?: number
+    billingCycle: 'monthly' | 'yearly'
+    successUrl?: string
+    cancelUrl?: string
+  }) => {
+    setIsLoading(true)
+    try {
+      const addonType = params.addonSlug.split('-')[0]
+      const addonName = encodeURIComponent(params.addonName || params.addonSlug)
+      const defaultSuccessUrl = `${window.location.origin}/#/checkout-success?type=addon&addon_type=${addonType}&addon_name=${addonName}`
+
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          addon_slug: params.addonSlug,
+          quantity: params.quantity || 1,
+          billing_cycle: params.billingCycle,
+          success_url: params.successUrl || defaultSuccessUrl,
+          cancel_url: params.cancelUrl || `${window.location.origin}/#/?checkout=cancelled`,
+        },
+      })
+
+      if (error) throw error
+      if (!data?.url) throw new Error('URL de checkout manquante')
+
+      window.location.href = data.url
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur lors de la création du checkout addon'
+      console.error('[useStripeCheckout] openAddonCheckout error:', err)
+      toast.error(msg)
+      setIsLoading(false)
+    }
+  }, [])
+
+  return { openCheckout, openPortal, openAddonCheckout, isLoading }
 }

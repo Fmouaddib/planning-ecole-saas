@@ -673,6 +673,321 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'Créez votre compte gratuitement ou contactez-nous pour une démonstration personnalisée.',
     en: 'Create your free account or contact us for a personalized demo.',
   },
+
+  // ===================== NEW FEATURE CARDS =====================
+  'features.attendance.title': { fr: 'Suivi des présences', en: 'Attendance Tracking' },
+  'features.attendance.desc': {
+    fr: 'Marquez les présences en temps réel et suivez les taux d\'assiduité avec des statistiques détaillées.',
+    en: 'Mark attendance in real time and track attendance rates with detailed statistics.',
+  },
+  'features.grades.title': { fr: 'Notes et bulletins', en: 'Grades & Transcripts' },
+  'features.grades.desc': {
+    fr: 'Saisissez les notes, calculez les moyennes pondérées et générez les bulletins PDF en 1 clic.',
+    en: 'Enter grades, calculate weighted averages and generate PDF transcripts in 1 click.',
+  },
+  'features.teacherCollab.title': { fr: 'Collaboration enseignants', en: 'Teacher Collaboration' },
+  'features.teacherCollab.desc': {
+    fr: 'Gérez les disponibilités, remplacements et affectations avec une messagerie intégrée.',
+    en: 'Manage availabilities, replacements and assignments with integrated messaging.',
+  },
+  'features.import.title': { fr: 'Import CSV / Excel', en: 'CSV / Excel Import' },
+  'features.import.desc': {
+    fr: 'Importez vos données existantes en masse : étudiants, enseignants, classes et matières.',
+    en: 'Bulk import your existing data: students, teachers, classes and subjects.',
+  },
+
+  // ===================== FEATURES PAGE - NEW BLOCKS =====================
+  'featuresPage.attendance.title': { fr: 'Suivi des présences et absences', en: 'Attendance and absence tracking' },
+  'featuresPage.attendance.desc': {
+    fr: 'Fini les feuilles d\'émargement papier. Marquez les présences directement depuis le planning, suivez les retards et absences en temps réel, et générez des rapports automatiques pour les parents et l\'administration.',
+    en: 'No more paper sign-in sheets. Mark attendance directly from the schedule, track late arrivals and absences in real time, and generate automatic reports for parents and administration.',
+  },
+  'featuresPage.attendance.b1': { fr: 'Marquage en 1 clic : présent, absent, retard, excusé', en: '1-click marking: present, absent, late, excused' },
+  'featuresPage.attendance.b2': { fr: 'Statistiques d\'assiduité par étudiant et par classe', en: 'Attendance statistics by student and class' },
+  'featuresPage.attendance.b3': { fr: 'Signalement automatique aux contacts parents', en: 'Automatic reporting to parent contacts' },
+  'featuresPage.attendance.b4': { fr: 'Historique complet consultable par l\'étudiant', en: 'Complete history viewable by the student' },
+  'featuresPage.attendance.b5': { fr: 'Export des rapports de présences en PDF', en: 'Export attendance reports as PDF' },
+
+  'featuresPage.grades.title': { fr: 'Notes, évaluations et bulletins', en: 'Grades, evaluations and transcripts' },
+  'featuresPage.grades.desc': {
+    fr: 'Un système complet de notation avec 6 types d\'évaluations, coefficients par matière, calcul automatique des moyennes pondérées et génération de bulletins PDF prêts à envoyer aux familles.',
+    en: 'A complete grading system with 6 evaluation types, subject coefficients, automatic weighted average calculation and PDF transcript generation ready to send to families.',
+  },
+  'featuresPage.grades.b1': { fr: '6 types : examen, devoir, projet, oral, quiz, contrôle continu', en: '6 types: exam, assignment, project, oral, quiz, continuous assessment' },
+  'featuresPage.grades.b2': { fr: 'Coefficients par matière et par évaluation', en: 'Coefficients by subject and evaluation' },
+  'featuresPage.grades.b3': { fr: 'Moyennes pondérées calculées automatiquement', en: 'Automatically calculated weighted averages' },
+  'featuresPage.grades.b4': { fr: 'Bulletins PDF générés et envoyés en 1 clic', en: 'PDF transcripts generated and sent in 1 click' },
+  'featuresPage.grades.b5': { fr: 'Portail étudiant : consultation des notes en temps réel', en: 'Student portal: real-time grade viewing' },
+
+  'featuresPage.teacherCollab.title': { fr: 'Collaboration enseignants V2', en: 'Teacher Collaboration V2' },
+  'featuresPage.teacherCollab.desc': {
+    fr: 'Coordonnez vos équipes enseignantes sans effort. Demandes de disponibilité groupées, gestion des remplacements en cas d\'absence, affectations validées par les profs, et messagerie planning intégrée.',
+    en: 'Coordinate your teaching teams effortlessly. Grouped availability requests, replacement management for absences, teacher-validated assignments, and integrated planning messaging.',
+  },
+  'featuresPage.teacherCollab.b1': { fr: 'Demandes de disponibilité groupées avec réponses en ligne', en: 'Grouped availability requests with online responses' },
+  'featuresPage.teacherCollab.b2': { fr: 'Gestion des remplacements : candidature et sélection', en: 'Replacement management: application and selection' },
+  'featuresPage.teacherCollab.b3': { fr: 'Affectations de séances avec validation enseignant', en: 'Session assignments with teacher validation' },
+  'featuresPage.teacherCollab.b4': { fr: 'Messagerie planning entre admin et enseignants', en: 'Planning messaging between admin and teachers' },
+  'featuresPage.teacherCollab.b5': { fr: 'Notifications email et in-app en temps réel', en: 'Real-time email and in-app notifications' },
+
+  'featuresPage.import.title': { fr: 'Import CSV et Excel', en: 'CSV and Excel Import' },
+  'featuresPage.import.desc': {
+    fr: 'Importez vos données existantes en quelques secondes. Notre parseur intelligent détecte automatiquement les formats et valide les données avant l\'import. Téléchargez nos templates pré-formatés pour un import sans erreur.',
+    en: 'Import your existing data in seconds. Our smart parser automatically detects formats and validates data before import. Download our pre-formatted templates for error-free import.',
+  },
+  'featuresPage.import.b1': { fr: 'Support CSV (auto-détection séparateur) et Excel XLSX', en: 'CSV (auto-detect separator) and Excel XLSX support' },
+  'featuresPage.import.b2': { fr: 'Validation et prévisualisation avant import', en: 'Validation and preview before import' },
+  'featuresPage.import.b3': { fr: 'Templates téléchargeables pré-formatés', en: 'Downloadable pre-formatted templates' },
+  'featuresPage.import.b4': { fr: 'Import étudiants, enseignants, classes et matières', en: 'Import students, teachers, classes and subjects' },
+
+  'featuresPage.pwa.title': { fr: 'PWA et notifications push', en: 'PWA & Push Notifications' },
+  'featuresPage.pwa.desc': {
+    fr: 'Installez AntiPlanning comme une application native sur votre smartphone ou ordinateur. Recevez les notifications push en temps réel pour ne rien manquer : changements de planning, nouvelles affectations, messages.',
+    en: 'Install AntiPlanning as a native app on your smartphone or computer. Receive real-time push notifications so you never miss anything: schedule changes, new assignments, messages.',
+  },
+  'featuresPage.pwa.b1': { fr: 'Application installable sur mobile et desktop', en: 'Installable app on mobile and desktop' },
+  'featuresPage.pwa.b2': { fr: 'Notifications push en temps réel', en: 'Real-time push notifications' },
+  'featuresPage.pwa.b3': { fr: 'Fonctionne hors-ligne (mode dégradé)', en: 'Works offline (degraded mode)' },
+  'featuresPage.pwa.b4': { fr: 'Aucune installation depuis un store requise', en: 'No app store installation required' },
+
+  // ===================== PRICING PAGE - NEW SECTION HEADERS & ROWS =====================
+  'pricingPage.section.planning': { fr: 'Planning', en: 'Scheduling' },
+  'pricingPage.section.pedagogy': { fr: 'Pédagogie', en: 'Pedagogy' },
+  'pricingPage.section.collaboration': { fr: 'Collaboration', en: 'Collaboration' },
+  'pricingPage.section.technical': { fr: 'Technique', en: 'Technical' },
+
+  'pricingPage.row.attendance': { fr: 'Suivi des présences', en: 'Attendance tracking' },
+  'pricingPage.row.grades': { fr: 'Notes et évaluations', en: 'Grades and evaluations' },
+  'pricingPage.row.bulletins': { fr: 'Bulletins PDF', en: 'PDF transcripts' },
+  'pricingPage.row.certificates': { fr: 'Certificats de scolarité', en: 'Enrollment certificates' },
+  'pricingPage.row.parentContacts': { fr: 'Contacts parents / tuteurs', en: 'Parent / guardian contacts' },
+  'pricingPage.row.absenceReports': { fr: 'Signalement absences aux familles', en: 'Absence reporting to families' },
+  'pricingPage.row.teacherCollab': { fr: 'Collaboration enseignants', en: 'Teacher collaboration' },
+  'pricingPage.row.replacements': { fr: 'Gestion des remplacements', en: 'Replacement management' },
+  'pricingPage.row.assignments': { fr: 'Affectations de séances', en: 'Session assignments' },
+  'pricingPage.row.planningMessages': { fr: 'Messages planning', en: 'Planning messages' },
+  'pricingPage.row.csvImport': { fr: 'Import CSV / Excel', en: 'CSV / Excel import' },
+  'pricingPage.row.pwa': { fr: 'Application installable (PWA)', en: 'Installable app (PWA)' },
+  'pricingPage.row.pushNotif': { fr: 'Notifications push', en: 'Push notifications' },
+  'pricingPage.row.billing': { fr: 'Facturation en ligne (Stripe)', en: 'Online billing (Stripe)' },
+
+  // Addon section
+  'pricingPage.addons.title': { fr: 'Options supplémentaires', en: 'Add-on options' },
+  'pricingPage.addons.subtitle': {
+    fr: 'Ajoutez des packs pour étendre les capacités de votre plan.',
+    en: 'Add packs to extend your plan capabilities.',
+  },
+  'pricingPage.addon.email.title': { fr: 'Packs Email', en: 'Email Packs' },
+  'pricingPage.addon.email.desc': { fr: 'Notifications et rappels automatiques', en: 'Automatic notifications and reminders' },
+  'pricingPage.addon.email.included': { fr: 'Inclus dans Enterprise', en: 'Included in Enterprise' },
+  'pricingPage.addon.teacher.title': { fr: 'Packs Professeurs', en: 'Teacher Packs' },
+  'pricingPage.addon.teacher.desc': { fr: 'Ajoutez des comptes enseignants', en: 'Add teacher accounts' },
+  'pricingPage.addon.student.title': { fr: 'Packs Étudiants', en: 'Student Packs' },
+  'pricingPage.addon.student.desc': { fr: 'Ajoutez des comptes étudiants', en: 'Add student accounts' },
+  'pricingPage.addon.pedagogy.title': { fr: 'Pack Pédagogique', en: 'Pedagogy Pack' },
+  'pricingPage.addon.pedagogy.desc': { fr: 'Présences + Notes + Bulletins', en: 'Attendance + Grades + Transcripts' },
+  'pricingPage.addon.perMonth': { fr: '/mois', en: '/mo' },
+
+  // ===================== NEW TESTIMONIALS =====================
+  'testimonial.4.quote': {
+    fr: 'Avec AntiPlanning, nous avons économisé 2 jours de travail administratif par semaine. Les bulletins se génèrent en 1 clic et les parents reçoivent tout automatiquement.',
+    en: 'With AntiPlanning, we saved 2 days of administrative work per week. Transcripts are generated in 1 click and parents receive everything automatically.',
+  },
+  'testimonial.4.name': { fr: 'Laurent Chevalier', en: 'Laurent Chevalier' },
+  'testimonial.4.role': { fr: 'Directeur administratif — Centre Horizon', en: 'Administrative Director — Horizon Center' },
+  'testimonial.5.quote': {
+    fr: 'Quand un professeur est absent, je trouve un remplaçant en 3 clics grâce au module de collaboration. Avant, cela prenait une demi-journée de coups de fil.',
+    en: 'When a teacher is absent, I find a replacement in 3 clicks thanks to the collaboration module. Before, it took half a day of phone calls.',
+  },
+  'testimonial.5.name': { fr: 'Patricia Delorme', en: 'Patricia Delorme' },
+  'testimonial.5.role': { fr: 'Coordinatrice pédagogique — Académie Progrès', en: 'Educational Coordinator — Progrès Academy' },
+  'testimonial.6.quote': {
+    fr: 'Mes élèves reçoivent une notification push dès que le planning change. Plus personne ne se trompe de salle ou d\'horaire. C\'est un vrai gain de temps.',
+    en: 'My students get a push notification as soon as the schedule changes. No one gets the wrong room or time anymore. It\'s a real time saver.',
+  },
+  'testimonial.6.name': { fr: 'Antoine Rousseau', en: 'Antoine Rousseau' },
+  'testimonial.6.role': { fr: 'Enseignant — École Numérique de Paris', en: 'Teacher — Paris Digital School' },
+
+  // ===================== NEW FAQ =====================
+  'faq.7.q': { fr: 'Comment fonctionne le suivi des présences ?', en: 'How does attendance tracking work?' },
+  'faq.7.a': {
+    fr: 'L\'administrateur ou l\'enseignant marque les présences directement depuis le planning en 1 clic (présent, absent, retard, excusé). Les statistiques sont calculées automatiquement et les parents peuvent être alertés en cas d\'absence.',
+    en: 'The administrator or teacher marks attendance directly from the schedule in 1 click (present, absent, late, excused). Statistics are calculated automatically and parents can be alerted in case of absence.',
+  },
+  'faq.8.q': { fr: 'Comment sont générés les bulletins ?', en: 'How are transcripts generated?' },
+  'faq.8.a': {
+    fr: 'Les bulletins sont générés automatiquement à partir des notes saisies, avec calcul des moyennes pondérées par matière et par coefficient. Ils sont exportés en PDF et peuvent être envoyés directement aux contacts des étudiants.',
+    en: 'Transcripts are automatically generated from entered grades, with weighted average calculation by subject and coefficient. They are exported as PDF and can be sent directly to student contacts.',
+  },
+  'faq.9.q': { fr: 'Comment gérer les remplacements d\'enseignants ?', en: 'How to manage teacher replacements?' },
+  'faq.9.a': {
+    fr: 'Le module de collaboration permet à l\'admin de créer une demande de remplacement. Les enseignants qualifiés pour la matière reçoivent une notification et peuvent se porter candidats. L\'admin sélectionne le remplaçant en 1 clic.',
+    en: 'The collaboration module allows the admin to create a replacement request. Teachers qualified for the subject receive a notification and can apply. The admin selects the replacement in 1 click.',
+  },
+  'faq.10.q': { fr: 'AntiPlanning fonctionne-t-il sur mobile ?', en: 'Does AntiPlanning work on mobile?' },
+  'faq.10.a': {
+    fr: 'Oui ! AntiPlanning est une PWA (Progressive Web App) installable sur votre smartphone. Vous recevez les notifications push en temps réel et pouvez consulter votre planning même hors-ligne.',
+    en: 'Yes! AntiPlanning is a PWA (Progressive Web App) that you can install on your smartphone. You receive real-time push notifications and can view your schedule even offline.',
+  },
+
+  // ===================== LANDING - SOCIAL PROOF =====================
+  'landing.hero.proof.establishments': { fr: '250+ établissements', en: '250+ institutions' },
+  'landing.hero.proof.sessions': { fr: '5 000+ séances/semaine', en: '5,000+ sessions/week' },
+  'landing.hero.proof.uptime': { fr: '99.9% uptime', en: '99.9% uptime' },
+
+  // ===================== LANDING - PAIN POINTS =====================
+  'landing.pain.title': { fr: 'Vous reconnaissez-vous ?', en: 'Sound familiar?' },
+  'landing.pain.subtitle': {
+    fr: 'Les problèmes que nos utilisateurs ont résolus en adoptant AntiPlanning.',
+    en: 'The problems our users solved by adopting AntiPlanning.',
+  },
+  'landing.pain.1.before': { fr: 'Excel pour le planning ?', en: 'Excel for scheduling?' },
+  'landing.pain.1.after': { fr: 'Calendrier intelligent avec détection de conflits', en: 'Smart calendar with conflict detection' },
+  'landing.pain.2.before': { fr: 'Absences signalées trop tard ?', en: 'Absences reported too late?' },
+  'landing.pain.2.after': { fr: 'Suivi en direct, alertes parents automatiques', en: 'Live tracking, automatic parent alerts' },
+  'landing.pain.3.before': { fr: 'Bulletins qui prennent des semaines ?', en: 'Transcripts taking weeks?' },
+  'landing.pain.3.after': { fr: 'Bulletins PDF générés et envoyés en 1 clic', en: 'PDF transcripts generated and sent in 1 click' },
+
+  // ===================== LANDING - TRUST BADGES =====================
+  'landing.trust.rgpd': { fr: 'Conforme RGPD', en: 'GDPR Compliant' },
+  'landing.trust.tls': { fr: 'Chiffrement TLS 1.3', en: 'TLS 1.3 Encryption' },
+  'landing.trust.europe': { fr: 'Hébergé en Europe', en: 'Hosted in Europe' },
+  'landing.trust.pwa': { fr: 'App installable (PWA)', en: 'Installable App (PWA)' },
+  'landing.trust.stripe': { fr: 'Paiement Stripe sécurisé', en: 'Secure Stripe Payment' },
+
+  // ===================== SHOWCASE - NEW BLOCKS =====================
+  'showcase.attendance.label': { fr: 'Suivi des présences', en: 'Attendance tracking' },
+  'showcase.attendance.title': { fr: 'Suivez l\'assiduité en temps réel', en: 'Track attendance in real time' },
+  'showcase.attendance.desc': {
+    fr: 'Marquez les présences directement depuis chaque séance. Les statistiques se calculent automatiquement et les parents sont alertés en cas d\'absence répétée.',
+    en: 'Mark attendance directly from each session. Statistics are calculated automatically and parents are alerted in case of repeated absence.',
+  },
+  'showcase.attendance.b1': { fr: 'Marquage présent / absent / retard / excusé', en: 'Present / absent / late / excused marking' },
+  'showcase.attendance.b2': { fr: 'Statistiques d\'assiduité par classe et par étudiant', en: 'Attendance statistics by class and student' },
+  'showcase.attendance.b3': { fr: 'Signalement automatique aux contacts parents', en: 'Automatic reporting to parent contacts' },
+  'showcase.attendance.b4': { fr: 'Export des rapports de présences', en: 'Attendance report export' },
+
+  'showcase.grades.label': { fr: 'Notes et bulletins', en: 'Grades & transcripts' },
+  'showcase.grades.title': { fr: 'Évaluez et générez les bulletins', en: 'Evaluate and generate transcripts' },
+  'showcase.grades.desc': {
+    fr: '6 types d\'évaluations, coefficients par matière, moyennes pondérées automatiques. Générez les bulletins PDF de toute une classe en un seul clic.',
+    en: '6 evaluation types, subject coefficients, automatic weighted averages. Generate PDF transcripts for an entire class in a single click.',
+  },
+  'showcase.grades.b1': { fr: '6 types d\'évaluations avec coefficients', en: '6 evaluation types with coefficients' },
+  'showcase.grades.b2': { fr: 'Moyennes pondérées calculées automatiquement', en: 'Automatically calculated weighted averages' },
+  'showcase.grades.b3': { fr: 'Bulletins PDF générés en masse', en: 'Bulk PDF transcript generation' },
+  'showcase.grades.b4': { fr: 'Envoi aux contacts étudiants en 1 clic', en: 'Send to student contacts in 1 click' },
+
+  'showcase.teacherCollab.label': { fr: 'Collaboration enseignants', en: 'Teacher collaboration' },
+  'showcase.teacherCollab.title': { fr: 'Coordonnez votre équipe pédagogique', en: 'Coordinate your teaching team' },
+  'showcase.teacherCollab.desc': {
+    fr: 'Demandez les disponibilités, gérez les remplacements et affectez les séances. Tout se fait via notifications et messagerie intégrée.',
+    en: 'Request availabilities, manage replacements and assign sessions. Everything is done via notifications and integrated messaging.',
+  },
+  'showcase.teacherCollab.b1': { fr: 'Demandes de disponibilité groupées', en: 'Grouped availability requests' },
+  'showcase.teacherCollab.b2': { fr: 'Remplacements en 3 clics', en: 'Replacements in 3 clicks' },
+  'showcase.teacherCollab.b3': { fr: 'Affectations validées par l\'enseignant', en: 'Teacher-validated assignments' },
+  'showcase.teacherCollab.b4': { fr: 'Messagerie planning intégrée', en: 'Integrated planning messaging' },
+
+  // ===================== CTA ENHANCEMENTS =====================
+  'cta.urgency': { fr: 'Rejoint par 50+ établissements ce mois-ci', en: 'Joined by 50+ institutions this month' },
+  'cta.demo': { fr: 'Demander une démo', en: 'Request a demo' },
+
+  // ===================== HERO SUBTITLE ENHANCED =====================
+  'hero.subtitle.enhanced': {
+    fr: 'La plateforme tout-en-un pour planifier, suivre les présences, évaluer et coordonner votre établissement.',
+    en: 'The all-in-one platform to plan, track attendance, evaluate and coordinate your institution.',
+  },
+
+  // ===================== ONLINE SCHOOL PAGE - NEW BLOCKS =====================
+  'onlineSchoolPage.portal.title': { fr: 'Portail étudiant complet', en: 'Complete student portal' },
+  'onlineSchoolPage.portal.desc': {
+    fr: 'Chaque étudiant dispose d\'un tableau de bord personnalisé avec ses KPIs, son historique de présences, ses notes et bulletins. Les notifications push le tiennent informé en temps réel.',
+    en: 'Each student has a personalized dashboard with their KPIs, attendance history, grades and transcripts. Push notifications keep them informed in real time.',
+  },
+  'onlineSchoolPage.portal.b1': { fr: 'Dashboard avec 5 KPIs personnalisés', en: 'Dashboard with 5 personalized KPIs' },
+  'onlineSchoolPage.portal.b2': { fr: 'Historique complet des présences', en: 'Complete attendance history' },
+  'onlineSchoolPage.portal.b3': { fr: 'Consultation des notes et bulletins', en: 'View grades and transcripts' },
+  'onlineSchoolPage.portal.b4': { fr: 'Notifications en temps réel', en: 'Real-time notifications' },
+
+  'onlineSchoolPage.pwa.title': { fr: 'Notifications push et alertes', en: 'Push notifications and alerts' },
+  'onlineSchoolPage.pwa.desc': {
+    fr: 'AntiPlanning est une PWA installable : recevez les notifications push en temps réel sur votre appareil. Changements de planning, nouvelles notes, messages — tout arrive instantanément.',
+    en: 'AntiPlanning is an installable PWA: receive real-time push notifications on your device. Schedule changes, new grades, messages — everything arrives instantly.',
+  },
+  'onlineSchoolPage.pwa.b1': { fr: 'Notifications push temps réel', en: 'Real-time push notifications' },
+  'onlineSchoolPage.pwa.b2': { fr: 'PWA installable sur smartphone et desktop', en: 'PWA installable on smartphone and desktop' },
+  'onlineSchoolPage.pwa.b3': { fr: 'Mode hors-ligne pour consultation', en: 'Offline mode for viewing' },
+  'onlineSchoolPage.pwa.b4': { fr: 'Aucune installation via store requise', en: 'No app store installation required' },
+
+  // ===================== ABOUT PAGE - NUMBERS =====================
+  'aboutPage.numbers.title': { fr: 'AntiPlanning en chiffres', en: 'AntiPlanning in numbers' },
+  'aboutPage.numbers.establishments': { fr: '250+', en: '250+' },
+  'aboutPage.numbers.establishments.label': { fr: 'Établissements', en: 'Institutions' },
+  'aboutPage.numbers.sessions': { fr: '5 000+', en: '5,000+' },
+  'aboutPage.numbers.sessions.label': { fr: 'Séances / semaine', en: 'Sessions / week' },
+  'aboutPage.numbers.users': { fr: '15 000+', en: '15,000+' },
+  'aboutPage.numbers.users.label': { fr: 'Utilisateurs actifs', en: 'Active users' },
+  'aboutPage.numbers.uptime': { fr: '99.9%', en: '99.9%' },
+  'aboutPage.numbers.uptime.label': { fr: 'Disponibilité', en: 'Uptime' },
+
+  // ===================== ABOUT PAGE - NEW DIFFERENTIATOR =====================
+  'aboutPage.diff.pwa.title': { fr: 'App installable (PWA)', en: 'Installable App (PWA)' },
+  'aboutPage.diff.pwa.desc': {
+    fr: 'Installez AntiPlanning comme une app native sur votre appareil. Notifications push, accès hors-ligne et lancement rapide depuis l\'écran d\'accueil.',
+    en: 'Install AntiPlanning as a native app on your device. Push notifications, offline access and quick launch from home screen.',
+  },
+
+  // ===================== HOW IT WORKS - ENHANCED STEPS =====================
+  'howItWorksPage.step3.b5': { fr: 'Marquez les présences directement depuis le planning', en: 'Mark attendance directly from the schedule' },
+  'howItWorksPage.step3.b6': { fr: 'Saisissez les notes et générez les bulletins', en: 'Enter grades and generate transcripts' },
+
+  // ===================== HOW IT WORKS - ENHANCED PERSONAS =====================
+  'howItWorksPage.persona.admin.desc.v2': {
+    fr: 'Pilotez la planification, gérez les utilisateurs, suivez les présences, générez les bulletins et supervisez les rapports depuis un tableau de bord centralisé.',
+    en: 'Manage scheduling, users, attendance tracking, transcript generation and report supervision from a centralized dashboard.',
+  },
+  'howItWorksPage.persona.teacher.desc.v2': {
+    fr: 'Consultez votre planning, marquez les présences, saisissez les notes, gérez vos disponibilités et échangez via la messagerie planning.',
+    en: 'Check your schedule, mark attendance, enter grades, manage your availabilities and communicate via planning messaging.',
+  },
+  'howItWorksPage.persona.student.desc.v2': {
+    fr: 'Visualisez votre emploi du temps, consultez vos notes et bulletins, suivez votre assiduité et recevez les notifications push en temps réel.',
+    en: 'View your timetable, check your grades and transcripts, track your attendance and receive real-time push notifications.',
+  },
+  'howItWorksPage.persona.coordinator.desc.v2': {
+    fr: 'Supervisez les plannings, suivez les statistiques de présences et de notes, gérez les remplacements et générez des rapports pour votre direction.',
+    en: 'Supervise schedules, track attendance and grade statistics, manage replacements and generate reports for management.',
+  },
+
+  // ===================== FOOTER - NEW LINKS & TRUST =====================
+  'footer.attendance': { fr: 'Suivi des présences', en: 'Attendance Tracking' },
+  'footer.grades': { fr: 'Notes et bulletins', en: 'Grades & Transcripts' },
+  'footer.trust.rgpd': { fr: 'RGPD', en: 'GDPR' },
+  'footer.trust.ssl': { fr: 'SSL/TLS', en: 'SSL/TLS' },
+  'footer.trust.eu': { fr: 'Hébergé en UE', en: 'EU Hosted' },
+
+  // ===================== NAVBAR =====================
+  'nav.badge.new': { fr: 'Nouveau', en: 'New' },
+
+  // ===================== CHECKOUT SUCCESS =====================
+  'checkout.verifying.title': { fr: 'Vérification en cours...', en: 'Verifying payment...' },
+  'checkout.verifying.subtitle': { fr: 'Activation de votre option...', en: 'Activating your addon...' },
+  'checkout.success.addon.title': { fr: 'Option activée !', en: 'Addon activated!' },
+  'checkout.success.addon.subtitle': { fr: 'Votre nouvelle fonctionnalité est prête à être utilisée.', en: 'Your new feature is ready to use.' },
+  'checkout.success.plan.title': { fr: 'Abonnement activé !', en: 'Subscription activated!' },
+  'checkout.success.plan.subtitle': { fr: 'Toutes les fonctionnalités de votre plan sont débloquées.', en: 'All features from your plan are now unlocked.' },
+  'checkout.success.cta.discover': { fr: 'Découvrir la fonctionnalité', en: 'Discover the feature' },
+  'checkout.success.cta.dashboard': { fr: 'Retour au tableau de bord', en: 'Back to dashboard' },
+  'checkout.success.fallback': { fr: 'L\'activation peut prendre quelques instants.', en: 'Activation may take a moment.' },
+  'checkout.success.nextSteps': { fr: 'Prochaines étapes', en: 'Next steps' },
+  'checkout.success.step.attendance': { fr: 'Marquez les présences de vos prochaines séances', en: 'Mark attendance for your upcoming sessions' },
+  'checkout.success.step.grades': { fr: 'Créez votre première évaluation', en: 'Create your first evaluation' },
+  'checkout.success.step.teacher': { fr: 'Envoyez une demande de disponibilité', en: 'Send an availability request' },
+  'checkout.success.step.email': { fr: 'Configurez vos templates email', en: 'Configure your email templates' },
+  'checkout.success.step.student': { fr: 'Importez vos étudiants', en: 'Import your students' },
+  'checkout.success.confirmed': { fr: 'Votre paiement a été confirmé.', en: 'Your payment has been confirmed.' },
+  'checkout.success.cta.access': { fr: 'Accéder à mon espace', en: 'Access my space' },
 }
 
 export function useLang() {

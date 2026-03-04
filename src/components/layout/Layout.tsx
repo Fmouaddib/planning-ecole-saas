@@ -3,7 +3,10 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { NotificationPanel } from './NotificationPanel'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useInstallPrompt } from '@/hooks/useInstallPrompt'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { User } from '@/types'
+import { Download, WifiOff, X } from 'lucide-react'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -31,6 +34,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(getInitialTheme)
   const [notifPanelOpen, setNotifPanelOpen] = useState(false)
+  const [installDismissed, setInstallDismissed] = useState(() => sessionStorage.getItem('pwa-install-dismissed') === '1')
   const {
     notifications,
     unreadCount,
@@ -38,6 +42,8 @@ export const Layout: React.FC<LayoutProps> = ({
     markAllAsRead,
     deleteNotification,
   } = useNotifications()
+  const { isInstallable, promptInstall } = useInstallPrompt()
+  const isOnline = useOnlineStatus()
 
   // Appliquer le thème au montage et à chaque changement
   useEffect(() => {
@@ -71,8 +77,38 @@ export const Layout: React.FC<LayoutProps> = ({
     localStorage.setItem('theme', next ? 'dark' : 'light')
   }
 
+  const dismissInstall = () => {
+    setInstallDismissed(true)
+    sessionStorage.setItem('pwa-install-dismissed', '1')
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 transition-colors">
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="bg-amber-500 text-white text-center text-sm py-2 px-4 flex items-center justify-center gap-2">
+          <WifiOff size={16} />
+          <span>Vous êtes hors connexion — certaines fonctionnalités sont indisponibles</span>
+        </div>
+      )}
+
+      {/* Install banner */}
+      {isInstallable && !installDismissed && (
+        <div className="bg-primary-600 text-white text-sm py-2 px-4 flex items-center justify-center gap-3">
+          <Download size={16} />
+          <span>Installez Planning École pour un accès rapide</span>
+          <button
+            onClick={promptInstall}
+            className="px-3 py-0.5 bg-white text-primary-700 rounded-md text-xs font-semibold hover:bg-primary-50 transition-colors"
+          >
+            Installer
+          </button>
+          <button onClick={dismissInstall} className="ml-1 p-0.5 hover:bg-primary-700 rounded transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Header + Notification Panel */}
       <div className="relative">
         <Header
