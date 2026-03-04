@@ -241,6 +241,8 @@ export interface CalendarEvent {
   recurrence?: RecurrenceRule
   teacher?: string
   classId?: string
+  subjectId?: string
+  diplomaId?: string
   meetingUrl?: string
   sessionType?: 'in_person' | 'online' | 'hybrid'
 }

@@ -545,6 +545,7 @@ export function useBookings(): UseBookingsReturn {
       diplome: booking.diplome,
       niveau: booking.niveau,
       classId: booking.classId,
+      subjectId: booking.subjectId,
       meetingUrl: booking.meetingUrl,
       sessionType: booking.sessionType,
     }))

@@ -16,11 +16,11 @@ import { fr } from 'date-fns/locale'
 import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useAuth } from '@/hooks/useAuth'
-import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect } from '@/components/ui'
+import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect, Input, Textarea } from '@/components/ui'
 import { formatTimeRange, isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useVisio } from '@/hooks/useVisio'
-import type { CalendarEvent, ExportFormat, BookingType } from '@/types'
+import type { CalendarEvent, ExportFormat, BookingType, UpdateBookingData } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
 import { mockBuildingRooms } from '@/data/mock-room-buildings'
@@ -37,6 +37,9 @@ import {
   Repeat,
   AlertTriangle,
   Video,
+  Pencil,
+  Trash2,
+  XCircle,
 } from 'lucide-react'
 
 // Lazy-loaded views & modals
@@ -80,7 +83,7 @@ const recurrenceLabels: Record<string, string> = {
 // ==================== MAIN COMPONENT ====================
 
 function CalendarPage() {
-  const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking, createBatchBookings, checkBookingConflict, checkTrainerConflict } = useBookings()
+  const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking, deleteBooking, cancelBooking, createBatchBookings, checkBookingConflict, checkTrainerConflict } = useBookings()
   const { rooms, buildingsWithRooms } = useRooms()
   const {
     diplomaOptions,
@@ -122,6 +125,24 @@ function CalendarPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createDate, setCreateDate] = useState<Date | null>(null)
   const [createHour, setCreateHour] = useState<number | null>(null)
+
+  // Edit event modal state
+  const [editMode, setEditMode] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editRoomId, setEditRoomId] = useState('')
+  const [editType, setEditType] = useState<BookingType>('course')
+  const [editDate, setEditDate] = useState('')
+  const [editStartTime, setEditStartTime] = useState('')
+  const [editEndTime, setEditEndTime] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editSessionType, setEditSessionType] = useState<'in_person' | 'online' | 'hybrid'>('in_person')
+  const [editMeetingUrl, setEditMeetingUrl] = useState('')
+  const [editDiplomaId, setEditDiplomaId] = useState('')
+  const [editClassId, setEditClassId] = useState('')
+  const [editSubjectId, setEditSubjectId] = useState('')
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({})
+  const [editSaving, setEditSaving] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Batch create modal state
   const [showBatchModal, setShowBatchModal] = useState(false)
@@ -392,6 +413,105 @@ function CalendarPage() {
       // Erreur gérée par le toast du hook (conflit inclus)
     }
     setPendingMove(null)
+  }
+
+  // ─── Edit event helpers ─────────────────────────────────
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+
+  const editClassOptions = useMemo(
+    () => (editDiplomaId && classOptionsByDiploma ? classOptionsByDiploma(editDiplomaId) : []),
+    [editDiplomaId, classOptionsByDiploma],
+  )
+  const editSubjectOptions = useMemo(
+    () => (editClassId && subjectOptionsByClass ? subjectOptionsByClass(editClassId) : []),
+    [editClassId, subjectOptionsByClass],
+  )
+
+  const enterEditMode = () => {
+    if (!selectedEvent) return
+    const startDt = typeof selectedEvent.start === 'string' ? parseISO(selectedEvent.start) : selectedEvent.start
+    const endDt = typeof selectedEvent.end === 'string' ? parseISO(selectedEvent.end) : selectedEvent.end
+    setEditTitle(selectedEvent.title)
+    setEditRoomId(selectedEvent.roomId || '')
+    setEditType((selectedEvent.type as BookingType) || 'course')
+    setEditDate(format(startDt, 'yyyy-MM-dd'))
+    setEditStartTime(format(startDt, 'HH:mm'))
+    setEditEndTime(format(endDt, 'HH:mm'))
+    setEditDescription(selectedEvent.description || '')
+    setEditSessionType(selectedEvent.sessionType || 'in_person')
+    setEditMeetingUrl(selectedEvent.meetingUrl || '')
+    // Resolve diplomaId from classId
+    const cls = selectedEvent.classId ? getClassById(selectedEvent.classId) : undefined
+    setEditDiplomaId(cls?.diplomaId || '')
+    setEditClassId(selectedEvent.classId || '')
+    setEditSubjectId(selectedEvent.subjectId || '')
+    setEditErrors({})
+    setEditMode(true)
+  }
+
+  const exitEditMode = () => {
+    setEditMode(false)
+    setEditErrors({})
+  }
+
+  const validateEdit = () => {
+    const errs: Record<string, string> = {}
+    if (!editTitle.trim()) errs.title = 'Le titre est requis'
+    if (!editRoomId) errs.roomId = 'La salle est requise'
+    if (!editDate) errs.date = 'La date est requise'
+    if (editStartTime >= editEndTime) errs.endTime = "L'heure de fin doit être après le début"
+    setEditErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  const handleEditSave = async () => {
+    if (!selectedEvent || !validateEdit()) return
+    setEditSaving(true)
+    try {
+      const data: UpdateBookingData = {
+        id: selectedEvent.id,
+        title: editTitle.trim(),
+        roomId: editRoomId,
+        bookingType: editType,
+        startDateTime: `${editDate}T${editStartTime}:00`,
+        endDateTime: `${editDate}T${editEndTime}:00`,
+        description: editDescription.trim(),
+        subjectId: editSubjectId || undefined,
+        classId: editClassId || undefined,
+        sessionType: editSessionType,
+        meetingUrl: editMeetingUrl.trim() || undefined,
+      }
+      await updateBooking(data)
+      setSelectedEvent(null)
+      setEditMode(false)
+    } catch {
+      // Error handled by hook toast
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const handleDeleteEvent = async () => {
+    if (!selectedEvent) return
+    try {
+      await deleteBooking(selectedEvent.id)
+      setSelectedEvent(null)
+      setEditMode(false)
+      setShowDeleteConfirm(false)
+    } catch {
+      // Error handled by hook toast
+    }
+  }
+
+  const handleCancelEvent = async () => {
+    if (!selectedEvent) return
+    try {
+      await cancelBooking(selectedEvent.id)
+      setSelectedEvent(null)
+      setEditMode(false)
+    } catch {
+      // Error handled by hook toast
+    }
   }
 
   const headerLabel = useMemo(() => {
@@ -688,14 +808,14 @@ function CalendarPage() {
         )}
       </div>
 
-      {/* Event Detail Modal */}
+      {/* Event Detail / Edit Modal */}
       <Modal
         isOpen={!!selectedEvent}
-        onClose={() => setSelectedEvent(null)}
-        title="Détail de la séance"
-        size="sm"
+        onClose={() => { setSelectedEvent(null); exitEditMode(); setShowDeleteConfirm(false) }}
+        title={editMode ? 'Modifier la séance' : 'Détail de la séance'}
+        size={editMode ? 'md' : 'sm'}
       >
-        {selectedEvent && (
+        {selectedEvent && !editMode && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{selectedEvent.title}</h3>
@@ -808,8 +928,179 @@ function CalendarPage() {
             )}
           </div>
         )}
+
+        {/* ─── Edit Form (admin only) ─── */}
+        {selectedEvent && editMode && (
+          <div className="space-y-4">
+            {/* Cascade académique */}
+            {diplomaOptions.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Select
+                  label="Diplôme"
+                  options={[{ value: '', label: 'Sélectionner...' }, ...diplomaOptions]}
+                  value={editDiplomaId}
+                  onChange={e => { setEditDiplomaId(e.target.value); setEditClassId(''); setEditSubjectId('') }}
+                />
+                <Select
+                  label="Classe"
+                  options={[{ value: '', label: editDiplomaId ? 'Sélectionner...' : 'Choisir un diplôme' }, ...editClassOptions]}
+                  value={editClassId}
+                  onChange={e => { setEditClassId(e.target.value); setEditSubjectId('') }}
+                  disabled={!editDiplomaId}
+                />
+                <Select
+                  label="Matière"
+                  options={[{ value: '', label: editClassId ? 'Sélectionner...' : 'Choisir une classe' }, ...editSubjectOptions]}
+                  value={editSubjectId}
+                  onChange={e => setEditSubjectId(e.target.value)}
+                  disabled={!editClassId}
+                />
+              </div>
+            )}
+
+            <Input
+              label="Titre"
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              placeholder="Ex: Cours de Mathématiques"
+              error={editErrors.title}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Salle"
+                options={[{ value: '', label: 'Sélectionner...' }, ...roomOptions]}
+                value={editRoomId}
+                onChange={e => setEditRoomId(e.target.value)}
+                error={editErrors.roomId}
+              />
+              <Select
+                label="Type"
+                options={[
+                  { value: 'course', label: 'Cours' },
+                  { value: 'exam', label: 'Examen' },
+                  { value: 'meeting', label: 'Réunion' },
+                  { value: 'event', label: 'Événement' },
+                  { value: 'maintenance', label: 'Maintenance' },
+                ]}
+                value={editType}
+                onChange={e => setEditType(e.target.value as BookingType)}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <Input
+                label="Date"
+                type="date"
+                value={editDate}
+                onChange={e => setEditDate(e.target.value)}
+                error={editErrors.date}
+              />
+              <Input
+                label="Début"
+                type="time"
+                value={editStartTime}
+                onChange={e => setEditStartTime(e.target.value)}
+                min="08:00"
+                max="19:00"
+              />
+              <Input
+                label="Fin"
+                type="time"
+                value={editEndTime}
+                onChange={e => setEditEndTime(e.target.value)}
+                min={editStartTime}
+                max="20:00"
+                error={editErrors.endTime}
+              />
+            </div>
+
+            <Select
+              label="Mode"
+              options={[
+                { value: 'in_person', label: 'Présentiel' },
+                { value: 'online', label: 'En ligne' },
+                { value: 'hybrid', label: 'Hybride' },
+              ]}
+              value={editSessionType}
+              onChange={e => setEditSessionType(e.target.value as 'in_person' | 'online' | 'hybrid')}
+            />
+
+            {(editSessionType === 'online' || editSessionType === 'hybrid') && (
+              <Input
+                label="Lien visio (Teams/Zoom)"
+                value={editMeetingUrl}
+                onChange={e => setEditMeetingUrl(e.target.value)}
+                placeholder="https://teams.microsoft.com/..."
+              />
+            )}
+
+            <Textarea
+              label="Description (optionnel)"
+              value={editDescription}
+              onChange={e => setEditDescription(e.target.value)}
+              placeholder="Notes, détails..."
+              rows={3}
+            />
+
+            {/* Delete confirmation */}
+            {showDeleteConfirm && (
+              <div className="bg-error-50 dark:bg-error-950/30 border border-error-200 dark:border-error-800 rounded-lg p-4">
+                <p className="text-sm text-error-700 dark:text-error-400 font-medium mb-3">
+                  Supprimer définitivement cette séance ?
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="danger" size="sm" onClick={handleDeleteEvent}>
+                    Confirmer la suppression
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setShowDeleteConfirm(false)}>
+                    Non, annuler
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <ModalFooter>
-          <Button variant="secondary" onClick={() => setSelectedEvent(null)}>Fermer</Button>
+          {/* View mode footer */}
+          {!editMode && (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex gap-2">
+                {isAdmin && selectedEvent?.status !== 'cancelled' && (
+                  <>
+                    <Button variant="primary" size="sm" leftIcon={Pencil} onClick={enterEditMode}>
+                      Modifier
+                    </Button>
+                    <Button variant="secondary" size="sm" leftIcon={XCircle} onClick={handleCancelEvent}>
+                      Annuler la séance
+                    </Button>
+                  </>
+                )}
+              </div>
+              <Button variant="secondary" onClick={() => setSelectedEvent(null)}>Fermer</Button>
+            </div>
+          )}
+          {/* Edit mode footer */}
+          {editMode && (
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={Trash2}
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-error-600 hover:text-error-700 dark:text-error-400"
+              >
+                Supprimer
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={exitEditMode}>Annuler</Button>
+                <Button variant="primary" onClick={handleEditSave} disabled={editSaving}>
+                  {editSaving ? 'Enregistrement...' : 'Enregistrer'}
+                </Button>
+              </div>
+            </div>
+          )}
         </ModalFooter>
       </Modal>
 
