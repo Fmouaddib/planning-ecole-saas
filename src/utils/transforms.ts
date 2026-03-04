@@ -3,7 +3,7 @@
  * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
-import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage } from '@/types'
+import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage, AvailabilityRequest, AvailabilityRequestResponse, ReplacementRequest, ReplacementCandidate } from '@/types'
 
 // ==================== BOOKING (from training_sessions) ====================
 
@@ -65,6 +65,7 @@ export function transformBooking(raw: Record<string, any>): Booking {
     niveau: class_?.name ?? undefined,
     meetingUrl: raw.meeting_url ?? undefined,
     sessionType: raw.session_type ?? undefined,
+    needsReschedule: raw.needs_reschedule ?? false,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }
@@ -348,6 +349,99 @@ export function transformPlanningMessage(raw: Record<string, any>): PlanningMess
     parentId: raw.parent_id ?? undefined,
     sender: sender ? { id: sender.id, firstName: s.firstName, lastName: s.lastName, email: sender.email || '' } : undefined,
     recipient: recipient ? { id: recipient.id, firstName: rc.firstName, lastName: rc.lastName, email: recipient.email || '' } : undefined,
+    createdAt: raw.created_at,
+  }
+}
+
+// ==================== AVAILABILITY REQUEST ====================
+
+export function transformAvailabilityRequest(raw: Record<string, any>): AvailabilityRequest {
+  const creator = raw.creator
+  const c = creator ? parseFullName(creator.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    createdBy: raw.created_by,
+    subjectId: raw.subject_id ?? undefined,
+    classId: raw.class_id ?? undefined,
+    periodStart: raw.period_start,
+    periodEnd: raw.period_end,
+    message: raw.message ?? undefined,
+    status: raw.status || 'open',
+    creator: creator ? { id: creator.id, firstName: c.firstName, lastName: c.lastName } : undefined,
+    subject: raw.subject ? { id: raw.subject.id, name: raw.subject.name } : undefined,
+    class_: raw.class_ ? { id: raw.class_.id, name: raw.class_.name } : undefined,
+    responses: raw.responses?.map(transformAvailabilityRequestResponse) ?? undefined,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== AVAILABILITY REQUEST RESPONSE ====================
+
+export function transformAvailabilityRequestResponse(raw: Record<string, any>): AvailabilityRequestResponse {
+  const teacher = raw.teacher
+  const t = teacher ? parseFullName(teacher.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    requestId: raw.request_id,
+    teacherId: raw.teacher_id,
+    centerId: raw.center_id,
+    responseType: raw.response_type,
+    unavailableSlots: Array.isArray(raw.unavailable_slots) ? raw.unavailable_slots : JSON.parse(raw.unavailable_slots || '[]'),
+    notes: raw.notes ?? undefined,
+    respondedAt: raw.responded_at,
+    teacher: teacher ? { id: teacher.id, firstName: t.firstName, lastName: t.lastName, email: teacher.email || '' } : undefined,
+    createdAt: raw.created_at,
+  }
+}
+
+// ==================== REPLACEMENT REQUEST ====================
+
+export function transformReplacementRequest(raw: Record<string, any>): ReplacementRequest {
+  const orig = raw.original_teacher
+  const ot = orig ? parseFullName(orig.full_name) : { firstName: '', lastName: '' }
+  const sel = raw.selected_teacher
+  const st = sel ? parseFullName(sel.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    sessionId: raw.session_id,
+    originalTeacherId: raw.original_teacher_id,
+    subjectId: raw.subject_id ?? undefined,
+    createdBy: raw.created_by,
+    message: raw.message ?? undefined,
+    status: raw.status || 'open',
+    selectedTeacherId: raw.selected_teacher_id ?? undefined,
+    session: raw.session ? {
+      id: raw.session.id,
+      title: raw.session.title,
+      startTime: raw.session.start_time,
+      endTime: raw.session.end_time,
+      room: raw.session.room ? { name: raw.session.room.name } : undefined,
+    } : undefined,
+    originalTeacher: orig ? { id: orig.id, firstName: ot.firstName, lastName: ot.lastName } : undefined,
+    selectedTeacher: sel ? { id: sel.id, firstName: st.firstName, lastName: st.lastName } : undefined,
+    candidates: raw.candidates?.map(transformReplacementCandidate) ?? undefined,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== REPLACEMENT CANDIDATE ====================
+
+export function transformReplacementCandidate(raw: Record<string, any>): ReplacementCandidate {
+  const teacher = raw.teacher
+  const t = teacher ? parseFullName(teacher.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    replacementRequestId: raw.replacement_request_id,
+    teacherId: raw.teacher_id,
+    centerId: raw.center_id,
+    status: raw.status || 'pending',
+    responseMessage: raw.response_message ?? undefined,
+    respondedAt: raw.responded_at ?? undefined,
+    teacher: teacher ? { id: teacher.id, firstName: t.firstName, lastName: t.lastName, email: teacher.email || '' } : undefined,
     createdAt: raw.created_at,
   }
 }

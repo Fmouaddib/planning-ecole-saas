@@ -16,9 +16,11 @@ import {
   AlertTriangle,
   CheckCircle,
   UserCheck,
+  UserPlus,
   XCircle,
   RefreshCw,
   MessageSquare,
+  Award,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -56,6 +58,12 @@ const TYPE_CONFIG: Record<InAppNotificationType, { icon: React.ElementType; colo
   change_request_accepted: { icon: CheckCircle, color: 'text-success-600 bg-success-50' },
   change_request_rejected: { icon: XCircle, color: 'text-error-600 bg-error-50' },
   planning_message: { icon: MessageSquare, color: 'text-info-600 bg-info-50' },
+  availability_demand_sent: { icon: CalendarClock, color: 'text-primary-600 bg-primary-50' },
+  availability_response_received: { icon: CheckCircle, color: 'text-success-600 bg-success-50' },
+  replacement_request_sent: { icon: UserPlus, color: 'text-warning-600 bg-warning-50' },
+  replacement_candidate_accepted: { icon: UserCheck, color: 'text-success-600 bg-success-50' },
+  replacement_selected: { icon: Award, color: 'text-success-600 bg-success-50' },
+  session_needs_reschedule: { icon: AlertTriangle, color: 'text-error-600 bg-error-50' },
 }
 
 export const NotificationPanel: React.FC<NotificationPanelProps> = ({

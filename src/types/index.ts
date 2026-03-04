@@ -113,6 +113,7 @@ export interface Booking {
   niveau?: string
   meetingUrl?: string
   sessionType?: 'in_person' | 'online' | 'hybrid'
+  needsReschedule?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -342,6 +343,12 @@ export type InAppNotificationType =
   | 'change_request_accepted'
   | 'change_request_rejected'
   | 'planning_message'
+  | 'availability_demand_sent'
+  | 'availability_response_received'
+  | 'replacement_request_sent'
+  | 'replacement_candidate_accepted'
+  | 'replacement_selected'
+  | 'session_needs_reschedule'
 
 export interface InAppNotification {
   id: string
@@ -923,5 +930,80 @@ export interface PlanningMessage {
   parentId?: string
   sender?: { id: string; firstName: string; lastName: string; email: string }
   recipient?: { id: string; firstName: string; lastName: string; email: string }
+  createdAt: string
+}
+
+// ==================== TYPES AVAILABILITY REQUESTS & REPLACEMENTS ====================
+
+export type AvailabilityRequestStatus = 'open' | 'responded' | 'closed'
+export type AvailabilityResponseType = 'fully_available' | 'has_unavailabilities'
+export type ReplacementRequestStatus = 'open' | 'fulfilled' | 'no_replacement' | 'cancelled'
+export type ReplacementCandidateStatus = 'pending' | 'accepted' | 'rejected' | 'selected'
+
+export interface UnavailableSlot {
+  date: string
+  startTime: string
+  endTime: string
+  reason?: string
+}
+
+export interface AvailabilityRequest {
+  id: string
+  centerId: string
+  createdBy: string
+  subjectId?: string
+  classId?: string
+  periodStart: string
+  periodEnd: string
+  message?: string
+  status: AvailabilityRequestStatus
+  creator?: { id: string; firstName: string; lastName: string }
+  subject?: { id: string; name: string }
+  class_?: { id: string; name: string }
+  responses?: AvailabilityRequestResponse[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AvailabilityRequestResponse {
+  id: string
+  requestId: string
+  teacherId: string
+  centerId: string
+  responseType: AvailabilityResponseType
+  unavailableSlots: UnavailableSlot[]
+  notes?: string
+  respondedAt: string
+  teacher?: { id: string; firstName: string; lastName: string; email: string }
+  createdAt: string
+}
+
+export interface ReplacementRequest {
+  id: string
+  centerId: string
+  sessionId: string
+  originalTeacherId: string
+  subjectId?: string
+  createdBy: string
+  message?: string
+  status: ReplacementRequestStatus
+  selectedTeacherId?: string
+  session?: { id: string; title: string; startTime: string; endTime: string; room?: { name: string } }
+  originalTeacher?: { id: string; firstName: string; lastName: string }
+  selectedTeacher?: { id: string; firstName: string; lastName: string }
+  candidates?: ReplacementCandidate[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReplacementCandidate {
+  id: string
+  replacementRequestId: string
+  teacherId: string
+  centerId: string
+  status: ReplacementCandidateStatus
+  responseMessage?: string
+  respondedAt?: string
+  teacher?: { id: string; firstName: string; lastName: string; email: string }
   createdAt: string
 }

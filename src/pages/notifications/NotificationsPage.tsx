@@ -9,7 +9,7 @@ import {
   BookOpen, Clock, ChevronDown, MailCheck,
   BellOff, X, ClipboardCheck, FileBarChart, Upload, Info,
   AlertTriangle, CheckCircle, UserCog,
-  CalendarClock, CalendarX, UserCheck, XCircle, RefreshCw, MessageSquare,
+  CalendarClock, CalendarX, UserCheck, UserPlus, XCircle, RefreshCw, MessageSquare, Award,
 } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useAuthContext } from '@/contexts/AuthContext'
@@ -53,6 +53,12 @@ const TYPE_TO_TAB: Record<InAppNotificationType, FilterTab> = {
   change_request_accepted: 'collaboration',
   change_request_rejected: 'collaboration',
   planning_message: 'collaboration',
+  availability_demand_sent: 'collaboration',
+  availability_response_received: 'collaboration',
+  replacement_request_sent: 'collaboration',
+  replacement_candidate_accepted: 'collaboration',
+  replacement_selected: 'collaboration',
+  session_needs_reschedule: 'collaboration',
 }
 
 const TYPE_CONFIG: Record<InAppNotificationType, { label: string; color: string; borderColor: string; icon: typeof Bell; bgColor: string }> = {
@@ -202,6 +208,48 @@ const TYPE_CONFIG: Record<InAppNotificationType, { label: string; color: string;
     borderColor: 'border-l-blue-500',
     icon: MessageSquare,
     bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+  },
+  availability_demand_sent: {
+    label: 'Demande dispo',
+    color: 'text-primary-600',
+    borderColor: 'border-l-primary-500',
+    icon: CalendarClock,
+    bgColor: 'bg-primary-100 dark:bg-primary-900/30',
+  },
+  availability_response_received: {
+    label: 'Reponse dispo',
+    color: 'text-green-600',
+    borderColor: 'border-l-green-500',
+    icon: CheckCircle,
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  replacement_request_sent: {
+    label: 'Remplacement',
+    color: 'text-amber-600',
+    borderColor: 'border-l-amber-500',
+    icon: UserPlus,
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+  },
+  replacement_candidate_accepted: {
+    label: 'Candidat accepte',
+    color: 'text-green-600',
+    borderColor: 'border-l-green-500',
+    icon: UserCheck,
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  replacement_selected: {
+    label: 'Selection',
+    color: 'text-green-600',
+    borderColor: 'border-l-green-500',
+    icon: Award,
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  session_needs_reschedule: {
+    label: 'A replanifier',
+    color: 'text-red-600',
+    borderColor: 'border-l-red-500',
+    icon: AlertTriangle,
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
   },
 }
 
