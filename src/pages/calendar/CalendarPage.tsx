@@ -416,7 +416,7 @@ function CalendarPage() {
   }
 
   // ─── Edit event helpers ─────────────────────────────────
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isAdmin = !isReadOnly && !!user
 
   const editClassOptions = useMemo(
     () => (editDiplomaId && classOptionsByDiploma ? classOptionsByDiploma(editDiplomaId) : []),
