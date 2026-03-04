@@ -31,7 +31,8 @@ export const ROUTES = {
   EMAILS: '/emails',
   ATTENDANCE: '/attendance',
   GRADES: '/grades',
-  NOTIFICATIONS: '/notifications'
+  NOTIFICATIONS: '/notifications',
+  TEACHER_COLLAB: '/teacher-collab',
 } as const
 
 export const USER_ROLES = {

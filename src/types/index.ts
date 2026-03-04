@@ -333,6 +333,15 @@ export type InAppNotificationType =
   | 'info'
   | 'warning'
   | 'success'
+  | 'availability_requested'
+  | 'unavailability_declared'
+  | 'assignment_pending'
+  | 'assignment_accepted'
+  | 'assignment_rejected'
+  | 'change_request_pending'
+  | 'change_request_accepted'
+  | 'change_request_rejected'
+  | 'planning_message'
 
 export interface InAppNotification {
   id: string
@@ -812,4 +821,107 @@ export interface NotificationPreferences {
   attendanceMarked: boolean
   gradePublished: boolean
   importCompleted: boolean
+  availabilityRequested: boolean
+  unavailabilityDeclared: boolean
+  assignmentPending: boolean
+  assignmentResponse: boolean
+  changeRequestPending: boolean
+  changeRequestResponse: boolean
+  planningMessage: boolean
+}
+
+// ==================== TYPES TEACHER COLLABORATION ====================
+
+export type AvailabilityStatus = 'submitted' | 'confirmed'
+export type AvailabilityRecurrence = 'none' | 'weekly'
+export type UnavailabilityReason = 'vacation' | 'sick' | 'personal' | 'training' | 'other'
+export type UnavailabilityStatus = 'pending' | 'approved' | 'rejected'
+export type AssignmentStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled'
+export type ChangeRequestType = 'time_change' | 'room_change' | 'cancel' | 'other'
+export type ChangeRequestStatus = 'pending' | 'accepted' | 'rejected'
+
+export interface TeacherAvailability {
+  id: string
+  teacherId: string
+  centerId: string
+  date: string
+  startTime: string
+  endTime: string
+  recurrence: AvailabilityRecurrence
+  status: AvailabilityStatus
+  notes?: string
+  teacher?: { id: string; firstName: string; lastName: string; email: string }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TeacherUnavailability {
+  id: string
+  teacherId: string
+  centerId: string
+  startDate: string
+  endDate: string
+  reason: UnavailabilityReason
+  description?: string
+  status: UnavailabilityStatus
+  adminResponse?: string
+  requestedAt: string
+  respondedAt?: string
+  respondedBy?: string
+  teacher?: { id: string; firstName: string; lastName: string; email: string }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SessionAssignment {
+  id: string
+  sessionId: string
+  teacherId: string
+  centerId: string
+  status: AssignmentStatus
+  assignedBy: string
+  message?: string
+  teacherResponse?: string
+  assignedAt: string
+  respondedAt?: string
+  session?: { id: string; title: string; startTime: string; endTime: string; room?: { name: string } }
+  teacher?: { id: string; firstName: string; lastName: string; email: string }
+  assigner?: { id: string; firstName: string; lastName: string }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SessionChangeRequest {
+  id: string
+  sessionId: string
+  teacherId: string
+  centerId: string
+  changeType: ChangeRequestType
+  oldValues: Record<string, unknown>
+  newValues: Record<string, unknown>
+  status: ChangeRequestStatus
+  requestedBy: string
+  message?: string
+  teacherResponse?: string
+  session?: { id: string; title: string }
+  teacher?: { id: string; firstName: string; lastName: string }
+  requester?: { id: string; firstName: string; lastName: string }
+  createdAt: string
+  respondedAt?: string
+  updatedAt: string
+}
+
+export interface PlanningMessage {
+  id: string
+  centerId: string
+  senderId: string
+  recipientId: string
+  sessionId?: string
+  subject?: string
+  content: string
+  isRead: boolean
+  parentId?: string
+  sender?: { id: string; firstName: string; lastName: string; email: string }
+  recipient?: { id: string; firstName: string; lastName: string; email: string }
+  createdAt: string
 }

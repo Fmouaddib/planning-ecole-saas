@@ -291,6 +291,45 @@ export function useBookings(): UseBookingsReturn {
       // Notification email (async, non-bloquant)
       notifySession('session_updated', transformed, transformed.room?.name)
 
+      // Auto-create change request if session has accepted assignment (teacher collab)
+      if (user && (data.startDateTime || data.endDateTime || data.roomId)) {
+        const oldBooking = bookings.find(b => b.id === data.id)
+        if (oldBooking) {
+          supabase.from('session_assignments')
+            .select('id, teacher_id')
+            .eq('session_id', data.id)
+            .eq('status', 'accepted')
+            .limit(1)
+            .single()
+            .then(({ data: assignment }) => {
+              if (assignment) {
+                const oldVals: Record<string, unknown> = {}
+                const newVals: Record<string, unknown> = {}
+                if (data.startDateTime && data.startDateTime !== oldBooking.startDateTime) {
+                  oldVals.start_time = oldBooking.startDateTime; newVals.start_time = data.startDateTime
+                }
+                if (data.endDateTime && data.endDateTime !== oldBooking.endDateTime) {
+                  oldVals.end_time = oldBooking.endDateTime; newVals.end_time = data.endDateTime
+                }
+                if (data.roomId && data.roomId !== oldBooking.roomId) {
+                  oldVals.room_id = oldBooking.roomId; newVals.room_id = data.roomId
+                }
+                if (Object.keys(newVals).length > 0) {
+                  supabase.from('session_change_requests').insert({
+                    session_id: data.id,
+                    teacher_id: assignment.teacher_id,
+                    center_id: user.establishmentId,
+                    change_type: data.roomId && data.roomId !== oldBooking.roomId ? 'room_change' : 'time_change',
+                    old_values: oldVals,
+                    new_values: newVals,
+                    requested_by: user.id,
+                  }).then(() => {})
+                }
+              }
+            })
+        }
+      }
+
       return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la mise à jour de la séance')

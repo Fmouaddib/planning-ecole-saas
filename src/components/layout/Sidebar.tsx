@@ -13,7 +13,8 @@ import {
   Video,
   Mail,
   ClipboardCheck,
-  FileBarChart
+  FileBarChart,
+  UserCog,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
@@ -116,6 +117,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: isStudentRole(userRole) ? 'Mon bulletin' : isTeacherRole(userRole) ? 'Mes notes' : 'Notes',
       href: '/grades',
       active: currentPath === '/grades',
+    },
+    {
+      icon: UserCog,
+      label: isTeacherRole(userRole) ? 'Collaboration' : 'Collaboration profs',
+      href: '/teacher-collab',
+      active: currentPath === '/teacher-collab',
+      roles: ['admin', 'staff', 'teacher'] as UserRole[],
     },
     {
       icon: BarChart3,

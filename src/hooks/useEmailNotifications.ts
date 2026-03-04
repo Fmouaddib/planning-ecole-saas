@@ -312,5 +312,73 @@ export function useEmailNotifications() {
     }
   }, [])
 
-  return { notifySession }
+  /**
+   * Envoie un email de collaboration (affectation, change request, message, etc.)
+   * Ne bloque pas le flux principal
+   */
+  const notifyCollaboration = useCallback(async (
+    templateName: string,
+    recipients: { email: string; name?: string; userId?: string }[],
+    variables: Record<string, string>,
+    centerId?: string,
+  ) => {
+    try {
+      if (!centerId || recipients.length === 0) return
+
+      // Quota check
+      const quotaCheck = await SubscriptionLimitsService.checkEmailQuota(centerId)
+      if (!quotaCheck.allowed) {
+        console.info(`[EmailQuota] Quota exceeded for center ${centerId} — skipping collab email`)
+        return
+      }
+
+      // Fetch template
+      const { data: template } = await supabase
+        .from('email_templates')
+        .select('subject, body_html')
+        .eq('name', templateName)
+        .eq('is_active', true)
+        .limit(1)
+        .single()
+
+      if (!template) return
+
+      // Render variables
+      let subject = template.subject
+      let htmlContent = template.body_html
+      for (const [key, value] of Object.entries(variables)) {
+        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g')
+        subject = subject.replace(regex, value)
+        htmlContent = htmlContent.replace(regex, value)
+      }
+      // Handle conditionals
+      htmlContent = htmlContent.replace(
+        /\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+        (_: string, varName: string, content: string) => variables[varName] ? content : ''
+      )
+
+      // Send via Edge Function
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: { to: recipients, subject, htmlContent, tags: [templateName] },
+      })
+
+      // Log
+      const logs = recipients.map(r => ({
+        center_id: centerId,
+        participant_email: r.email,
+        email_type: templateName,
+        status: error ? 'failed' : 'sent',
+        error_message: error?.message || null,
+        rendered_subject: subject,
+        rendered_html: htmlContent,
+      }))
+      await supabase.from('email_logs').insert(logs)
+
+      if (error) console.error(`Collab email "${templateName}" failed:`, error)
+    } catch (err) {
+      console.error('Collab email error:', err)
+    }
+  }, [])
+
+  return { notifySession, notifyCollaboration }
 }

@@ -3,7 +3,7 @@
  * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
-import type { Booking, Room, User, Program, InAppNotification } from '@/types'
+import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage } from '@/types'
 
 // ==================== BOOKING (from training_sessions) ====================
 
@@ -221,5 +221,133 @@ export function transformGrade(raw: Record<string, any>): import('@/types').Grad
     gradedBy: raw.graded_by ?? undefined,
     gradedAt: raw.graded_at ?? undefined,
     student: student ? { id: student.id, firstName, lastName } : undefined,
+  }
+}
+
+// ==================== TEACHER AVAILABILITY ====================
+
+export function transformTeacherAvailability(raw: Record<string, any>): TeacherAvailability {
+  const teacher = raw.teacher
+  const t = teacher ? parseFullName(teacher.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    teacherId: raw.teacher_id,
+    centerId: raw.center_id,
+    date: raw.date,
+    startTime: raw.start_time,
+    endTime: raw.end_time,
+    recurrence: raw.recurrence || 'none',
+    status: raw.status || 'submitted',
+    notes: raw.notes ?? undefined,
+    teacher: teacher ? { id: teacher.id, firstName: t.firstName, lastName: t.lastName, email: teacher.email || '' } : undefined,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== TEACHER UNAVAILABILITY ====================
+
+export function transformTeacherUnavailability(raw: Record<string, any>): TeacherUnavailability {
+  const teacher = raw.teacher
+  const t = teacher ? parseFullName(teacher.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    teacherId: raw.teacher_id,
+    centerId: raw.center_id,
+    startDate: raw.start_date,
+    endDate: raw.end_date,
+    reason: raw.reason || 'other',
+    description: raw.description ?? undefined,
+    status: raw.status || 'pending',
+    adminResponse: raw.admin_response ?? undefined,
+    requestedAt: raw.requested_at,
+    respondedAt: raw.responded_at ?? undefined,
+    respondedBy: raw.responded_by ?? undefined,
+    teacher: teacher ? { id: teacher.id, firstName: t.firstName, lastName: t.lastName, email: teacher.email || '' } : undefined,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== SESSION ASSIGNMENT ====================
+
+export function transformSessionAssignment(raw: Record<string, any>): SessionAssignment {
+  const teacher = raw.teacher
+  const t = teacher ? parseFullName(teacher.full_name) : { firstName: '', lastName: '' }
+  const assigner = raw.assigner
+  const a = assigner ? parseFullName(assigner.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    sessionId: raw.session_id,
+    teacherId: raw.teacher_id,
+    centerId: raw.center_id,
+    status: raw.status || 'pending',
+    assignedBy: raw.assigned_by,
+    message: raw.message ?? undefined,
+    teacherResponse: raw.teacher_response ?? undefined,
+    assignedAt: raw.assigned_at,
+    respondedAt: raw.responded_at ?? undefined,
+    session: raw.session ? {
+      id: raw.session.id,
+      title: raw.session.title,
+      startTime: raw.session.start_time,
+      endTime: raw.session.end_time,
+      room: raw.session.room ? { name: raw.session.room.name } : undefined,
+    } : undefined,
+    teacher: teacher ? { id: teacher.id, firstName: t.firstName, lastName: t.lastName, email: teacher.email || '' } : undefined,
+    assigner: assigner ? { id: assigner.id, firstName: a.firstName, lastName: a.lastName } : undefined,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== SESSION CHANGE REQUEST ====================
+
+export function transformSessionChangeRequest(raw: Record<string, any>): SessionChangeRequest {
+  const teacher = raw.teacher
+  const t = teacher ? parseFullName(teacher.full_name) : { firstName: '', lastName: '' }
+  const requester = raw.requester
+  const r = requester ? parseFullName(requester.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    sessionId: raw.session_id,
+    teacherId: raw.teacher_id,
+    centerId: raw.center_id,
+    changeType: raw.change_type,
+    oldValues: raw.old_values || {},
+    newValues: raw.new_values || {},
+    status: raw.status || 'pending',
+    requestedBy: raw.requested_by,
+    message: raw.message ?? undefined,
+    teacherResponse: raw.teacher_response ?? undefined,
+    session: raw.session ? { id: raw.session.id, title: raw.session.title } : undefined,
+    teacher: teacher ? { id: teacher.id, firstName: t.firstName, lastName: t.lastName } : undefined,
+    requester: requester ? { id: requester.id, firstName: r.firstName, lastName: r.lastName } : undefined,
+    createdAt: raw.created_at,
+    respondedAt: raw.responded_at ?? undefined,
+    updatedAt: raw.updated_at,
+  }
+}
+
+// ==================== PLANNING MESSAGE ====================
+
+export function transformPlanningMessage(raw: Record<string, any>): PlanningMessage {
+  const sender = raw.sender
+  const s = sender ? parseFullName(sender.full_name) : { firstName: '', lastName: '' }
+  const recipient = raw.recipient
+  const rc = recipient ? parseFullName(recipient.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    senderId: raw.sender_id,
+    recipientId: raw.recipient_id,
+    sessionId: raw.session_id ?? undefined,
+    subject: raw.subject ?? undefined,
+    content: raw.content,
+    isRead: raw.is_read ?? false,
+    parentId: raw.parent_id ?? undefined,
+    sender: sender ? { id: sender.id, firstName: s.firstName, lastName: s.lastName, email: sender.email || '' } : undefined,
+    recipient: recipient ? { id: recipient.id, firstName: rc.firstName, lastName: rc.lastName, email: recipient.email || '' } : undefined,
+    createdAt: raw.created_at,
   }
 }

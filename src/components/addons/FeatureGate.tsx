@@ -26,6 +26,11 @@ const FEATURE_INFO: Record<string, { title: string; description: string; icon: t
     description: 'Creez des evaluations, saisissez les notes et generez des bulletins pour vos etudiants.',
     icon: Lock,
   },
+  teacher: {
+    title: 'Module Collaboration Professeurs',
+    description: 'Gerez les disponibilites, affectations et communications avec vos professeurs.',
+    icon: Lock,
+  },
 }
 
 export function FeatureGate({ feature, children, title, description }: FeatureGateProps) {

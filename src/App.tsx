@@ -42,6 +42,7 @@ const MyClassPage = lazy(() => import('@/pages/my-class/MyClassPage'))
 const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'))
 const GradesPage = lazy(() => import('@/pages/grades/GradesPage'))
 const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage'))
+const TeacherCollabPage = lazy(() => import('@/pages/teacher-collab/TeacherCollabPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -76,6 +77,7 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.ATTENDANCE]: AttendancePage,
   [ROUTES.GRADES]: GradesPage,
   [ROUTES.NOTIFICATIONS]: NotificationsPage,
+  [ROUTES.TEACHER_COLLAB]: TeacherCollabPage,
 }
 
 export default function App() {
@@ -582,7 +584,7 @@ export default function App() {
     }
 
     // Route guards : les étudiants n'ont accès qu'au dashboard et au planning
-    const studentForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.BOOKINGS, ROUTES.VISIO, ROUTES.EMAILS]
+    const studentForbiddenRoutes: string[] = [ROUTES.ROOMS, ROUTES.USERS, ROUTES.ANALYTICS, ROUTES.ACADEMIC, ROUTES.SETTINGS, ROUTES.BOOKINGS, ROUTES.VISIO, ROUTES.EMAILS, ROUTES.TEACHER_COLLAB]
     if (isStudentRole(effectiveUser?.role) && studentForbiddenRoutes.includes(currentPath)) {
       handleNavigate('/')
       return <DashboardPage onNavigate={handleNavigate} />

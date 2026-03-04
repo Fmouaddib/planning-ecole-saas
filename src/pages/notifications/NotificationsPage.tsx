@@ -8,7 +8,8 @@ import {
   Calendar, AlertCircle,
   BookOpen, Clock, ChevronDown, MailCheck,
   BellOff, X, ClipboardCheck, FileBarChart, Upload, Info,
-  AlertTriangle, CheckCircle,
+  AlertTriangle, CheckCircle, UserCog,
+  CalendarClock, CalendarX, UserCheck, XCircle, RefreshCw, MessageSquare,
 } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useAuthContext } from '@/contexts/AuthContext'
@@ -19,11 +20,12 @@ import type { InAppNotification, InAppNotificationType } from '@/types'
 
 // ==================== CONSTANTS ====================
 
-type FilterTab = 'all' | 'sessions' | 'reminders' | 'system' | 'academic'
+type FilterTab = 'all' | 'sessions' | 'reminders' | 'system' | 'academic' | 'collaboration'
 
 const FILTER_TABS: { key: FilterTab; label: string; icon: typeof Bell }[] = [
   { key: 'all', label: 'Toutes', icon: Bell },
   { key: 'sessions', label: 'Sessions', icon: Calendar },
+  { key: 'collaboration', label: 'Collaboration', icon: UserCog },
   { key: 'reminders', label: 'Rappels', icon: Clock },
   { key: 'system', label: 'Systeme', icon: AlertCircle },
   { key: 'academic', label: 'Academique', icon: BookOpen },
@@ -42,6 +44,15 @@ const TYPE_TO_TAB: Record<InAppNotificationType, FilterTab> = {
   info: 'system',
   warning: 'system',
   success: 'system',
+  availability_requested: 'collaboration',
+  unavailability_declared: 'collaboration',
+  assignment_pending: 'collaboration',
+  assignment_accepted: 'collaboration',
+  assignment_rejected: 'collaboration',
+  change_request_pending: 'collaboration',
+  change_request_accepted: 'collaboration',
+  change_request_rejected: 'collaboration',
+  planning_message: 'collaboration',
 }
 
 const TYPE_CONFIG: Record<InAppNotificationType, { label: string; color: string; borderColor: string; icon: typeof Bell; bgColor: string }> = {
@@ -128,6 +139,69 @@ const TYPE_CONFIG: Record<InAppNotificationType, { label: string; color: string;
     borderColor: 'border-l-green-500',
     icon: CheckCircle,
     bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  availability_requested: {
+    label: 'Demande dispo',
+    color: 'text-primary-600',
+    borderColor: 'border-l-primary-500',
+    icon: CalendarClock,
+    bgColor: 'bg-primary-100 dark:bg-primary-900/30',
+  },
+  unavailability_declared: {
+    label: 'Indisponibilite',
+    color: 'text-red-600',
+    borderColor: 'border-l-red-500',
+    icon: CalendarX,
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
+  },
+  assignment_pending: {
+    label: 'Affectation',
+    color: 'text-amber-600',
+    borderColor: 'border-l-amber-500',
+    icon: UserCheck,
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+  },
+  assignment_accepted: {
+    label: 'Affectation acceptee',
+    color: 'text-green-600',
+    borderColor: 'border-l-green-500',
+    icon: CheckCircle,
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  assignment_rejected: {
+    label: 'Affectation refusee',
+    color: 'text-red-600',
+    borderColor: 'border-l-red-500',
+    icon: XCircle,
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
+  },
+  change_request_pending: {
+    label: 'Modification',
+    color: 'text-amber-600',
+    borderColor: 'border-l-amber-500',
+    icon: RefreshCw,
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+  },
+  change_request_accepted: {
+    label: 'Modif. acceptee',
+    color: 'text-green-600',
+    borderColor: 'border-l-green-500',
+    icon: CheckCircle,
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  change_request_rejected: {
+    label: 'Modif. refusee',
+    color: 'text-red-600',
+    borderColor: 'border-l-red-500',
+    icon: XCircle,
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
+  },
+  planning_message: {
+    label: 'Message',
+    color: 'text-blue-600',
+    borderColor: 'border-l-blue-500',
+    icon: MessageSquare,
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
   },
 }
 

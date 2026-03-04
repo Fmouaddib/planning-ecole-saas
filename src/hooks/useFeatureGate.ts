@@ -18,5 +18,6 @@ export function useFeatureGate() {
     hasAddon,
     hasAttendance: hasAddon('attendance'),
     hasGrades: hasAddon('grades'),
+    hasTeacherCollab: hasAddon('teacher'),
   }
 }
