@@ -23,6 +23,8 @@ const TYPE_CONFIG: Record<AddonType, { label: string; icon: typeof Mail; color: 
   email: { label: 'Emails', icon: Mail, color: 'text-blue-600', bg: 'bg-blue-100' },
   teacher: { label: 'Professeurs', icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' },
   student: { label: 'Etudiants', icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+  attendance: { label: 'Presences', icon: Check, color: 'text-teal-600', bg: 'bg-teal-100' },
+  grades: { label: 'Notes', icon: GraduationCap, color: 'text-orange-600', bg: 'bg-orange-100' },
 }
 
 function computeProRata(periodEnd: string, monthlyPrice: number): number {
@@ -87,7 +89,7 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
       <div className="space-y-6">
         {/* Type tabs */}
         <div className="flex gap-2">
-          {(['email', 'teacher', 'student'] as const).map(type => {
+          {(['email', 'teacher', 'student', 'attendance', 'grades'] as const).map(type => {
             const cfg = TYPE_CONFIG[type]
             const Icon = cfg.icon
             return (

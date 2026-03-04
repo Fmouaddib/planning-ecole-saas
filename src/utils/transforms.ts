@@ -159,3 +159,67 @@ export function transformUser(raw: Record<string, any>): User {
     updatedAt: raw.updated_at,
   }
 }
+
+// ==================== ATTENDANCE (from session_attendance) ====================
+
+export function transformAttendance(raw: Record<string, any>): import('@/types').SessionAttendance {
+  const student = raw.student
+  const { firstName, lastName } = student ? parseFullName(student.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    sessionId: raw.session_id,
+    studentId: raw.student_id,
+    centerId: raw.center_id,
+    status: raw.status || 'absent',
+    lateMinutes: raw.late_minutes ?? undefined,
+    excuseReason: raw.excuse_reason ?? undefined,
+    markedBy: raw.marked_by ?? undefined,
+    markedAt: raw.marked_at ?? undefined,
+    notes: raw.notes ?? undefined,
+    student: student ? { id: student.id, firstName, lastName, email: student.email || '' } : undefined,
+    session: raw.session ? { id: raw.session.id, title: raw.session.title, date: raw.session.start_time } : undefined,
+  }
+}
+
+// ==================== EVALUATION (from evaluations) ====================
+
+export function transformEvaluation(raw: Record<string, any>): import('@/types').Evaluation {
+  const teacher = raw.teacher
+  const { firstName, lastName } = teacher ? parseFullName(teacher.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    subjectId: raw.subject_id,
+    classId: raw.class_id,
+    teacherId: raw.teacher_id,
+    title: raw.title,
+    description: raw.description ?? undefined,
+    evaluationType: raw.evaluation_type || 'exam',
+    date: raw.date,
+    coefficient: parseFloat(raw.coefficient) || 1,
+    maxGrade: parseFloat(raw.max_grade) || 20,
+    isPublished: raw.is_published ?? false,
+    subject: raw.subject ? { id: raw.subject.id, name: raw.subject.name } : undefined,
+    class_: raw.class_ ? { id: raw.class_.id, name: raw.class_.name } : undefined,
+    teacher: teacher ? { id: teacher.id, firstName, lastName } : undefined,
+  }
+}
+
+// ==================== GRADE (from grades) ====================
+
+export function transformGrade(raw: Record<string, any>): import('@/types').Grade {
+  const student = raw.student
+  const { firstName, lastName } = student ? parseFullName(student.full_name) : { firstName: '', lastName: '' }
+  return {
+    id: raw.id,
+    evaluationId: raw.evaluation_id,
+    studentId: raw.student_id,
+    centerId: raw.center_id,
+    grade: raw.grade != null ? parseFloat(raw.grade) : null,
+    isAbsent: raw.is_absent ?? false,
+    comment: raw.comment ?? undefined,
+    gradedBy: raw.graded_by ?? undefined,
+    gradedAt: raw.graded_at ?? undefined,
+    student: student ? { id: student.id, firstName, lastName } : undefined,
+  }
+}

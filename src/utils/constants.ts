@@ -28,7 +28,10 @@ export const ROUTES = {
   HELP: '/help',
   VISIO: '/visio',
   MY_CLASS: '/my-class',
-  EMAILS: '/emails'
+  EMAILS: '/emails',
+  ATTENDANCE: '/attendance',
+  GRADES: '/grades',
+  NOTIFICATIONS: '/notifications'
 } as const
 
 export const USER_ROLES = {

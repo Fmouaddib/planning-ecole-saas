@@ -434,18 +434,24 @@ const ADDON_TYPE_ICONS: Record<AddonType, typeof Mail> = {
   email: Mail,
   teacher: Users,
   student: GraduationCap,
+  attendance: Users,
+  grades: GraduationCap,
 }
 
 const ADDON_TYPE_LABELS: Record<AddonType, string> = {
   email: 'Email',
   teacher: 'Professeurs',
   student: 'Etudiants',
+  attendance: 'Presences',
+  grades: 'Notes',
 }
 
 const ADDON_TYPE_COLORS: Record<AddonType, { text: string; bg: string }> = {
   email: { text: 'text-blue-700', bg: 'bg-blue-100' },
   teacher: { text: 'text-purple-700', bg: 'bg-purple-100' },
   student: { text: 'text-emerald-700', bg: 'bg-emerald-100' },
+  attendance: { text: 'text-teal-700', bg: 'bg-teal-100' },
+  grades: { text: 'text-orange-700', bg: 'bg-orange-100' },
 }
 
 function AddonsSection() {

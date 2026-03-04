@@ -21,6 +21,8 @@ const RESOURCE_LABELS: Record<AddonType, { singular: string; plural: string }> =
   email: { singular: 'email', plural: 'emails' },
   teacher: { singular: 'enseignant', plural: 'enseignants' },
   student: { singular: 'etudiant', plural: 'etudiants' },
+  attendance: { singular: 'module presences', plural: 'modules presences' },
+  grades: { singular: 'module notes', plural: 'modules notes' },
 }
 
 export function UpsellModal({ isOpen, onClose, resourceType, current, max }: UpsellModalProps) {

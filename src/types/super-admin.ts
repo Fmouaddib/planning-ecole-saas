@@ -216,7 +216,7 @@ export interface AddonPlan {
   name: string;
   slug: string;
   description?: string;
-  addon_type: 'email' | 'teacher' | 'student';
+  addon_type: 'email' | 'teacher' | 'student' | 'attendance' | 'grades';
   quota_value: number;
   price_monthly: number;
   price_yearly?: number;
@@ -259,7 +259,7 @@ export interface CreateAddonPlanData {
   name: string;
   slug: string;
   description?: string;
-  addon_type: 'email' | 'teacher' | 'student';
+  addon_type: 'email' | 'teacher' | 'student' | 'attendance' | 'grades';
   quota_value: number;
   price_monthly: number;
   price_yearly?: number;

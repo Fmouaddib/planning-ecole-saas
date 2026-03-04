@@ -11,7 +11,9 @@ import {
   GraduationCap,
   Settings,
   Video,
-  Mail
+  Mail,
+  ClipboardCheck,
+  FileBarChart
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
@@ -102,6 +104,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/academic',
       active: currentPath === '/academic',
       roles: ['admin']
+    },
+    {
+      icon: ClipboardCheck,
+      label: isStudentRole(userRole) ? 'Mes présences' : isTeacherRole(userRole) ? 'Appel' : 'Présences',
+      href: '/attendance',
+      active: currentPath === '/attendance',
+    },
+    {
+      icon: FileBarChart,
+      label: isStudentRole(userRole) ? 'Mon bulletin' : isTeacherRole(userRole) ? 'Mes notes' : 'Notes',
+      href: '/grades',
+      active: currentPath === '/grades',
     },
     {
       icon: BarChart3,

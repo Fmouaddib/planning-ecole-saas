@@ -327,6 +327,12 @@ export type InAppNotificationType =
   | 'reminder'
   | 'weekly_recap'
   | 'system'
+  | 'attendance_marked'
+  | 'grade_published'
+  | 'import_completed'
+  | 'info'
+  | 'warning'
+  | 'success'
 
 export interface InAppNotification {
   id: string
@@ -675,7 +681,7 @@ export interface AuditLogEntry {
 
 // ==================== TYPES ADDON SYSTEM ====================
 
-export type AddonType = 'email' | 'teacher' | 'student'
+export type AddonType = 'email' | 'teacher' | 'student' | 'attendance' | 'grades'
 
 export interface AddonPlanInfo {
   id: string
@@ -703,4 +709,107 @@ export interface EffectiveQuotas {
   emails: { base: number; addons: number; total: number; usedToday: number }
   teachers: { base: number; addons: number; total: number; current: number }
   students: { base: number; addons: number; total: number; current: number }
+}
+
+// ==================== TYPES ATTENDANCE ====================
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+
+export interface SessionAttendance {
+  id: string
+  sessionId: string
+  studentId: string
+  centerId: string
+  status: AttendanceStatus
+  lateMinutes?: number
+  excuseReason?: string
+  markedBy?: string
+  markedAt?: string
+  notes?: string
+  student?: { id: string; firstName: string; lastName: string; email: string }
+  session?: { id: string; title: string; date: string }
+}
+
+export interface AttendanceStats {
+  studentId: string
+  studentName: string
+  totalSessions: number
+  present: number
+  absent: number
+  late: number
+  excused: number
+  attendanceRate: number
+}
+
+// ==================== TYPES EVALUATIONS / GRADES ====================
+
+export type EvaluationType = 'exam' | 'assignment' | 'project' | 'oral' | 'quiz' | 'continuous'
+
+export interface Evaluation {
+  id: string
+  centerId: string
+  subjectId: string
+  classId: string
+  teacherId: string
+  title: string
+  description?: string
+  evaluationType: EvaluationType
+  date: string
+  coefficient: number
+  maxGrade: number
+  isPublished: boolean
+  subject?: { id: string; name: string }
+  class_?: { id: string; name: string }
+  teacher?: { id: string; firstName: string; lastName: string }
+}
+
+export interface Grade {
+  id: string
+  evaluationId: string
+  studentId: string
+  centerId: string
+  grade: number | null
+  isAbsent: boolean
+  comment?: string
+  gradedBy?: string
+  gradedAt?: string
+  student?: { id: string; firstName: string; lastName: string }
+  evaluation?: Evaluation
+}
+
+export interface SubjectAverage {
+  subjectId: string
+  subjectName: string
+  coefficient: number
+  average: number | null
+  evaluationCount: number
+}
+
+export interface StudentBulletin {
+  studentId: string
+  studentName: string
+  classId: string
+  className: string
+  subjects: SubjectAverage[]
+  generalAverage: number | null
+  classRank?: number
+}
+
+// ==================== TYPES NOTIFICATIONS (enhanced) ====================
+
+export type NotificationCategory = 'all' | 'sessions' | 'reminders' | 'system' | 'academic'
+
+export interface NotificationPreferences {
+  id?: string
+  userId: string
+  centerId: string
+  sessionCreated: boolean
+  sessionUpdated: boolean
+  sessionCancelled: boolean
+  reminder: boolean
+  weeklyRecap: boolean
+  system: boolean
+  attendanceMarked: boolean
+  gradePublished: boolean
+  importCompleted: boolean
 }

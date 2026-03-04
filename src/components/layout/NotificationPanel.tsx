@@ -10,6 +10,11 @@ import {
   Check,
   Trash2,
   X,
+  ClipboardCheck,
+  FileBarChart,
+  Upload,
+  AlertTriangle,
+  CheckCircle,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -32,6 +37,12 @@ const TYPE_CONFIG: Record<InAppNotificationType, { icon: React.ElementType; colo
   reminder: { icon: Clock, color: 'text-primary-600 bg-primary-50' },
   weekly_recap: { icon: BarChart3, color: 'text-info-600 bg-info-50' },
   system: { icon: Info, color: 'text-neutral-600 bg-neutral-100' },
+  attendance_marked: { icon: ClipboardCheck, color: 'text-teal-600 bg-teal-50' },
+  grade_published: { icon: FileBarChart, color: 'text-orange-600 bg-orange-50' },
+  import_completed: { icon: Upload, color: 'text-blue-600 bg-blue-50' },
+  info: { icon: Info, color: 'text-blue-600 bg-blue-50' },
+  warning: { icon: AlertTriangle, color: 'text-warning-600 bg-warning-50' },
+  success: { icon: CheckCircle, color: 'text-success-600 bg-success-50' },
 }
 
 export const NotificationPanel: React.FC<NotificationPanelProps> = ({
@@ -179,6 +190,18 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
           })
         )}
       </div>
+
+      {/* Footer - See all */}
+      {notifications.length > 0 && onNavigate && (
+        <div className="border-t border-neutral-100 dark:border-neutral-800 px-4 py-2">
+          <button
+            onClick={() => { onNavigate('/notifications'); onClose() }}
+            className="w-full text-center text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 py-1"
+          >
+            Voir toutes les notifications
+          </button>
+        </div>
+      )}
     </div>
   )
 }

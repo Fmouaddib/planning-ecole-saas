@@ -18,6 +18,8 @@ const ADDON_TYPE_LABELS: Record<string, { label: string; color: string; bg: stri
   email: { label: 'Email', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
   teacher: { label: 'Professeurs', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
   student: { label: 'Etudiants', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+  attendance: { label: 'Présences', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  grades: { label: 'Notes', color: '#ec4899', bg: 'rgba(236,72,153,0.12)' },
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -75,7 +77,7 @@ function CatalogueTab() {
   const [editingPlan, setEditingPlan] = useState<AddonPlan | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<AddonPlan | null>(null);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'email' | 'teacher' | 'student'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'email' | 'teacher' | 'student' | 'attendance' | 'grades'>('all');
 
   const filteredPlans = useMemo(() => {
     let result = plans || [];
@@ -124,7 +126,7 @@ function CatalogueTab() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        {(['all', 'email', 'teacher', 'student'] as const).map(t => (
+        {(['all', 'email', 'teacher', 'student', 'attendance', 'grades'] as const).map(t => (
           <button
             key={t}
             className={`sa-filter-btn ${typeFilter === t ? 'active' : ''}`}

@@ -6,7 +6,8 @@ import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSp
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole } from '@/types'
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload } from 'lucide-react'
+import { ImportModal } from '@/components/import/ImportModal'
 
 const roleLabels: Record<string, string> = {
   admin: 'Administrateur',
@@ -73,6 +74,7 @@ function UsersPage() {
   const [dispensations, setDispensations] = useState<DispensationState>({})
   const [freeSubjectIds, setFreeSubjectIds] = useState<string[]>([])
   const [addingFreeSubject, setAddingFreeSubject] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   const filtered = useMemo(() => {
     let result = users
@@ -233,11 +235,18 @@ function UsersPage() {
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Gestion des utilisateurs</h1>
           <p className="text-neutral-500 dark:text-neutral-400 mt-1">{users.length} utilisateur{users.length > 1 ? 's' : ''} au total</p>
         </div>
-        {canCreateUsers && (
-          <Button leftIcon={Plus} onClick={openCreate} className="mt-4 sm:mt-0">
-            Ajouter un utilisateur
-          </Button>
-        )}
+        <div className="flex items-center gap-2 mt-4 sm:mt-0">
+          {canCreateUsers && (
+            <Button variant="secondary" leftIcon={Upload} onClick={() => setShowImport(true)}>
+              Importer
+            </Button>
+          )}
+          {canCreateUsers && (
+            <Button leftIcon={Plus} onClick={openCreate}>
+              Ajouter un utilisateur
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -572,6 +581,18 @@ function UsersPage() {
           </Button>
         </ModalFooter>
       </Modal>
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        type="students"
+        context={{
+          classNames: classes.map(c => c.name),
+          classMap: new Map(classes.map(c => [c.name.toLowerCase(), c.id])),
+        }}
+        onComplete={refreshUsers}
+      />
     </div>
   )
 }

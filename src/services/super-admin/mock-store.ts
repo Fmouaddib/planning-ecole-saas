@@ -18,7 +18,7 @@ import type {
 
 const PREFIX = 'sa_mock_';
 const VERSION_KEY = `${PREFIX}version`;
-const CURRENT_VERSION = '3';
+const CURRENT_VERSION = '4';
 
 // ──────────── Generic helpers ────────────
 
@@ -121,6 +121,9 @@ function seedAddonPlans(): AddonPlan[] {
     { id: 'ap7', name: 'Pack Étudiants +50', slug: 'student-50', description: '+50 étudiants supplémentaires', addon_type: 'student', quota_value: 50, price_monthly: 9.90, price_yearly: 99, currency: 'EUR', is_active: true, sort_order: 7, created_at: now, updated_at: now },
     { id: 'ap8', name: 'Pack Étudiants +150', slug: 'student-150', description: '+150 étudiants supplémentaires', addon_type: 'student', quota_value: 150, price_monthly: 19.90, price_yearly: 199, currency: 'EUR', is_active: true, sort_order: 8, created_at: now, updated_at: now },
     { id: 'ap9', name: 'Pack Étudiants +500', slug: 'student-500', description: '+500 étudiants supplémentaires', addon_type: 'student', quota_value: 500, price_monthly: 29.90, price_yearly: 299, currency: 'EUR', is_active: true, sort_order: 9, created_at: now, updated_at: now },
+    { id: 'ap10', name: 'Suivi Présences', slug: 'attendance-basic', description: 'Module suivi présences/absences', addon_type: 'attendance', quota_value: 1, price_monthly: 19.90, price_yearly: 199, currency: 'EUR', is_active: true, sort_order: 10, created_at: now, updated_at: now },
+    { id: 'ap11', name: 'Notes & Bulletins', slug: 'grades-basic', description: 'Module notes et évaluations', addon_type: 'grades', quota_value: 1, price_monthly: 24.90, price_yearly: 249, currency: 'EUR', is_active: true, sort_order: 11, created_at: now, updated_at: now },
+    { id: 'ap12', name: 'Pack Pédagogique', slug: 'pedagogy-bundle', description: 'Présences + Notes combinés', addon_type: 'attendance', quota_value: 1, price_monthly: 39.90, price_yearly: 399, currency: 'EUR', is_active: true, sort_order: 12, created_at: now, updated_at: now },
   ];
 }
 

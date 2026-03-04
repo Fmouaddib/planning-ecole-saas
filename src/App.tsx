@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
-import { LoginPage, SignupPage } from '@/pages/auth'
+const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
+const SignupPage = lazy(() => import('@/pages/auth/SignupPage').then(m => ({ default: m.SignupPage })))
 import { Layout } from '@/components/layout'
 import { User, LoginForm, SignupForm } from '@/types'
 import { LoadingState } from '@/components/ui'
@@ -38,6 +39,9 @@ const AcademicPage = lazy(() => import('@/pages/academic/AcademicPage'))
 const VisioPage = lazy(() => import('@/pages/visio/VisioPage'))
 const EmailsPage = lazy(() => import('@/pages/emails/EmailsPage'))
 const MyClassPage = lazy(() => import('@/pages/my-class/MyClassPage'))
+const AttendancePage = lazy(() => import('@/pages/attendance/AttendancePage'))
+const GradesPage = lazy(() => import('@/pages/grades/GradesPage'))
+const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -69,6 +73,9 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.VISIO]: VisioPage,
   [ROUTES.MY_CLASS]: MyClassPage,
   [ROUTES.EMAILS]: EmailsPage,
+  [ROUTES.ATTENDANCE]: AttendancePage,
+  [ROUTES.GRADES]: GradesPage,
+  [ROUTES.NOTIFICATIONS]: NotificationsPage,
 }
 
 export default function App() {
@@ -427,7 +434,7 @@ export default function App() {
   if (appState === 'unauthenticated') {
     if (hash === '#/login') {
       return (
-        <>
+        <Suspense fallback={<div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center"><LoadingState size="lg" text="Chargement..." /></div>}>
           <Toaster position="top-center" />
           <LoginPage
             onLogin={handleLogin}
@@ -435,18 +442,20 @@ export default function App() {
             isLoading={isLoading}
             error={authError}
           />
-        </>
+        </Suspense>
       )
     }
 
     if (hash === '#/signup') {
       return (
-        <SignupPage
-          onSignup={handleSignup}
-          onSwitchToLogin={() => { window.location.hash = '#/login' }}
-          isLoading={isLoading}
-          error={authError}
-        />
+        <Suspense fallback={<div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center"><LoadingState size="lg" text="Chargement..." /></div>}>
+          <SignupPage
+            onSignup={handleSignup}
+            onSwitchToLogin={() => { window.location.hash = '#/login' }}
+            isLoading={isLoading}
+            error={authError}
+          />
+        </Suspense>
       )
     }
 
