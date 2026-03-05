@@ -2,7 +2,7 @@
  * Page Chat — layout 3 colonnes (channels | messages | info)
  * Responsive : 1 colonne mobile, 2 tablet, 3 desktop
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useChatMessages } from '@/hooks/useChatMessages'
@@ -24,6 +24,17 @@ function ChatPage() {
   const [showInfo, setShowInfo] = useState(true)
   const [showNewDM, setShowNewDM] = useState(false)
   const [mobileView, setMobileView] = useState<MobileView>('channels')
+
+  // Auto-open DM if navigated via navigateToDM()
+  useEffect(() => {
+    const target = sessionStorage.getItem('chat_dm_target')
+    if (target) {
+      sessionStorage.removeItem('chat_dm_target')
+      chat.createDM(target).then(channelId => {
+        if (channelId) setMobileView('messages')
+      })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectChannel = (id: string) => {
     chat.setActiveChannelId(id)
@@ -105,6 +116,8 @@ function ChatPage() {
               channel={chat.activeChannel}
               members={members.members}
               onlineUserIds={members.onlineUserIds}
+              currentUserId={user?.id || ''}
+              onStartDM={handleNewDM}
               onClose={() => {
                 setShowInfo(false)
                 if (window.innerWidth < 768) setMobileView('messages')

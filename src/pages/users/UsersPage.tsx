@@ -7,7 +7,8 @@ import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSp
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole, ContactRelationship } from '@/types'
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle } from 'lucide-react'
+import { navigateToDM } from '@/utils/navigation'
 import { ImportModal } from '@/components/import/ImportModal'
 
 const roleLabels: Record<string, string> = {
@@ -332,6 +333,9 @@ function UsersPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => navigateToDM(u.id)} title="Envoyer un message">
+                            <MessageCircle size={14} className="text-primary-500" />
+                          </Button>
                           {canUpdateUser(u.id) && (
                             <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
                               <Pencil size={14} />
@@ -377,6 +381,16 @@ function UsersPage() {
         size={modalMode === 'edit' && form.role === 'student' && form.classId ? 'lg' : 'md'}
       >
         <div className="space-y-4">
+          {modalMode === 'edit' && selectedUser && (
+            <button
+              type="button"
+              onClick={() => { closeModal(); navigateToDM(selectedUser.id) }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+            >
+              <MessageCircle size={15} />
+              Envoyer un message
+            </button>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Prénom"

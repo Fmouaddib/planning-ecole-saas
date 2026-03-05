@@ -229,6 +229,16 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
+  // Listen to custom navigation events (from navigateTo utility)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const path = (e as CustomEvent<string>).detail
+      if (path) setCurrentPath(path)
+    }
+    window.addEventListener('app-navigate', handler)
+    return () => window.removeEventListener('app-navigate', handler)
+  }, [])
+
   // Gérer le retour Stripe Checkout (?checkout=cancelled — success est géré par #/checkout-success)
   useEffect(() => {
     const handleCheckoutReturn = () => {

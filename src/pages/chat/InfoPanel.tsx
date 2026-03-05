@@ -1,7 +1,7 @@
 /**
  * Colonne droite du chat — infos du canal, membres, fichiers
  */
-import { Users, BookOpen, MessageCircle } from 'lucide-react'
+import { Users, BookOpen, MessageCircle, MessageSquare } from 'lucide-react'
 import type { ChatChannel, ChatMember } from '@/types'
 
 interface InfoPanelProps {
@@ -9,6 +9,8 @@ interface InfoPanelProps {
   members: ChatMember[]
   onlineUserIds: Set<string>
   onClose?: () => void
+  onStartDM?: (userId: string) => void
+  currentUserId?: string
 }
 
 function getRoleBadge(role: string) {
@@ -26,7 +28,7 @@ function getRoleBadge(role: string) {
   }
 }
 
-export function InfoPanel({ channel, members, onlineUserIds }: InfoPanelProps) {
+export function InfoPanel({ channel, members, onlineUserIds, onStartDM, currentUserId }: InfoPanelProps) {
   const onlineCount = members.filter(m => onlineUserIds.has(m.userId)).length
 
   // Sort: online first, then by role (admin > teacher > student)
@@ -123,6 +125,17 @@ export function InfoPanel({ channel, members, onlineUserIds }: InfoPanelProps) {
                   <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${badge.className}`}>
                     {badge.label}
                   </span>
+
+                  {/* DM button (not on self, not in DM channels) */}
+                  {onStartDM && channel.type !== 'dm' && member.userId !== currentUserId && (
+                    <button
+                      onClick={() => onStartDM(member.userId)}
+                      className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-400 hover:text-primary-500 transition-colors"
+                      title="Envoyer un message"
+                    >
+                      <MessageSquare size={12} />
+                    </button>
+                  )}
                 </div>
               )
             })}
