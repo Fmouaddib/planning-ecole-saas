@@ -44,6 +44,7 @@ const GradesPage = lazy(() => import('@/pages/grades/GradesPage'))
 const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage'))
 const TeacherCollabPage = lazy(() => import('@/pages/teacher-collab/TeacherCollabPage'))
 const BillingPage = lazy(() => import('@/pages/billing/BillingPage'))
+const ChatPage = lazy(() => import('@/pages/chat/ChatPage'))
 
 // Types pour l'état de l'application
 type AppState = 'loading' | 'authenticated' | 'unauthenticated'
@@ -80,6 +81,7 @@ const routeComponents: Record<string, React.LazyExoticComponent<() => JSX.Elemen
   [ROUTES.NOTIFICATIONS]: NotificationsPage,
   [ROUTES.TEACHER_COLLAB]: TeacherCollabPage,
   [ROUTES.BILLING]: BillingPage,
+  [ROUTES.CHAT]: ChatPage,
 }
 
 export default function App() {

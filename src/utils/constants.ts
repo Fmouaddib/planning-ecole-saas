@@ -34,7 +34,20 @@ export const ROUTES = {
   NOTIFICATIONS: '/notifications',
   TEACHER_COLLAB: '/teacher-collab',
   BILLING: '/billing',
+  CHAT: '/chat',
 } as const
+
+export const CHAT_REACTIONS = ['\u{1F44D}', '\u2705', '\u2764\uFE0F', '\uD83D\uDE02', '\uD83C\uDF89', '\uD83D\uDC40'] as const
+
+export const CHAT_MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+
+export const CHAT_ALLOWED_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf',
+  'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain', 'text/csv',
+]
 
 export const USER_ROLES = {
   ADMIN: 'admin',

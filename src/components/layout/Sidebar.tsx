@@ -17,11 +17,13 @@ import {
   UserCog,
   CreditCard,
   ChevronDown,
+  MessageCircle,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { SidebarCalendar } from './SidebarCalendar'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
+import { useChatUnread } from '@/hooks/useChat'
 
 interface NavigationItem {
   icon: React.ComponentType<any>
@@ -60,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { plan } = useSubscriptionInfo()
   const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
+  const chatUnread = useChatUnread()
 
   const mainNavigation: NavigationItem[] = [
     // --- Top (ungrouped) ---
@@ -88,6 +91,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/my-class',
       active: currentPath === '/my-class',
       roles: ['student'] as UserRole[],
+    },
+    {
+      icon: MessageCircle,
+      label: 'Messages',
+      href: '/chat',
+      active: currentPath === '/chat',
+      badge: chatUnread > 0 ? String(chatUnread) : undefined,
     },
     // --- Enseignement ---
     ...(isOnlineSchool

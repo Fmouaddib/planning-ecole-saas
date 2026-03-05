@@ -3,7 +3,7 @@
  * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
-import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage, AvailabilityRequest, AvailabilityRequestResponse, ReplacementRequest, ReplacementCandidate, StudentContact, Bulletin } from '@/types'
+import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage, AvailabilityRequest, AvailabilityRequestResponse, ReplacementRequest, ReplacementCandidate, StudentContact, Bulletin, ChatChannel, ChatMember, ChatMessage, ChatAttachment, ChatReaction } from '@/types'
 
 // ==================== BOOKING (from training_sessions) ====================
 
@@ -506,5 +506,97 @@ export function transformPushSubscription(raw: Record<string, any>): import('@/t
     isActive: raw.is_active ?? true,
     lastUsedAt: raw.last_used_at ?? undefined,
     createdAt: raw.created_at,
+  }
+}
+
+// ==================== CHAT ====================
+
+export function transformChatChannel(raw: Record<string, any>): ChatChannel {
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    type: raw.type,
+    name: raw.name,
+    classId: raw.class_id,
+    subjectId: raw.subject_id,
+    avatarUrl: raw.avatar_url,
+    isArchived: raw.is_archived ?? false,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    lastMessage: raw.last_message ? transformChatMessage(raw.last_message) : null,
+    unreadCount: raw.unread_count ?? 0,
+  }
+}
+
+export function transformChatMember(raw: Record<string, any>): ChatMember {
+  const user = raw.profiles || raw.user
+  return {
+    id: raw.id,
+    channelId: raw.channel_id,
+    userId: raw.user_id,
+    role: raw.role,
+    lastReadAt: raw.last_read_at,
+    isMuted: raw.is_muted ?? false,
+    joinedAt: raw.joined_at,
+    user: user ? {
+      id: user.id,
+      firstName: parseFullName(user.full_name).firstName,
+      lastName: parseFullName(user.full_name).lastName,
+      email: user.email || '',
+      role: user.role || '',
+      avatarUrl: user.avatar_url,
+    } : undefined,
+  }
+}
+
+export function transformChatMessage(raw: Record<string, any>): ChatMessage {
+  const sender = raw.sender || raw.profiles
+  return {
+    id: raw.id,
+    channelId: raw.channel_id,
+    senderId: raw.sender_id,
+    content: raw.content,
+    isSystem: raw.is_system ?? false,
+    isEdited: raw.is_edited ?? false,
+    parentId: raw.parent_id,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    deletedAt: raw.deleted_at,
+    sender: sender ? {
+      id: sender.id,
+      firstName: parseFullName(sender.full_name).firstName,
+      lastName: parseFullName(sender.full_name).lastName,
+      avatarUrl: sender.avatar_url,
+    } : undefined,
+    attachments: raw.chat_attachments?.map(transformChatAttachment) ?? [],
+    reactions: raw.chat_reactions?.map(transformChatReaction) ?? [],
+  }
+}
+
+export function transformChatAttachment(raw: Record<string, any>): ChatAttachment {
+  return {
+    id: raw.id,
+    messageId: raw.message_id,
+    fileName: raw.file_name,
+    fileSize: raw.file_size,
+    mimeType: raw.mime_type,
+    storagePath: raw.storage_path,
+    createdAt: raw.created_at,
+  }
+}
+
+export function transformChatReaction(raw: Record<string, any>): ChatReaction {
+  const user = raw.profiles || raw.user
+  return {
+    id: raw.id,
+    messageId: raw.message_id,
+    userId: raw.user_id,
+    emoji: raw.emoji,
+    createdAt: raw.created_at,
+    user: user ? {
+      id: user.id,
+      firstName: parseFullName(user.full_name).firstName,
+      lastName: parseFullName(user.full_name).lastName,
+    } : undefined,
   }
 }

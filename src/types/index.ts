@@ -1074,3 +1074,91 @@ export interface ReplacementCandidate {
   teacher?: { id: string; firstName: string; lastName: string; email: string }
   createdAt: string
 }
+
+// ─── Chat ───────────────────────────────────────────────────────
+
+export type ChatChannelType = 'dm' | 'class' | 'subject'
+export type ChatMemberRole = 'member' | 'admin'
+
+export interface ChatChannel {
+  id: string
+  centerId: string
+  type: ChatChannelType
+  name: string | null
+  classId: string | null
+  subjectId: string | null
+  avatarUrl: string | null
+  isArchived: boolean
+  createdAt: string
+  updatedAt: string
+  members?: ChatMember[]
+  lastMessage?: ChatMessage | null
+  unreadCount?: number
+}
+
+export interface ChatMember {
+  id: string
+  channelId: string
+  userId: string
+  role: ChatMemberRole
+  lastReadAt: string
+  isMuted: boolean
+  joinedAt: string
+  user?: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+    role: string
+    avatarUrl?: string
+  }
+}
+
+export interface ChatMessage {
+  id: string
+  channelId: string
+  senderId: string | null
+  content: string | null
+  isSystem: boolean
+  isEdited: boolean
+  parentId: string | null
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+  sender?: {
+    id: string
+    firstName: string
+    lastName: string
+    avatarUrl?: string
+  }
+  attachments?: ChatAttachment[]
+  reactions?: ChatReaction[]
+  mentions?: ChatMention[]
+}
+
+export interface ChatAttachment {
+  id: string
+  messageId: string
+  fileName: string
+  fileSize: number | null
+  mimeType: string | null
+  storagePath: string
+  createdAt: string
+  url?: string
+}
+
+export interface ChatReaction {
+  id: string
+  messageId: string
+  userId: string
+  emoji: string
+  createdAt: string
+  user?: { id: string; firstName: string; lastName: string }
+}
+
+export interface ChatMention {
+  id: string
+  messageId: string
+  userId: string
+  createdAt: string
+}
