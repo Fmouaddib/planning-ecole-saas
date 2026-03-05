@@ -286,6 +286,89 @@ export function useAvailabilityRequests() {
     return () => { supabase.removeChannel(channel) }
   }, [user?.establishmentId, fetchRequests])
 
+  // ---- REMIND (admin → relance profs en attente) ----
+  const remind = useCallback(async (params: {
+    request: AvailabilityRequest
+    teacherIds: string[]
+    teachers: { id: string; firstName: string; lastName: string; email: string }[]
+    sendEmail: boolean
+  }) => {
+    if (isDemoMode || !user?.establishmentId || !user?.id) return
+    const { request: req, teacherIds, teachers: allTeachers, sendEmail } = params
+    const targetTeachers = allTeachers.filter(t => teacherIds.includes(t.id))
+    if (targetTeachers.length === 0) return
+
+    try {
+      const subjectName = req.subject?.name || 'Matiere'
+      const className = req.class_?.name || 'Classe'
+      const periodLabel = `${format(new Date(req.periodStart + 'T00:00:00'), 'd MMM', { locale: fr })} au ${format(new Date(req.periodEnd + 'T00:00:00'), 'd MMM yyyy', { locale: fr })}`
+
+      // In-app notifications
+      for (const teacher of targetTeachers) {
+        insertNotification({
+          userId: teacher.id,
+          centerId: user.establishmentId,
+          title: 'Rappel : demande de disponibilites',
+          message: `Merci de declarer vos disponibilites pour ${subjectName} — ${className} (${periodLabel})`,
+          type: 'availability_demand_sent',
+          link: '/teacher-collab',
+        })
+      }
+
+      // Planning messages (visible in Messages tab)
+      for (const teacher of targetTeachers) {
+        await supabase.from('planning_messages').insert({
+          center_id: user.establishmentId,
+          sender_id: user.id,
+          recipient_id: teacher.id,
+          subject: `Rappel : disponibilites ${subjectName}`,
+          content: `Bonjour ${teacher.firstName}, nous n'avons pas encore recu votre reponse concernant vos disponibilites pour ${subjectName} — ${className} (${periodLabel}). Merci de repondre depuis l'onglet "Demandes dispo" de l'espace Collaboration.`,
+        })
+      }
+
+      // Emails (if checked)
+      if (sendEmail) {
+        await notifyCollaboration(
+          'availability_demand_sent',
+          targetTeachers.map(t => ({ email: t.email, name: `${t.firstName} ${t.lastName}`, userId: t.id })),
+          {
+            subject_name: subjectName,
+            class_name: className,
+            period_start: format(new Date(req.periodStart + 'T00:00:00'), 'd MMMM yyyy', { locale: fr }),
+            period_end: format(new Date(req.periodEnd + 'T00:00:00'), 'd MMMM yyyy', { locale: fr }),
+            message: `[RAPPEL] ${req.message || 'Merci de declarer vos disponibilites.'}`,
+            app_url: window.location.origin,
+          },
+          user.establishmentId,
+        )
+      }
+
+      // Store reminder record in JSONB
+      const newReminder = {
+        sentAt: new Date().toISOString(),
+        sentBy: user.id,
+        teacherIds: targetTeachers.map(t => t.id),
+        teacherNames: targetTeachers.map(t => `${t.firstName} ${t.lastName}`),
+        withEmail: sendEmail,
+      }
+      const existingReminders = req.reminders || []
+      await supabase
+        .from('availability_requests')
+        .update({ reminders: [...existingReminders, newReminder] })
+        .eq('id', req.id)
+
+      // Update local state
+      setRequests(prev => prev.map(r =>
+        r.id === req.id ? { ...r, reminders: [...existingReminders, newReminder] } : r
+      ))
+
+      toast.success(`Relance envoyee a ${targetTeachers.length} professeur(s)${sendEmail ? ' (+ email)' : ''}`)
+    } catch (err: any) {
+      console.error('remindAvailabilityRequest:', err.message)
+      toast.error('Erreur lors de la relance')
+    }
+  }, [user, notifyCollaboration])
+
   // ---- Filter for teacher: only requests where I teach the subject ----
   const getRequestsForTeacher = useCallback((teacherSubjectIds: string[]) => {
     return requests.filter(r => r.subjectId && teacherSubjectIds.includes(r.subjectId))
@@ -298,6 +381,7 @@ export function useAvailabilityRequests() {
     create,
     respond,
     close,
+    remind,
     getRequestsForTeacher,
   }
 }

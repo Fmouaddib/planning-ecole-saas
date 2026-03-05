@@ -3,9 +3,9 @@
  * Accessible depuis ProfilePage et UpsellModal
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Modal, ModalFooter, Button } from '@/components/ui'
-import { Check, Mail, Users, GraduationCap } from 'lucide-react'
+import { Check, Mail, Users, GraduationCap, Loader2 } from 'lucide-react'
 import { useAddonInfo } from '@/hooks/useAddonInfo'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { SAAddonsService } from '@/services/super-admin/addons'
@@ -28,6 +28,23 @@ const TYPE_CONFIG: Record<AddonType, { label: string; icon: typeof Mail; color: 
   grades: { label: 'Notes', icon: GraduationCap, color: 'text-orange-600', bg: 'bg-orange-100' },
 }
 
+// Module-type addons (not quota-based)
+const MODULE_TYPES: AddonType[] = ['attendance', 'grades']
+
+function isModuleType(type: AddonType): boolean {
+  return MODULE_TYPES.includes(type)
+}
+
+function getPlanDescription(plan: AddonPlanInfo): string {
+  if (plan.description) return plan.description
+  if (plan.addonType === 'email') return `${plan.quotaValue} emails/jour`
+  if (plan.addonType === 'teacher') return `+${plan.quotaValue} professeurs`
+  if (plan.addonType === 'student') return `+${plan.quotaValue} étudiants`
+  if (plan.addonType === 'attendance') return 'Suivi présences et absences'
+  if (plan.addonType === 'grades') return 'Notes, évaluations et bulletins'
+  return plan.name
+}
+
 function computeProRata(periodEnd: string, monthlyPrice: number): number {
   const now = new Date()
   const end = new Date(periodEnd)
@@ -37,7 +54,7 @@ function computeProRata(periodEnd: string, monthlyPrice: number): number {
 
 export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubscribeModalProps) {
   const { user } = useAuthContext()
-  const { addonPlans, refresh } = useAddonInfo()
+  const { addonPlans, isLoading: plansLoading, refresh } = useAddonInfo()
   const { subscription } = useSubscriptionInfo()
   const { openAddonCheckout } = useStripeCheckout()
   const centerId = user?.establishmentId
@@ -48,6 +65,21 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
   const [quantity, setQuantity] = useState(1)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Reset selected type when modal opens with a different initialType
+  useEffect(() => {
+    if (isOpen && initialType) {
+      setSelectedType(initialType)
+      setSelectedPlan(null)
+    }
+  }, [isOpen, initialType])
+
+  // Refresh plans when modal opens (in case they weren't loaded yet)
+  useEffect(() => {
+    if (isOpen && addonPlans.length === 0) {
+      refresh()
+    }
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredPlans = useMemo(() =>
     addonPlans.filter(p => p.addonType === selectedType),
@@ -102,7 +134,7 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
     <Modal isOpen={isOpen} onClose={onClose} title="Ajouter une option" size="lg">
       <div className="space-y-6">
         {/* Type tabs */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(['email', 'teacher', 'student', 'attendance', 'grades'] as const).map(type => {
             const cfg = TYPE_CONFIG[type]
             const Icon = cfg.icon
@@ -124,57 +156,67 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
         </div>
 
         {/* Plans grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {filteredPlans.map(plan => {
-            const isSelected = selectedPlan?.id === plan.id
-            const price = billingCycle === 'yearly' && plan.priceYearly
-              ? plan.priceYearly : plan.priceMonthly
-            return (
-              <button
-                key={plan.id}
-                onClick={() => setSelectedPlan(plan)}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  isSelected
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                    : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300'
-                }`}
-              >
-                <div className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">{plan.name}</div>
-                <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                  {price}{'\u20AC'}
-                  <span className="text-sm font-normal text-neutral-500">
-                    /{billingCycle === 'yearly' ? 'an' : 'mois'}
-                  </span>
-                </div>
-                <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                  {plan.addonType === 'email'
-                    ? `${plan.quotaValue} emails/jour`
-                    : `+${plan.quotaValue} ${plan.addonType === 'teacher' ? 'profs' : 'etudiants'}`}
-                </div>
-                {isSelected && <Check size={16} className="text-primary-500 mt-2" />}
-              </button>
-            )
-          })}
-        </div>
+        {plansLoading && filteredPlans.length === 0 ? (
+          <div className="flex justify-center py-10">
+            <Loader2 size={24} className="animate-spin text-neutral-400" />
+          </div>
+        ) : filteredPlans.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-sm text-neutral-400">Aucune option disponible pour cette catégorie</p>
+          </div>
+        ) : (
+          <div className={`grid gap-3 ${filteredPlans.length === 1 ? 'grid-cols-1 max-w-xs' : filteredPlans.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3'}`}>
+            {filteredPlans.map(plan => {
+              const isSelected = selectedPlan?.id === plan.id
+              const price = billingCycle === 'yearly' && plan.priceYearly
+                ? plan.priceYearly : plan.priceMonthly
+              return (
+                <button
+                  key={plan.id}
+                  onClick={() => setSelectedPlan(plan)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    isSelected
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                      : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300'
+                  }`}
+                >
+                  <div className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">{plan.name}</div>
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                    {price}{'\u20AC'}
+                    <span className="text-sm font-normal text-neutral-500">
+                      /{billingCycle === 'yearly' ? 'an' : 'mois'}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                    {getPlanDescription(plan)}
+                  </div>
+                  {isSelected && <Check size={16} className="text-primary-500 mt-2" />}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {selectedPlan && (
           <>
-            {/* Quantity + billing */}
+            {/* Quantity + billing (only for quota-based addons) */}
             <div className="flex items-center gap-6">
-              <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400 block mb-1">Quantite</label>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="w-8 h-8 rounded-lg border border-neutral-300 dark:border-neutral-600 flex items-center justify-center text-lg"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >-</button>
-                  <span className="w-8 text-center font-semibold">{quantity}</span>
-                  <button
-                    className="w-8 h-8 rounded-lg border border-neutral-300 dark:border-neutral-600 flex items-center justify-center text-lg"
-                    onClick={() => setQuantity(quantity + 1)}
-                  >+</button>
+              {!isModuleType(selectedPlan.addonType) && (
+                <div>
+                  <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400 block mb-1">Quantité</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="w-8 h-8 rounded-lg border border-neutral-300 dark:border-neutral-600 flex items-center justify-center text-lg"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    >-</button>
+                    <span className="w-8 text-center font-semibold">{quantity}</span>
+                    <button
+                      className="w-8 h-8 rounded-lg border border-neutral-300 dark:border-neutral-600 flex items-center justify-center text-lg"
+                      onClick={() => setQuantity(quantity + 1)}
+                    >+</button>
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400 block mb-1">Facturation</label>
                 <div className="flex items-center gap-2">
@@ -196,22 +238,24 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
             <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-neutral-600 dark:text-neutral-400">
-                  {selectedPlan.name} x{quantity}
+                  {selectedPlan.name}{!isModuleType(selectedPlan.addonType) && ` x${quantity}`}
                 </span>
                 <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                   {totalPrice.toFixed(2)}{'\u20AC'}/{billingCycle === 'yearly' ? 'an' : 'mois'}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-600 dark:text-neutral-400">
-                  Quota total
-                </span>
-                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                  {selectedPlan.addonType === 'email'
-                    ? `${selectedPlan.quotaValue * quantity}/jour`
-                    : `+${selectedPlan.quotaValue * quantity}`}
-                </span>
-              </div>
+              {!isModuleType(selectedPlan.addonType) && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-neutral-600 dark:text-neutral-400">
+                    Quota total
+                  </span>
+                  <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+                    {selectedPlan.addonType === 'email'
+                      ? `${selectedPlan.quotaValue * quantity}/jour`
+                      : `+${selectedPlan.quotaValue * quantity}`}
+                  </span>
+                </div>
+              )}
               {proRataAmount != null && proRataAmount > 0 && (
                 <div className="flex justify-between text-sm pt-2 border-t border-neutral-200 dark:border-neutral-700">
                   <span className="text-neutral-500">Premier mois au prorata</span>

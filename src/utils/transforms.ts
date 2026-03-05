@@ -376,6 +376,7 @@ export function transformAvailabilityRequest(raw: Record<string, any>): Availabi
     subject: raw.subject ? { id: raw.subject.id, name: raw.subject.name } : undefined,
     class_: raw.class_ ? { id: raw.class_.id, name: raw.class_.name } : undefined,
     responses: raw.responses?.map(transformAvailabilityRequestResponse) ?? undefined,
+    reminders: Array.isArray(raw.reminders) ? raw.reminders : [],
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }

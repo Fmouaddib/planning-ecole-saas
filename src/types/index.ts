@@ -716,6 +716,7 @@ export interface AddonPlanInfo {
   id: string
   name: string
   slug: string
+  description?: string
   addonType: AddonType
   quotaValue: number
   priceMonthly: number
@@ -1014,6 +1015,14 @@ export interface UnavailableSlot {
   reason?: string
 }
 
+export interface AvailabilityReminder {
+  sentAt: string
+  sentBy: string
+  teacherIds: string[]
+  teacherNames: string[]
+  withEmail: boolean
+}
+
 export interface AvailabilityRequest {
   id: string
   centerId: string
@@ -1028,6 +1037,7 @@ export interface AvailabilityRequest {
   subject?: { id: string; name: string }
   class_?: { id: string; name: string }
   responses?: AvailabilityRequestResponse[]
+  reminders?: AvailabilityReminder[]
   createdAt: string
   updatedAt: string
 }

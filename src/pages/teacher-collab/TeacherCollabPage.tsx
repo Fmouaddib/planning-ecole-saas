@@ -8,7 +8,7 @@ import {
   UserCog, CalendarClock, CalendarX, UserCheck,
   MessageSquare, Plus, Check, X, Send, Clock,
   AlertCircle, CheckCircle, XCircle, ChevronDown, ChevronUp,
-  UserPlus, Award, AlertTriangle,
+  UserPlus, Award, AlertTriangle, RefreshCw, Mail,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { FeatureGate } from '@/components/addons/FeatureGate'
@@ -89,7 +89,7 @@ const TEACHER_TABS: { key: TeacherTab; label: string; icon: typeof CalendarClock
 // ==================== ADMIN DEMANDS TAB ====================
 
 function AdminDemandsTab() {
-  const { requests, isLoading, create, close } = useAvailabilityRequests()
+  const { requests, isLoading, create, close, remind } = useAvailabilityRequests()
   const { subjects, classes, teacherSubjects } = useAcademicData()
   const { teachers } = useUsers()
   const [showForm, setShowForm] = useState(false)
@@ -99,6 +99,8 @@ function AdminDemandsTab() {
   const [formEnd, setFormEnd] = useState('')
   const [formMessage, setFormMessage] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [remindEmail, setRemindEmail] = useState(true)
+  const [remindingId, setRemindingId] = useState<string | null>(null)
 
   const teacherList = useMemo(() =>
     teachers.filter(t => t.role === 'teacher' || (t.role as string) === 'trainer').map(t => ({
@@ -172,6 +174,33 @@ function AdminDemandsTab() {
             </div>
             <textarea placeholder="Message pour les professeurs (optionnel)" value={formMessage} onChange={e => setFormMessage(e.target.value)}
               className="w-full px-3 py-2 border border-neutral-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-sm resize-none" rows={2} />
+
+            {/* Preview of teachers who will be contacted */}
+            {formSubject && (() => {
+              const ids = teacherSubjects.filter(ts => ts.subject_id === formSubject).map(ts => ts.teacher_id)
+              const targeted = teacherList.filter(t => ids.includes(t.id))
+              return targeted.length > 0 ? (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                    {targeted.length} professeur{targeted.length > 1 ? 's' : ''} sera{targeted.length > 1 ? 'ont' : ''} contacte{targeted.length > 1 ? 's' : ''} :
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {targeted.map(t => (
+                      <span key={t.id} className="inline-flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-800/40 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
+                        <UserCheck size={10} />
+                        {t.firstName} {t.lastName}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  <AlertTriangle size={12} className="inline mr-1" />
+                  Aucun professeur rattache a cette matiere
+                </p>
+              )
+            })()}
+
             <div className="flex gap-2">
               <Button onClick={handleCreate} size="sm">Envoyer</Button>
               <Button onClick={() => setShowForm(false)} variant="secondary" size="sm">Annuler</Button>
@@ -192,10 +221,13 @@ function AdminDemandsTab() {
           {requests.map(r => {
             const isExpanded = expandedId === r.id
             const responseCount = r.responses?.length || 0
-            // Count how many teachers are concerned (from teacherSubjects for this subject)
-            const targetTeacherCount = r.subjectId
-              ? teacherSubjects.filter(ts => ts.subject_id === r.subjectId).length
-              : 0
+            // Get the targeted teachers (those who teach this subject)
+            const targetTeacherIds = r.subjectId
+              ? teacherSubjects.filter(ts => ts.subject_id === r.subjectId).map(ts => ts.teacher_id)
+              : []
+            const targetTeachers = teacherList.filter(t => targetTeacherIds.includes(t.id))
+            const respondedIds = new Set((r.responses || []).map(resp => resp.teacherId))
+            const pendingTeachers = targetTeachers.filter(t => !respondedIds.has(t.id))
 
             return (
               <Card key={r.id}>
@@ -214,9 +246,16 @@ function AdminDemandsTab() {
                         {format(new Date(r.periodStart + 'T00:00:00'), 'd MMM', { locale: fr })} — {format(new Date(r.periodEnd + 'T00:00:00'), 'd MMM yyyy', { locale: fr })}
                       </p>
                       {r.message && <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1 italic">"{r.message}"</p>}
-                      <p className="text-xs text-neutral-400 mt-1">
-                        Reponses : {responseCount}/{targetTeacherCount}
-                      </p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <p className="text-xs text-neutral-400">
+                          Reponses : {responseCount}/{targetTeachers.length}
+                        </p>
+                        {targetTeachers.length > 0 && (
+                          <p className="text-xs text-neutral-400">
+                            Contactes : {targetTeachers.map(t => `${t.firstName} ${t.lastName}`).join(', ')}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {r.status === 'open' && (
@@ -228,9 +267,10 @@ function AdminDemandsTab() {
                     </div>
                   </div>
 
-                  {isExpanded && r.responses && r.responses.length > 0 && (
+                  {isExpanded && (
                     <div className="mt-3 pt-3 border-t border-neutral-100 dark:border-neutral-800 space-y-2">
-                      {r.responses.map(resp => (
+                      {/* Teachers who responded */}
+                      {(r.responses || []).map(resp => (
                         <div key={resp.id} className="flex items-start gap-3 p-2 rounded-lg bg-neutral-50 dark:bg-neutral-800/50">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                             resp.responseType === 'fully_available' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'
@@ -261,13 +301,98 @@ function AdminDemandsTab() {
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
 
-                  {isExpanded && (!r.responses || r.responses.length === 0) && (
-                    <p className="mt-3 pt-3 border-t border-neutral-100 dark:border-neutral-800 text-sm text-neutral-400 text-center">
-                      Aucune reponse pour l'instant
-                    </p>
+                      {/* Teachers who haven't responded yet */}
+                      {pendingTeachers.length > 0 && (
+                        <>
+                          <div className="flex items-center justify-between pt-1">
+                            <p className="text-xs font-medium text-neutral-400">
+                              En attente de reponse ({pendingTeachers.length})
+                            </p>
+                            {r.status === 'open' && (
+                              <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={remindEmail}
+                                    onChange={e => setRemindEmail(e.target.checked)}
+                                    className="w-3.5 h-3.5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                                  />
+                                  <Mail size={12} className="text-neutral-400" />
+                                  <span className="text-[11px] text-neutral-500">Envoyer aussi par email</span>
+                                </label>
+                                <button
+                                  onClick={async () => {
+                                    setRemindingId(r.id)
+                                    await remind({
+                                      request: r,
+                                      teacherIds: pendingTeachers.map(t => t.id),
+                                      teachers: teacherList,
+                                      sendEmail: remindEmail,
+                                    })
+                                    setRemindingId(null)
+                                  }}
+                                  disabled={remindingId === r.id}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-50"
+                                >
+                                  <RefreshCw size={12} className={remindingId === r.id ? 'animate-spin' : ''} />
+                                  Relancer {pendingTeachers.length > 1 ? 'tous' : ''}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          {pendingTeachers.map(t => (
+                            <div key={t.id} className="flex items-center gap-3 p-2 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 opacity-60">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-neutral-200 dark:bg-neutral-700 text-neutral-400">
+                                <Clock size={16} />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                  {t.firstName} {t.lastName}
+                                </p>
+                                <p className="text-xs text-neutral-400">Pas encore repondu</p>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {targetTeachers.length === 0 && (
+                        <p className="text-sm text-neutral-400 text-center">
+                          Aucun professeur rattache a cette matiere
+                        </p>
+                      )}
+
+                      {/* Reminder history */}
+                      {r.reminders && r.reminders.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                          <p className="text-xs font-medium text-neutral-400 mb-1.5">
+                            Historique des relances ({r.reminders.length})
+                          </p>
+                          <div className="space-y-1.5">
+                            {r.reminders.map((rem, idx) => (
+                              <div key={idx} className="flex items-start gap-2 text-xs bg-amber-50/50 dark:bg-amber-900/10 rounded-lg px-2.5 py-1.5">
+                                <RefreshCw size={11} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-neutral-600 dark:text-neutral-400">
+                                    {format(new Date(rem.sentAt), "d MMM yyyy 'a' HH:mm", { locale: fr })}
+                                  </span>
+                                  <span className="text-neutral-400 mx-1">—</span>
+                                  <span className="text-neutral-700 dark:text-neutral-300">
+                                    {rem.teacherNames.join(', ')}
+                                  </span>
+                                  {rem.withEmail && (
+                                    <span className="inline-flex items-center gap-0.5 ml-1.5 text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full">
+                                      <Mail size={9} /> email
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
