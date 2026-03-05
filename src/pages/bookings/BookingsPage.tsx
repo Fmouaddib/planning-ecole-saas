@@ -414,7 +414,11 @@ function BookingsPage() {
 
       <HelpBanner storageKey={isTeacher ? 'teacher-bookings' : 'admin-bookings'}>
         {isTeacher
-          ? "Retrouvez ici la liste de vos séances. Filtrez par statut, type ou date pour trouver rapidement une séance. Cliquez sur une séance pour en voir les détails."
+          ? (<>Retrouvez ici la liste de vos séances. Filtrez par statut, type ou date pour trouver rapidement une séance. Cliquez sur une séance pour en voir les détails.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mon planning →</button>
+                <button onClick={() => navigateTo('/teacher-collab')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Collaboration →</button>
+              </span></>)
           : (<>Vue liste de toutes les séances de votre centre. Filtrez par statut, type ou date. Utilisez « Saisie en lot » pour créer plusieurs séances d'un coup.
               <span className="flex gap-2 mt-2">
                 <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Vue calendrier →</button>

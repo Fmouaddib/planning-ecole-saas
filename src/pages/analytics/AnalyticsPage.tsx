@@ -9,6 +9,7 @@ import { isDemoMode } from '@/lib/supabase'
 import { LoadingSpinner, BarChart, DonutChart, HeatmapGrid, HelpBanner } from '@/components/ui'
 import { CalendarCheck, Gauge, GraduationCap, Users, Award, School, BookOpen, Monitor, Download, ChevronDown } from 'lucide-react'
 import { getScheduleTypeLabel } from '@/utils/scheduleUtils'
+import { navigateTo } from '@/utils/navigation'
 import type { AnalyticsExportData } from '@/utils/export-analytics'
 
 // ==================== LABELS & COULEURS ====================
@@ -750,6 +751,10 @@ function AnalyticsPage() {
 
       <HelpBanner storageKey="admin-analytics">
         Visualisez l'activité de votre centre : taux d'occupation des salles, répartition des séances par modalité, fréquentation par jour et créneau horaire. Exportez les rapports en PDF ou Excel.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Planning →</button>
+          <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Paramètres →</button>
+        </span>
       </HelpBanner>
 
       {/* ==================== KPIs — Ligne 1 ==================== */}

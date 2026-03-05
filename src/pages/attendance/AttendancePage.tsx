@@ -804,7 +804,11 @@ export default function AttendancePage() {
 
         <HelpBanner storageKey={role === 'teacher' ? 'teacher-attendance' : role === 'student' ? 'student-attendance' : 'admin-attendance'}>
           {role === 'teacher'
-            ? "Saisissez les présences de vos étudiants séance par séance. Sélectionnez une séance dans la liste, puis marquez chaque étudiant comme présent, absent, en retard ou excusé."
+            ? (<>Saisissez les présences de vos étudiants séance par séance. Sélectionnez une séance dans la liste, puis marquez chaque étudiant comme présent, absent, en retard ou excusé.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mon planning →</button>
+                <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Notes →</button>
+              </span></>)
             : role === 'student'
               ? (<>Consultez votre historique de présences et votre taux d'assiduité. Les absences non excusées apparaissent en rouge.
                   <span className="flex gap-2 mt-2">

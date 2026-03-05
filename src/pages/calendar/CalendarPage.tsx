@@ -564,7 +564,11 @@ function CalendarPage() {
 
       <HelpBanner storageKey={isStudent ? 'student-calendar' : isTeacher ? 'teacher-calendar' : 'admin-calendar'}>
         {isStudent
-          ? "Consultez votre emploi du temps. Cliquez sur une séance pour voir les détails : salle, horaire et lien visio le cas échéant."
+          ? (<>Consultez votre emploi du temps. Cliquez sur une séance pour voir les détails : salle, horaire et lien visio le cas échéant.
+            <span className="flex gap-2 mt-2">
+              <button onClick={() => navigateTo('/my-class')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Ma classe →</button>
+              <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mes notes →</button>
+            </span></>)
           : isTeacher
             ? (<>Consultez votre planning de séances. Cliquez sur une séance pour voir les détails. Pour demander un changement, passez par l'espace Collaboration.
                 <span className="flex gap-2 mt-2">

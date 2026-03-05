@@ -8,7 +8,7 @@ import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole, ContactRelationship } from '@/types'
 import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle } from 'lucide-react'
-import { navigateToDM } from '@/utils/navigation'
+import { navigateTo, navigateToDM } from '@/utils/navigation'
 import { ImportModal } from '@/components/import/ImportModal'
 
 const roleLabels: Record<string, string> = {
@@ -259,6 +259,10 @@ function UsersPage() {
 
       <HelpBanner storageKey="admin-users">
         Administrez les comptes de votre centre : créez des profils étudiants, formateurs ou staff. Utilisez l'import CSV/Excel pour ajouter plusieurs utilisateurs d'un coup. Cliquez sur un utilisateur pour gérer ses matières ou contacts.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/academic')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Référentiel →</button>
+          <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Planning →</button>
+        </span>
       </HelpBanner>
 
       {/* Filters */}

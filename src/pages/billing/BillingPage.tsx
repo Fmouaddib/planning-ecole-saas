@@ -12,6 +12,7 @@ import { isDemoMode } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Button, Badge, HelpBanner } from '@/components/ui'
+import { navigateTo } from '@/utils/navigation'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -68,6 +69,10 @@ function BillingPage() {
 
       <HelpBanner storageKey="admin-billing">
         Consultez votre plan actuel, gérez vos options (add-ons email, professeurs, étudiants) et suivez l'historique de facturation. Cliquez sur « Gérer dans Stripe » pour modifier votre abonnement.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Paramètres →</button>
+          <button onClick={() => navigateTo('/profile')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mon profil →</button>
+        </span>
       </HelpBanner>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

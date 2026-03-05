@@ -8,6 +8,8 @@ import { useChat } from '@/hooks/useChat'
 import { useChatMessages } from '@/hooks/useChatMessages'
 import { useChatMembers } from '@/hooks/useChatMembers'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { isTeacherRole, isStudentRole } from '@/utils/helpers'
+import { navigateTo } from '@/utils/navigation'
 import { HelpBanner } from '@/components/ui'
 import { ChannelList } from './ChannelList'
 import { MessageView } from './MessageView'
@@ -18,6 +20,8 @@ type MobileView = 'channels' | 'messages' | 'info'
 
 function ChatPage() {
   const { user } = useAuthContext()
+  const isTeacher = isTeacherRole(user?.role)
+  const isStudent = isStudentRole(user?.role)
   const chat = useChat()
   const messages = useChatMessages(chat.activeChannelId)
   const members = useChatMembers(chat.activeChannelId)
@@ -51,8 +55,24 @@ function ChatPage() {
 
   return (
     <div className="h-[calc(100vh-5rem)] flex flex-col">
-      <HelpBanner storageKey="chat">
-        Échangez avec vos collègues et étudiants en temps réel. Les canaux de classe et de matière sont créés automatiquement. Cliquez sur « Nouveau message » pour démarrer une conversation privée.
+      <HelpBanner storageKey={isStudent ? 'student-chat' : isTeacher ? 'teacher-chat' : 'admin-chat'}>
+        {isStudent
+          ? <>Échangez avec vos professeurs et camarades de classe en temps réel. Les canaux de votre classe et de vos matières sont disponibles. Cliquez sur « Nouveau message » pour démarrer une conversation privée.
+            <span className="flex gap-2 mt-2">
+              <button onClick={() => navigateTo('/my-class')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Ma classe →</button>
+              <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mes notes →</button>
+            </span></>
+          : isTeacher
+            ? <>Échangez avec vos collègues et l'administration en temps réel. Les canaux de vos matières et classes sont disponibles. Cliquez sur « Nouveau message » pour démarrer une conversation privée.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/teacher-collab')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Collaboration →</button>
+                <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mon planning →</button>
+              </span></>
+            : <>Échangez avec vos professeurs, étudiants et staff en temps réel. Les canaux de classe et de matière sont créés automatiquement. Cliquez sur « Nouveau message » pour démarrer une conversation privée.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/users')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Utilisateurs →</button>
+                <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Planning →</button>
+              </span></>}
       </HelpBanner>
 
       <div className="flex-1 flex border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 min-h-0">

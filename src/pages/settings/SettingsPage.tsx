@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Button, Select, HelpBanner } from '@/components/ui'
 import { Settings, Bell, Monitor, Save, LogOut, User, HelpCircle, GraduationCap, Mail, BookOpen } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { navigateTo } from '@/utils/navigation'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
 import OdooSettingsSection from './OdooSettingsSection'
 import VisioSettingsSection from './VisioSettingsSection'
@@ -117,6 +118,10 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
 
       <HelpBanner storageKey="admin-settings">
         Configurez les préférences de votre centre : politique email, intégration visio (Zoom/Teams/Meet), espace étudiant, mode e-learning et connexion Odoo. Les modifications sont appliquées immédiatement.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Planning →</button>
+          <button onClick={() => navigateTo('/emails')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Emails →</button>
+        </span>
       </HelpBanner>
 
       {/* General */}

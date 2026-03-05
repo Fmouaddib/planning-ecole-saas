@@ -15,6 +15,8 @@ import {
 import { useNotifications } from '@/hooks/useNotifications'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { isTeacherRole, isStudentRole } from '@/utils/helpers'
+import { navigateTo } from '@/utils/navigation'
 import { Button, Badge, LoadingSpinner, HelpBanner } from '@/components/ui'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -542,7 +544,9 @@ const DEMO_NOTIFICATIONS: InAppNotification[] = [
 // ==================== MAIN PAGE ====================
 
 export default function NotificationsPage() {
-  useAuthContext() // ensure auth context is available
+  const { user } = useAuthContext()
+  const isTeacher = isTeacherRole(user?.role)
+  const isStudent = isStudentRole(user?.role)
   const {
     notifications: liveNotifications,
     unreadCount: liveUnreadCount,
@@ -643,8 +647,24 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <HelpBanner storageKey="notifications">
-        Retrouvez toutes vos notifications : séances créées ou modifiées, rappels, résultats publiés. Filtrez par catégorie et marquez-les comme lues. Activez les notifications push pour ne rien manquer.
+      <HelpBanner storageKey={isStudent ? 'student-notifications' : isTeacher ? 'teacher-notifications' : 'admin-notifications'}>
+        {isStudent
+          ? <>Retrouvez vos notifications : séances à venir, notes publiées, rappels et messages. Filtrez par catégorie et marquez-les comme lues. Activez les notifications push pour ne rien manquer.
+            <span className="flex gap-2 mt-2">
+              <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mes notes →</button>
+              <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+            </span></>
+          : isTeacher
+            ? <>Retrouvez vos notifications : affectations, demandes de disponibilité, rappels de séances et messages. Filtrez par catégorie et marquez-les comme lues.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/teacher-collab')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Collaboration →</button>
+                <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+              </span></>
+            : <>Retrouvez toutes les notifications de votre centre : séances, demandes de collaboration, rappels et activité. Filtrez par catégorie et marquez-les comme lues.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Planning →</button>
+                <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+              </span></>}
       </HelpBanner>
 
       {/* Preferences panel */}
