@@ -73,7 +73,8 @@ export function useChatMessages(channelId: string | null) {
         query = query.lt('created_at', before)
       }
 
-      const { data } = await query
+      const { data, error: fetchErr } = await query
+      if (fetchErr) { console.error('fetchMessages error:', fetchErr); return }
       if (!data || channelRef.current !== channelId) return
 
       const transformed = data.map(transformChatMessage).reverse()
@@ -106,25 +107,49 @@ export function useChatMessages(channelId: string | null) {
   const sendMessage = useCallback(async (content: string, attachmentFiles?: File[]) => {
     if (!channelId || !user || isDemoMode) return
     try {
-      const { data: msg } = await supabase
+      // Generate message ID client-side so we can use it even if SELECT policy has issues
+      const messageId = crypto.randomUUID()
+      const { error: insertErr } = await supabase
         .from('chat_messages')
-        .insert({ channel_id: channelId, sender_id: user.id, content })
-        .select()
-        .single()
+        .insert({ id: messageId, channel_id: channelId, sender_id: user.id, content })
 
-      if (!msg) return
+      if (insertErr) {
+        console.error('sendMessage: insert error:', insertErr)
+        return
+      }
+
+      // Optimistic local update (realtime will also add it, dedup by ID)
+      const optimisticMsg = transformChatMessage({
+        id: messageId,
+        channel_id: channelId,
+        sender_id: user.id,
+        content,
+        is_system: false,
+        is_edited: false,
+        parent_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted_at: null,
+        sender: { id: user.id, full_name: user.firstName + ' ' + user.lastName, avatar_url: null },
+        chat_attachments: [],
+        chat_reactions: [],
+      })
+      setMessages(prev => {
+        if (prev.find(m => m.id === messageId)) return prev
+        return [...prev, optimisticMsg]
+      })
 
       // Upload attachments
       if (attachmentFiles?.length) {
         for (const file of attachmentFiles) {
           if (file.size > CHAT_MAX_FILE_SIZE) continue
-          const path = `${user.establishmentId}/${channelId}/${msg.id}/${file.name}`
+          const path = `${user.establishmentId}/${channelId}/${messageId}/${file.name}`
           const { error: uploadError } = await supabase.storage
             .from('chat-attachments')
             .upload(path, file)
           if (!uploadError) {
             await supabase.from('chat_attachments').insert({
-              message_id: msg.id,
+              message_id: messageId,
               file_name: file.name,
               file_size: file.size,
               mime_type: file.type,
@@ -138,7 +163,6 @@ export function useChatMessages(channelId: string | null) {
       const mentionRegex = /@([A-Za-zÀ-ÿ]+ [A-Za-zÀ-ÿ]+)/g
       const mentionMatches = [...content.matchAll(mentionRegex)]
       if (mentionMatches.length) {
-        // Lookup users by name in channel members
         const { data: members } = await supabase
           .from('chat_members')
           .select('user_id, profiles:user_id(id, full_name)')
@@ -153,7 +177,7 @@ export function useChatMessages(channelId: string | null) {
               return fullName === mentionName
             })
             if (found) {
-              mentionInserts.push({ message_id: msg.id, user_id: found.user_id })
+              mentionInserts.push({ message_id: messageId, user_id: found.user_id })
             }
           }
           if (mentionInserts.length) {
@@ -162,7 +186,7 @@ export function useChatMessages(channelId: string | null) {
         }
       }
 
-      // Bump channel updated_at
+      // Bump channel updated_at (may fail for non-admin roles, that's OK)
       await supabase
         .from('chat_channels')
         .update({ updated_at: new Date().toISOString() })
@@ -180,11 +204,13 @@ export function useChatMessages(channelId: string | null) {
       .update({ content: newContent, is_edited: true, updated_at: new Date().toISOString() })
       .eq('id', messageId)
       .eq('sender_id', user.id)
-    if (!error) {
-      setMessages(prev => prev.map(m =>
-        m.id === messageId ? { ...m, content: newContent, isEdited: true } : m
-      ))
+    if (error) {
+      console.error('editMessage error:', error)
+      return
     }
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, content: newContent, isEdited: true } : m
+    ))
   }, [user])
 
   // Delete message (soft)
@@ -194,9 +220,11 @@ export function useChatMessages(channelId: string | null) {
       .from('chat_messages')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', messageId)
-    if (!error) {
-      setMessages(prev => prev.filter(m => m.id !== messageId))
+    if (error) {
+      console.error('deleteMessage error:', error)
+      return
     }
+    setMessages(prev => prev.filter(m => m.id !== messageId))
   }, [user])
 
   // Toggle reaction

@@ -113,21 +113,24 @@ export function useChat() {
     if (isDemoMode || !user) return null
     try {
       // Check if DM already exists between these 2 users
-      const { data: myMemberships } = await supabase
+      const { data: myMemberships, error: myErr } = await supabase
         .from('chat_members')
         .select('channel_id')
         .eq('user_id', user.id)
 
+      if (myErr) console.error('createDM: fetch my memberships error:', myErr)
+
       if (myMemberships?.length) {
         const myChannelIds = myMemberships.map(m => m.channel_id)
-        const { data: otherMemberships } = await supabase
+        const { data: otherMemberships, error: otherErr } = await supabase
           .from('chat_members')
           .select('channel_id')
           .eq('user_id', otherUserId)
           .in('channel_id', myChannelIds)
 
+        if (otherErr) console.error('createDM: fetch other memberships error:', otherErr)
+
         if (otherMemberships?.length) {
-          // Check if any of these shared channels is a DM
           const sharedIds = otherMemberships.map(m => m.channel_id)
           const { data: existingDM } = await supabase
             .from('chat_channels')
@@ -144,23 +147,35 @@ export function useChat() {
         }
       }
 
-      // Create new DM
-      const { data: newChannel } = await supabase
+      // Generate UUID client-side to avoid SELECT-after-INSERT RLS timing issue
+      // (SELECT policy requires chat_member, but members aren't added yet)
+      const channelId = crypto.randomUUID()
+
+      const { error: insertErr } = await supabase
         .from('chat_channels')
-        .insert({ center_id: user.establishmentId, type: 'dm' })
-        .select()
-        .single()
+        .insert({ id: channelId, center_id: user.establishmentId, type: 'dm' })
 
-      if (!newChannel) return null
+      if (insertErr) {
+        console.error('createDM: insert channel error:', insertErr)
+        return null
+      }
 
-      await supabase.from('chat_members').insert([
-        { channel_id: newChannel.id, user_id: user.id },
-        { channel_id: newChannel.id, user_id: otherUserId },
+      // Add both users as members
+      const { error: membersErr } = await supabase.from('chat_members').insert([
+        { channel_id: channelId, user_id: user.id },
+        { channel_id: channelId, user_id: otherUserId },
       ])
 
-      setActiveChannelId(newChannel.id)
+      if (membersErr) {
+        console.error('createDM: insert members error:', membersErr)
+        // Cleanup orphaned channel
+        await supabase.from('chat_channels').delete().eq('id', channelId)
+        return null
+      }
+
+      setActiveChannelId(channelId)
       await fetchChannels()
-      return newChannel.id
+      return channelId
     } catch (err) {
       console.error('Create DM error:', err)
       return null
