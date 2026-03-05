@@ -4,7 +4,7 @@ import {
   FileBarChart, Building2, GraduationCap, Smartphone,
   UserPlus, Settings, CalendarCheck, ChevronDown,
   Star, Quote, ClipboardCheck, BarChart3, UserCog, Upload,
-  Shield, Lock, Globe, Zap, TrendingUp,
+  Shield, Lock, Globe, Zap, TrendingUp, MessageCircle,
 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
@@ -29,6 +29,7 @@ export default function LandingPage() {
     { icon: BarChart3, color: 'orange', titleKey: 'features.grades.title', descKey: 'features.grades.desc' },
     { icon: UserCog, color: 'pink', titleKey: 'features.teacherCollab.title', descKey: 'features.teacherCollab.desc' },
     { icon: Upload, color: 'lime', titleKey: 'features.import.title', descKey: 'features.import.desc' },
+    { icon: MessageCircle, color: 'sky', titleKey: 'features.chat.title', descKey: 'features.chat.desc' },
   ]
 
   const plans = [
@@ -81,6 +82,7 @@ export default function LandingPage() {
     { qKey: 'faq.8.q', aKey: 'faq.8.a' },
     { qKey: 'faq.9.q', aKey: 'faq.9.a' },
     { qKey: 'faq.10.q', aKey: 'faq.10.a' },
+    { qKey: 'faq.11.q', aKey: 'faq.11.a' },
   ]
 
   const mockupSlots = [
@@ -94,6 +96,7 @@ export default function LandingPage() {
     { beforeKey: 'landing.pain.1.before', afterKey: 'landing.pain.1.after' },
     { beforeKey: 'landing.pain.2.before', afterKey: 'landing.pain.2.after' },
     { beforeKey: 'landing.pain.3.before', afterKey: 'landing.pain.3.after' },
+    { beforeKey: 'landing.pain.4.before', afterKey: 'landing.pain.4.after' },
   ]
 
   const testimonials = [
@@ -103,6 +106,7 @@ export default function LandingPage() {
     { quoteKey: 'testimonial.4.quote', nameKey: 'testimonial.4.name', roleKey: 'testimonial.4.role', color: '#f97316', initials: 'LC' },
     { quoteKey: 'testimonial.5.quote', nameKey: 'testimonial.5.name', roleKey: 'testimonial.5.role', color: '#ec4899', initials: 'PD' },
     { quoteKey: 'testimonial.6.quote', nameKey: 'testimonial.6.name', roleKey: 'testimonial.6.role', color: '#06b6d4', initials: 'AR' },
+    { quoteKey: 'testimonial.7.quote', nameKey: 'testimonial.7.name', roleKey: 'testimonial.7.role', color: '#0ea5e9', initials: 'NB' },
   ]
 
   return (
@@ -477,6 +481,51 @@ export default function LandingPage() {
                     <CalendarCheck size={14} style={{ color: '#FBA625' }} />
                   </div>
                   <div className="label" style={{ background: 'rgba(251,166,37,0.2)', width: '45%' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Block 7: Real-time Chat */}
+          <div className="landing-showcase-block" ref={reveal}>
+            <div className="landing-showcase-text">
+              <span className="landing-showcase-label">{t('showcase.chat.label')}</span>
+              <h3>{t('showcase.chat.title')}</h3>
+              <p>{t('showcase.chat.desc')}</p>
+              <ul className="landing-showcase-bullets">
+                {['showcase.chat.b1', 'showcase.chat.b2', 'showcase.chat.b3', 'showcase.chat.b4'].map(k => (
+                  <li key={k}><Check size={18} /> {t(k)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="landing-showcase-visual">
+              <div className="landing-showcase-mockup-academic">
+                {/* Chat mockup: channel list + message bubbles */}
+                <div className="landing-showcase-academic-item">
+                  <div className="icon-box" style={{ background: 'rgba(14,165,233,0.2)' }}>
+                    <MessageCircle size={14} style={{ color: '#0ea5e9' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(14,165,233,0.2)', width: '55%' }} />
+                  <span style={{ fontSize: '0.6rem', background: '#0ea5e9', color: '#fff', borderRadius: '9999px', padding: '1px 6px', marginLeft: 'auto' }}>3</span>
+                </div>
+                <div className="landing-showcase-academic-item indent">
+                  <div className="icon-box" style={{ background: 'rgba(59,130,246,0.2)' }}>
+                    <Mail size={14} style={{ color: '#3b82f6' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(59,130,246,0.2)', width: '70%' }} />
+                </div>
+                <div className="landing-showcase-academic-item indent">
+                  <div className="icon-box" style={{ background: 'rgba(34,197,94,0.2)' }}>
+                    <Check size={14} style={{ color: '#22c55e' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(34,197,94,0.2)', width: '45%' }} />
+                </div>
+                <div className="landing-showcase-academic-item">
+                  <div className="icon-box" style={{ background: 'rgba(139,92,246,0.2)' }}>
+                    <GraduationCap size={14} style={{ color: '#8b5cf6' }} />
+                  </div>
+                  <div className="label" style={{ background: 'rgba(139,92,246,0.2)', width: '60%' }} />
+                  <span style={{ fontSize: '0.6rem', background: '#8b5cf6', color: '#fff', borderRadius: '9999px', padding: '1px 6px', marginLeft: 'auto' }}>5</span>
                 </div>
               </div>
             </div>

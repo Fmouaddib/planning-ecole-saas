@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import {
   Calendar, ShieldCheck, Video, Mail, Check,
   FileBarChart, Building2, GraduationCap, Smartphone,
-  ClipboardCheck, BarChart3, UserCog, Upload, Bell,
+  ClipboardCheck, BarChart3, UserCog, Upload, Bell, MessageCircle,
 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
@@ -152,6 +152,17 @@ const featureBlocks = [
     navLabel: 'PWA',
     navLabelEn: 'PWA',
   },
+  {
+    id: 'chat',
+    icon: MessageCircle,
+    color: 'sky',
+    titleKey: 'featuresPage.chat.title',
+    descKey: 'featuresPage.chat.desc',
+    bullets: ['featuresPage.chat.b1', 'featuresPage.chat.b2', 'featuresPage.chat.b3', 'featuresPage.chat.b4', 'featuresPage.chat.b5'],
+    mockup: 'chat',
+    navLabel: 'Chat',
+    navLabelEn: 'Chat',
+  },
 ]
 
 function FeatureMockup({ type }: { type: string }) {
@@ -281,6 +292,34 @@ function FeatureMockup({ type }: { type: string }) {
               <div className="phone-row filled-teal" />
               <div className="phone-row filled-amber" />
             </div>
+          </div>
+        </div>
+      )
+    case 'chat':
+      return (
+        <div className="landing-detail-mockup-tree">
+          {/* 3-column chat mockup: channels | messages | info */}
+          <div className="tree-item">
+            <div className="tree-dot" style={{ background: '#0ea5e9' }} />
+            <div className="tree-line" style={{ width: '50%', background: 'rgba(14,165,233,0.3)' }} />
+            <span style={{ fontSize: '0.6rem', background: '#0ea5e9', color: '#fff', borderRadius: '9999px', padding: '1px 5px', marginLeft: 'auto' }}>3</span>
+          </div>
+          <div className="tree-item indent">
+            <div className="tree-dot" style={{ background: '#3b82f6' }} />
+            <div className="tree-line" style={{ width: '70%', background: 'rgba(59,130,246,0.3)' }} />
+          </div>
+          <div className="tree-item indent">
+            <div className="tree-dot" style={{ background: '#22c55e' }} />
+            <div className="tree-line" style={{ width: '45%', background: 'rgba(34,197,94,0.3)' }} />
+          </div>
+          <div className="tree-item">
+            <div className="tree-dot" style={{ background: '#8b5cf6' }} />
+            <div className="tree-line" style={{ width: '60%', background: 'rgba(139,92,246,0.3)' }} />
+            <span style={{ fontSize: '0.6rem', background: '#8b5cf6', color: '#fff', borderRadius: '9999px', padding: '1px 5px', marginLeft: 'auto' }}>5</span>
+          </div>
+          <div className="tree-item indent">
+            <div className="tree-dot" style={{ background: '#f97316' }} />
+            <div className="tree-line" style={{ width: '55%', background: 'rgba(249,115,22,0.3)' }} />
           </div>
         </div>
       )

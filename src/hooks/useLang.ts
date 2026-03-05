@@ -40,7 +40,7 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'Notre algorithme détecte automatiquement les chevauchements de salles, d\'enseignants et de créneaux.',
     en: 'Our algorithm automatically detects room, teacher and time slot overlaps.',
   },
-  'features.zoom.title': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom Integration' },
+  'features.zoom.title': { fr: 'Visio Zoom, Teams & Meet', en: 'Zoom, Teams & Meet Video' },
   'features.zoom.desc': {
     fr: 'Créez automatiquement des liens Teams ou Zoom pour vos cours en ligne et réunions hybrides.',
     en: 'Automatically create Teams or Zoom links for your online classes and hybrid meetings.',
@@ -307,12 +307,12 @@ const translations: Record<string, Record<Lang, string>> = {
   'featuresPage.conflict.b3': { fr: 'Vérification salles, enseignants et classes', en: 'Room, teacher and class verification' },
   'featuresPage.conflict.b4': { fr: 'Suggestions de créneaux alternatifs disponibles', en: 'Available alternative slot suggestions' },
 
-  'featuresPage.zoom.title': { fr: 'Intégration Teams & Zoom', en: 'Teams & Zoom Integration' },
+  'featuresPage.zoom.title': { fr: 'Visio unifiée Zoom, Teams & Meet', en: 'Unified Video: Zoom, Teams & Meet' },
   'featuresPage.zoom.desc': {
     fr: 'Ajoutez vos liens Microsoft Teams ou Zoom directement dans vos séances. Le lien est accessible par les étudiants depuis leur planning personnel.',
     en: 'Add your Microsoft Teams or Zoom links directly to your sessions. The link is accessible by students from their personal schedule.',
   },
-  'featuresPage.zoom.b1': { fr: 'Compatible Microsoft Teams et Zoom', en: 'Compatible with Microsoft Teams and Zoom' },
+  'featuresPage.zoom.b1': { fr: 'Compatible Zoom, Microsoft Teams et Google Meet', en: 'Compatible with Zoom, Microsoft Teams and Google Meet' },
   'featuresPage.zoom.b2': { fr: 'Support des sessions hybrides (présentiel + en ligne)', en: 'Hybrid session support (in-person + online)' },
   'featuresPage.zoom.b3': { fr: 'Lien cliquable depuis le détail de la séance', en: 'Clickable link from session details' },
   'featuresPage.zoom.b4': { fr: 'Mode présentiel, en ligne ou hybride par séance', en: 'In-person, online or hybrid mode per session' },
@@ -695,6 +695,11 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'Importez vos données existantes en masse : étudiants, enseignants, classes et matières.',
     en: 'Bulk import your existing data: students, teachers, classes and subjects.',
   },
+  'features.chat.title': { fr: 'Messagerie temps réel', en: 'Real-time Messaging' },
+  'features.chat.desc': {
+    fr: 'Échangez instantanément entre admin, profs et étudiants via des canaux de classe, de matière et des messages directs.',
+    en: 'Communicate instantly between admin, teachers and students via class channels, subject channels and direct messages.',
+  },
 
   // ===================== FEATURES PAGE - NEW BLOCKS =====================
   'featuresPage.attendance.title': { fr: 'Suivi des présences et absences', en: 'Attendance and absence tracking' },
@@ -750,6 +755,17 @@ const translations: Record<string, Record<Lang, string>> = {
   'featuresPage.pwa.b3': { fr: 'Fonctionne hors-ligne (mode dégradé)', en: 'Works offline (degraded mode)' },
   'featuresPage.pwa.b4': { fr: 'Aucune installation depuis un store requise', en: 'No app store installation required' },
 
+  'featuresPage.chat.title': { fr: 'Messagerie intégrée temps réel', en: 'Built-in Real-time Messaging' },
+  'featuresPage.chat.desc': {
+    fr: 'Fini les groupes WhatsApp, les emails perdus et les informations qui n\'arrivent jamais. AntiPlanning intègre une messagerie complète avec canaux par classe et par matière, messages directs, partage de fichiers et indicateurs de présence — le tout sans quitter votre planning.',
+    en: 'No more WhatsApp groups, lost emails and information that never arrives. AntiPlanning integrates complete messaging with class and subject channels, direct messages, file sharing and presence indicators — all without leaving your schedule.',
+  },
+  'featuresPage.chat.b1': { fr: 'Canaux par classe et par matière, créés automatiquement', en: 'Class and subject channels, auto-created' },
+  'featuresPage.chat.b2': { fr: 'Messages directs entre tous les membres du centre', en: 'Direct messages between all center members' },
+  'featuresPage.chat.b3': { fr: 'Partage de fichiers, @mentions et réactions emoji', en: 'File sharing, @mentions and emoji reactions' },
+  'featuresPage.chat.b4': { fr: 'Indicateurs de présence en ligne et de frappe', en: 'Online presence and typing indicators' },
+  'featuresPage.chat.b5': { fr: 'Badges non-lus et notifications temps réel', en: 'Unread badges and real-time notifications' },
+
   // ===================== PRICING PAGE - NEW SECTION HEADERS & ROWS =====================
   'pricingPage.section.planning': { fr: 'Planning', en: 'Scheduling' },
   'pricingPage.section.pedagogy': { fr: 'Pédagogie', en: 'Pedagogy' },
@@ -767,6 +783,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'pricingPage.row.assignments': { fr: 'Affectations de séances', en: 'Session assignments' },
   'pricingPage.row.planningMessages': { fr: 'Messages planning', en: 'Planning messages' },
   'pricingPage.row.csvImport': { fr: 'Import CSV / Excel', en: 'CSV / Excel import' },
+  'pricingPage.row.chat': { fr: 'Messagerie temps réel', en: 'Real-time messaging' },
   'pricingPage.row.pwa': { fr: 'Application installable (PWA)', en: 'Installable app (PWA)' },
   'pricingPage.row.pushNotif': { fr: 'Notifications push', en: 'Push notifications' },
   'pricingPage.row.billing': { fr: 'Facturation en ligne (Stripe)', en: 'Online billing (Stripe)' },
@@ -807,6 +824,12 @@ const translations: Record<string, Record<Lang, string>> = {
   },
   'testimonial.6.name': { fr: 'Antoine Rousseau', en: 'Antoine Rousseau' },
   'testimonial.6.role': { fr: 'Enseignant — École Numérique de Paris', en: 'Teacher — Paris Digital School' },
+  'testimonial.7.quote': {
+    fr: 'Depuis qu\'on utilise la messagerie intégrée, on a supprimé 12 groupes WhatsApp. Profs, étudiants et admin échangent dans un seul outil, c\'est beaucoup plus pro et on ne perd plus aucune info.',
+    en: 'Since we started using the built-in messaging, we deleted 12 WhatsApp groups. Teachers, students and admin communicate in one tool, it\'s much more professional and we never lose information anymore.',
+  },
+  'testimonial.7.name': { fr: 'Nadia Bensalem', en: 'Nadia Bensalem' },
+  'testimonial.7.role': { fr: 'Directrice — Institut Avenir Lyon', en: 'Director — Avenir Institute Lyon' },
 
   // ===================== NEW FAQ =====================
   'faq.7.q': { fr: 'Comment fonctionne le suivi des présences ?', en: 'How does attendance tracking work?' },
@@ -829,6 +852,11 @@ const translations: Record<string, Record<Lang, string>> = {
     fr: 'Oui ! AntiPlanning est une PWA (Progressive Web App) installable sur votre smartphone. Vous recevez les notifications push en temps réel et pouvez consulter votre planning même hors-ligne.',
     en: 'Yes! AntiPlanning is a PWA (Progressive Web App) that you can install on your smartphone. You receive real-time push notifications and can view your schedule even offline.',
   },
+  'faq.11.q': { fr: 'La messagerie intégrée remplace-t-elle WhatsApp ?', en: 'Does the built-in messaging replace WhatsApp?' },
+  'faq.11.a': {
+    fr: 'Oui ! La messagerie AntiPlanning centralise tous les échanges de votre établissement. Les canaux sont créés automatiquement pour chaque classe et matière, avec messages directs, partage de fichiers et indicateurs de présence. Plus besoin de gérer des groupes WhatsApp séparés.',
+    en: 'Yes! AntiPlanning messaging centralizes all your institution\'s communications. Channels are automatically created for each class and subject, with direct messages, file sharing and presence indicators. No more managing separate WhatsApp groups.',
+  },
 
   // ===================== LANDING - SOCIAL PROOF =====================
   'landing.hero.proof.establishments': { fr: '250+ établissements', en: '250+ institutions' },
@@ -847,6 +875,8 @@ const translations: Record<string, Record<Lang, string>> = {
   'landing.pain.2.after': { fr: 'Suivi en direct, alertes parents automatiques', en: 'Live tracking, automatic parent alerts' },
   'landing.pain.3.before': { fr: 'Bulletins qui prennent des semaines ?', en: 'Transcripts taking weeks?' },
   'landing.pain.3.after': { fr: 'Bulletins PDF générés et envoyés en 1 clic', en: 'PDF transcripts generated and sent in 1 click' },
+  'landing.pain.4.before': { fr: 'WhatsApp, mails, SMS, téléphone… ?', en: 'WhatsApp, emails, texts, phone calls…?' },
+  'landing.pain.4.after': { fr: 'Messagerie intégrée avec canaux par classe', en: 'Built-in messaging with class channels' },
 
   // ===================== LANDING - TRUST BADGES =====================
   'landing.trust.rgpd': { fr: 'Conforme RGPD', en: 'GDPR Compliant' },
@@ -889,14 +919,25 @@ const translations: Record<string, Record<Lang, string>> = {
   'showcase.teacherCollab.b3': { fr: 'Affectations validées par l\'enseignant', en: 'Teacher-validated assignments' },
   'showcase.teacherCollab.b4': { fr: 'Messagerie planning intégrée', en: 'Integrated planning messaging' },
 
+  'showcase.chat.label': { fr: 'Messagerie temps réel', en: 'Real-time messaging' },
+  'showcase.chat.title': { fr: 'Communiquez sans quitter votre planning', en: 'Communicate without leaving your schedule' },
+  'showcase.chat.desc': {
+    fr: 'Messages directs, canaux de classe et de matière, partage de fichiers et indicateurs de présence. Toute la communication de votre établissement, centralisée et sécurisée.',
+    en: 'Direct messages, class and subject channels, file sharing and presence indicators. All your institution\'s communication, centralized and secure.',
+  },
+  'showcase.chat.b1': { fr: 'Canaux automatiques par classe et matière', en: 'Automatic channels per class and subject' },
+  'showcase.chat.b2': { fr: 'Messages directs avec statut en ligne', en: 'Direct messages with online status' },
+  'showcase.chat.b3': { fr: 'Partage de fichiers et @mentions', en: 'File sharing and @mentions' },
+  'showcase.chat.b4': { fr: 'Badges non-lus sur chaque canal', en: 'Unread badges on every channel' },
+
   // ===================== CTA ENHANCEMENTS =====================
   'cta.urgency': { fr: 'Rejoint par 50+ établissements ce mois-ci', en: 'Joined by 50+ institutions this month' },
   'cta.demo': { fr: 'Demander une démo', en: 'Request a demo' },
 
   // ===================== HERO SUBTITLE ENHANCED =====================
   'hero.subtitle.enhanced': {
-    fr: 'La plateforme tout-en-un pour planifier, suivre les présences, évaluer et coordonner votre établissement.',
-    en: 'The all-in-one platform to plan, track attendance, evaluate and coordinate your institution.',
+    fr: 'La plateforme tout-en-un pour planifier, communiquer, suivre les présences et coordonner votre établissement.',
+    en: 'The all-in-one platform to schedule, communicate, track attendance and coordinate your institution.',
   },
 
   // ===================== ONLINE SCHOOL PAGE - NEW BLOCKS =====================
@@ -963,6 +1004,7 @@ const translations: Record<string, Record<Lang, string>> = {
   // ===================== FOOTER - NEW LINKS & TRUST =====================
   'footer.attendance': { fr: 'Suivi des présences', en: 'Attendance Tracking' },
   'footer.grades': { fr: 'Notes et bulletins', en: 'Grades & Transcripts' },
+  'footer.chat': { fr: 'Messagerie temps réel', en: 'Real-time Messaging' },
   'footer.trust.rgpd': { fr: 'RGPD', en: 'GDPR' },
   'footer.trust.ssl': { fr: 'SSL/TLS', en: 'SSL/TLS' },
   'footer.trust.eu': { fr: 'Hébergé en UE', en: 'EU Hosted' },
