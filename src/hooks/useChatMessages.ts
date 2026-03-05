@@ -6,7 +6,7 @@ import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { transformChatMessage } from '@/utils/transforms'
 import { CHAT_MAX_FILE_SIZE } from '@/utils/constants'
-import type { ChatMessage } from '@/types'
+import type { ChatMessage, ChatAttachment } from '@/types'
 
 const PAGE_SIZE = 50
 
@@ -29,6 +29,21 @@ const DEMO_MESSAGES: Record<string, ChatMessage[]> = {
     { id: 's1', channelId: 'demo-subject-1', senderId: null, content: 'Canal créé pour Mathématiques', isSystem: true, isEdited: false, parentId: null, createdAt: '2026-03-01T08:00:00Z', updatedAt: now, deletedAt: null },
     { id: 's2', channelId: 'demo-subject-1', senderId: 'u3', content: 'Le TD est reporté à lundi prochain.', isSystem: false, isEdited: false, parentId: null, createdAt: '2026-03-05T11:00:00Z', updatedAt: now, deletedAt: null, sender: { id: 'u3', firstName: 'Jean', lastName: 'Dupuis' } },
   ],
+}
+
+// Enrich a message's attachments with signed URLs
+async function enrichAttachmentUrls(msg: ChatMessage): Promise<ChatMessage> {
+  if (!msg.attachments?.length) return msg
+  const enriched = await Promise.all(msg.attachments.map(async (att) => {
+    if (att.storagePath) {
+      const { data: urlData } = await supabase.storage
+        .from('chat-attachments')
+        .createSignedUrl(att.storagePath, 3600)
+      return { ...att, url: urlData?.signedUrl }
+    }
+    return att
+  }))
+  return { ...msg, attachments: enriched }
 }
 
 export function useChatMessages(channelId: string | null) {
@@ -77,7 +92,10 @@ export function useChatMessages(channelId: string | null) {
       if (fetchErr) { console.error('fetchMessages error:', fetchErr); return }
       if (!data || channelRef.current !== channelId) return
 
-      const transformed = data.map(transformChatMessage).reverse()
+      const transformed = await Promise.all(
+        data.map(raw => enrichAttachmentUrls(transformChatMessage(raw)))
+      )
+      transformed.reverse()
       if (before) {
         setMessages(prev => [...transformed, ...prev])
       } else {
@@ -141,21 +159,56 @@ export function useChatMessages(channelId: string | null) {
 
       // Upload attachments
       if (attachmentFiles?.length) {
+        const uploadedAttachments: ChatAttachment[] = []
         for (const file of attachmentFiles) {
           if (file.size > CHAT_MAX_FILE_SIZE) continue
           const path = `${user.establishmentId}/${channelId}/${messageId}/${file.name}`
           const { error: uploadError } = await supabase.storage
             .from('chat-attachments')
             .upload(path, file)
-          if (!uploadError) {
-            await supabase.from('chat_attachments').insert({
+          if (uploadError) {
+            console.error('Upload attachment error:', uploadError)
+            continue
+          }
+          const { data: attData, error: attErr } = await supabase
+            .from('chat_attachments')
+            .insert({
               message_id: messageId,
               file_name: file.name,
               file_size: file.size,
               mime_type: file.type,
               storage_path: path,
             })
+            .select()
+            .single()
+          if (attErr) {
+            console.error('Insert attachment record error:', attErr)
+            continue
           }
+          if (attData) {
+            // Generate signed URL for immediate display
+            const { data: urlData } = await supabase.storage
+              .from('chat-attachments')
+              .createSignedUrl(path, 3600)
+            uploadedAttachments.push({
+              id: attData.id,
+              messageId,
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+              storagePath: path,
+              createdAt: attData.created_at,
+              url: urlData?.signedUrl,
+            })
+          }
+        }
+        // Update local message with uploaded attachments
+        if (uploadedAttachments.length > 0) {
+          setMessages(prev => prev.map(m =>
+            m.id === messageId
+              ? { ...m, attachments: [...(m.attachments || []), ...uploadedAttachments] }
+              : m
+          ))
         }
       }
 
@@ -278,9 +331,10 @@ export function useChatMessages(channelId: string | null) {
           .eq('id', payload.new.id)
           .single()
         if (data && channelRef.current === channelId) {
+          const enriched = await enrichAttachmentUrls(transformChatMessage(data))
           setMessages(prev => {
-            if (prev.find(m => m.id === data.id)) return prev
-            return [...prev, transformChatMessage(data)]
+            if (prev.find(m => m.id === enriched.id)) return prev
+            return [...prev, enriched]
           })
         }
       })
@@ -293,14 +347,14 @@ export function useChatMessages(channelId: string | null) {
         if (payload.new.deleted_at) {
           setMessages(prev => prev.filter(m => m.id !== payload.new.id))
         } else {
-          // Refetch updated message
           const { data } = await supabase
             .from('chat_messages')
             .select('*, sender:profiles!sender_id(id, full_name, avatar_url), chat_attachments(*), chat_reactions(*, profiles:user_id(id, full_name))')
             .eq('id', payload.new.id)
             .single()
           if (data) {
-            setMessages(prev => prev.map(m => m.id === data.id ? transformChatMessage(data) : m))
+            const enriched = await enrichAttachmentUrls(transformChatMessage(data))
+            setMessages(prev => prev.map(m => m.id === enriched.id ? enriched : m))
           }
         }
       })

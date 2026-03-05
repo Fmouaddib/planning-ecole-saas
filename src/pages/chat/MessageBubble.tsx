@@ -129,14 +129,41 @@ export function MessageBubble({ message, isOwn, onEdit, onDelete, onReact, curre
 
         {/* Attachments */}
         {message.attachments && message.attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {message.attachments.map(att => (
-              <div key={att.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
-                {isImageMime(att.mimeType) ? <Image size={14} className="text-blue-500" /> : att.mimeType === 'application/pdf' ? <FileText size={14} className="text-red-500" /> : <Paperclip size={14} className="text-neutral-400" />}
-                <span className="text-xs text-neutral-600 dark:text-neutral-300 truncate max-w-[150px]">{att.fileName}</span>
-                {att.fileSize && <span className="text-[10px] text-neutral-400">{(att.fileSize / 1024).toFixed(0)} Ko</span>}
-              </div>
-            ))}
+          <div className="flex flex-col gap-2 mt-2">
+            {message.attachments.map(att => {
+              const isImage = isImageMime(att.mimeType)
+              const icon = isImage
+                ? <Image size={14} className="text-blue-500" />
+                : att.mimeType === 'application/pdf'
+                  ? <FileText size={14} className="text-red-500" />
+                  : <Paperclip size={14} className="text-neutral-400" />
+              return (
+                <div key={att.id}>
+                  {/* Image preview */}
+                  {isImage && att.url && (
+                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                      <img
+                        src={att.url}
+                        alt={att.fileName}
+                        className="max-w-xs max-h-48 rounded-lg border border-neutral-200 dark:border-neutral-700 object-cover"
+                      />
+                    </a>
+                  )}
+                  {/* File link */}
+                  <a
+                    href={att.url || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={att.fileName}
+                    className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 ${att.url ? 'hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer' : 'opacity-50'} transition-colors`}
+                  >
+                    {icon}
+                    <span className="text-xs text-neutral-600 dark:text-neutral-300 truncate max-w-[200px]">{att.fileName}</span>
+                    {att.fileSize && <span className="text-[10px] text-neutral-400">{(att.fileSize / 1024).toFixed(0)} Ko</span>}
+                  </a>
+                </div>
+              )
+            })}
           </div>
         )}
 
