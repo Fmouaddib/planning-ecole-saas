@@ -106,6 +106,19 @@ export const ERROR_MESSAGES = {
   SERVER_ERROR: 'Erreur serveur interne'
 }
 
+// Palette de couleurs par matière (12 couleurs distinctes)
+export const SUBJECT_COLOR_PALETTE = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899',
+  '#06b6d4', '#f97316', '#6366f1', '#14b8a6', '#e11d64', '#84cc16',
+]
+
+// Couleur auto-générée stable à partir du nom de la matière
+export function getAutoSubjectColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return SUBJECT_COLOR_PALETTE[Math.abs(hash) % SUBJECT_COLOR_PALETTE.length]
+}
+
 // Couleurs par type de réservation
 export const BOOKING_TYPE_COLORS: Record<string, string> = {
   course: '#3b82f6',

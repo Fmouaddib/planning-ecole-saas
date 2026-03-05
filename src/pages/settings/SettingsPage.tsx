@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Button, Select } from '@/components/ui'
-import { Settings, Bell, Monitor, Save, LogOut, User, HelpCircle, GraduationCap, Mail } from 'lucide-react'
+import { Button, Select, HelpBanner } from '@/components/ui'
+import { Settings, Bell, Monitor, Save, LogOut, User, HelpCircle, GraduationCap, Mail, BookOpen } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
+import OdooSettingsSection from './OdooSettingsSection'
+import VisioSettingsSection from './VisioSettingsSection'
 
 interface SettingsPageProps {
   onLogout?: () => void
@@ -112,6 +114,10 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
           {saved ? 'Enregistré !' : 'Enregistrer'}
         </Button>
       </div>
+
+      <HelpBanner storageKey="admin-settings">
+        Configurez les préférences de votre centre : politique email, intégration visio (Zoom/Teams/Meet), espace étudiant, mode e-learning et connexion Odoo. Les modifications sont appliquées immédiatement.
+      </HelpBanner>
 
       {/* General */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
@@ -247,6 +253,29 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
         </div>
       )}
 
+      {/* Mode e-learning — admin only */}
+      {isAdmin && (
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-lg">
+              <BookOpen size={20} className="text-violet-600 dark:text-violet-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Mode e-learning</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">Simplifie le référentiel pour les écoles en ligne</p>
+            </div>
+          </div>
+          <div className="space-y-4 max-w-md">
+            <Toggle
+              label="Fusionner Classes et Matières"
+              description="Les onglets Classes et Matières du référentiel sont remplacés par un onglet unique « Cours ». Chaque cours crée automatiquement une classe et une matière liées."
+              checked={!!centerSettings.merge_class_subject}
+              onChange={v => updateCenterSettings({ merge_class_subject: v })}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Politique email — admin only */}
       {isAdmin && (
         <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mt-6">
@@ -316,6 +345,22 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Intégration Visioconférence — admin only */}
+      {isAdmin && (
+        <VisioSettingsSection
+          settings={centerSettings}
+          onUpdateSettings={updateCenterSettings}
+        />
+      )}
+
+      {/* Intégration Odoo — admin only */}
+      {isAdmin && (
+        <OdooSettingsSection
+          settings={centerSettings}
+          onUpdateSettings={updateCenterSettings}
+        />
       )}
 
       {/* Compte */}

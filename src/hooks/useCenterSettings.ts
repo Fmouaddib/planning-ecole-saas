@@ -10,6 +10,7 @@ import { useAuthContext } from '@/contexts/AuthContext'
 export interface CenterSettings {
   hide_classmates?: boolean
   hide_subjects?: boolean
+  merge_class_subject?: boolean  // Mode e-learning : fusion classes/matières en "Cours"
   // Politique email
   email_session_created?: boolean
   email_session_updated?: boolean
@@ -18,6 +19,31 @@ export interface CenterSettings {
   email_weekly_recap?: boolean
   email_notify_trainers?: boolean
   email_notify_students?: boolean
+  // Intégration Odoo
+  odoo_url?: string
+  odoo_db?: string
+  odoo_user?: string
+  odoo_api_key?: string
+  odoo_sync_enabled?: boolean
+  odoo_sync_interval?: number   // minutes (60 par défaut)
+  odoo_last_sync?: string       // ISO timestamp
+  // Visio unifiée (Zoom / Teams / Google Meet)
+  visio_provider?: 'zoom' | 'teams' | 'meet'
+  visio_auto_create?: boolean
+  // Zoom credentials
+  zoom_account_id?: string
+  zoom_client_id?: string
+  zoom_client_secret?: string
+  zoom_user_email?: string
+  // Teams credentials
+  teams_tenant_id?: string
+  teams_client_id?: string
+  teams_client_secret?: string
+  teams_user_id?: string
+  // Google Meet credentials
+  meet_client_email?: string
+  meet_private_key?: string
+  meet_user_email?: string
 }
 
 export const EMAIL_POLICY_DEFAULTS: Required<Pick<CenterSettings,

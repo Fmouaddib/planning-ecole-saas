@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { clsx } from 'clsx'
 import {
   Calendar,
@@ -16,6 +16,7 @@ import {
   FileBarChart,
   UserCog,
   CreditCard,
+  ChevronDown,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
@@ -30,6 +31,14 @@ interface NavigationItem {
   badge?: string
   active?: boolean
   roles?: UserRole[]
+  group?: string
+}
+
+const GROUP_LABELS: Record<string, string> = {
+  enseignement: 'Enseignement',
+  gestion: 'Gestion',
+  fonctionnalites: 'Fonctionnalités',
+  administration: 'Administration',
 }
 
 interface SidebarProps {
@@ -53,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
 
   const mainNavigation: NavigationItem[] = [
+    // --- Top (ungrouped) ---
     {
       icon: Home,
       label: 'Tableau de bord',
@@ -67,92 +77,111 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       icon: GraduationCap,
+      label: 'Référentiel',
+      href: '/academic',
+      active: currentPath === '/academic',
+      roles: ['admin'],
+    },
+    {
+      icon: GraduationCap,
       label: 'Ma classe',
       href: '/my-class',
       active: currentPath === '/my-class',
       roles: ['student'] as UserRole[],
     },
-    isOnlineSchool
-      ? {
+    // --- Enseignement ---
+    ...(isOnlineSchool
+      ? [{
           icon: Video,
           label: 'Visio',
           href: '/visio',
           active: currentPath === '/visio',
           roles: ['admin', 'staff'] as UserRole[],
-        }
-      : {
-          icon: Building2,
-          label: 'Salles',
-          href: '/rooms',
-          active: currentPath === '/rooms',
-          roles: ['admin', 'staff'] as UserRole[],
-        },
-    {
-      icon: Users,
-      label: 'Utilisateurs',
-      href: '/users',
-      active: currentPath === '/users',
-      roles: ['admin']
-    },
-    {
-      icon: Clock,
-      label: isTeacherRole(userRole) ? 'Mes séances' : 'Séances',
-      href: '/bookings',
-      active: currentPath === '/bookings'
-    },
-    {
-      icon: GraduationCap,
-      label: 'Référentiel',
-      href: '/academic',
-      active: currentPath === '/academic',
-      roles: ['admin']
-    },
-    {
-      icon: ClipboardCheck,
-      label: isStudentRole(userRole) ? 'Mes présences' : isTeacherRole(userRole) ? 'Appel' : 'Présences',
-      href: '/attendance',
-      active: currentPath === '/attendance',
-    },
-    {
-      icon: FileBarChart,
-      label: isStudentRole(userRole) ? 'Mon bulletin' : isTeacherRole(userRole) ? 'Mes notes' : 'Notes',
-      href: '/grades',
-      active: currentPath === '/grades',
-    },
+          group: 'enseignement',
+        }]
+      : [{
+          icon: Clock,
+          label: isTeacherRole(userRole) ? 'Mes séances' : 'Séances',
+          href: '/bookings',
+          active: currentPath === '/bookings',
+          group: 'enseignement',
+        }]
+    ),
     {
       icon: UserCog,
       label: isTeacherRole(userRole) ? 'Collaboration' : 'Collaboration profs',
       href: '/teacher-collab',
       active: currentPath === '/teacher-collab',
       roles: ['admin', 'staff', 'teacher'] as UserRole[],
+      group: 'enseignement',
+    },
+    // --- Gestion ---
+    ...(!isOnlineSchool
+      ? [{
+          icon: Building2,
+          label: 'Salles',
+          href: '/rooms',
+          active: currentPath === '/rooms',
+          roles: ['admin', 'staff'] as UserRole[],
+          group: 'gestion',
+        }]
+      : []
+    ),
+    {
+      icon: Users,
+      label: 'Utilisateurs',
+      href: '/users',
+      active: currentPath === '/users',
+      roles: ['admin'],
+      group: 'gestion',
     },
     {
       icon: BarChart3,
       label: 'Statistiques',
       href: '/analytics',
       active: currentPath === '/analytics',
-      roles: ['admin', 'staff']
+      roles: ['admin', 'staff'],
+      group: 'gestion',
+    },
+    // --- Fonctionnalités (refermé par défaut) ---
+    {
+      icon: ClipboardCheck,
+      label: isStudentRole(userRole) ? 'Mes présences' : isTeacherRole(userRole) ? 'Appel' : 'Présences',
+      href: '/attendance',
+      active: currentPath === '/attendance',
+      group: 'fonctionnalites',
     },
     {
-      icon: CreditCard,
-      label: 'Facturation',
-      href: '/billing',
-      active: currentPath === '/billing',
-      roles: ['admin'] as UserRole[],
+      icon: FileBarChart,
+      label: isStudentRole(userRole) ? 'Mon bulletin' : isTeacherRole(userRole) ? 'Mes notes' : 'Notes',
+      href: '/grades',
+      active: currentPath === '/grades',
+      group: 'fonctionnalites',
     },
     {
       icon: Mail,
       label: 'Emails',
       href: '/emails',
       active: currentPath === '/emails',
-      roles: ['admin'] as UserRole[]
+      roles: ['admin'] as UserRole[],
+      group: 'fonctionnalites',
+    },
+    // --- Administration (refermé par défaut) ---
+    {
+      icon: CreditCard,
+      label: 'Facturation',
+      href: '/billing',
+      active: currentPath === '/billing',
+      roles: ['admin'] as UserRole[],
+      group: 'administration',
     },
     {
       icon: Settings,
       label: 'Configuration',
       href: '/settings',
       active: currentPath === '/settings',
-      roles: ['admin']
+      roles: ['admin'],
+      group: 'administration',
     }
   ]
 
@@ -174,6 +203,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     return item.roles.includes(userRole)
   }
+
+  const visibleItems = useMemo(() => mainNavigation.filter(shouldShowItem), [currentPath, userRole, isOnlineSchool])
+  const showGroupHeaders = visibleItems.length > 6
+
+  // Auto-expand group containing active item
+  const activeGroup = useMemo(() => {
+    const active = visibleItems.find(item => item.active && item.group)
+    return active?.group || null
+  }, [visibleItems])
+
+  // Collapsed state per group — default: fonctionnalites + administration collapsed
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ fonctionnalites: true, administration: true })
+
+  const toggleGroup = (group: string) => {
+    setCollapsed(prev => ({ ...prev, [group]: !prev[group] }))
+  }
+
+  // Group visible items for rendering
+  const grouped = useMemo(() => {
+    if (!showGroupHeaders) return [{ group: null, items: visibleItems }]
+
+    const result: { group: string | null; items: NavigationItem[] }[] = []
+    let current: { group: string | null; items: NavigationItem[] } | null = null
+
+    for (const item of visibleItems) {
+      const g = item.group || null
+      if (!current || current.group !== g) {
+        current = { group: g, items: [] }
+        result.push(current)
+      }
+      current.items.push(item)
+    }
+    return result
+  }, [visibleItems, showGroupHeaders])
 
   return (
     <>
@@ -215,46 +278,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          {/* Main navigation */}
-          <div>
-            <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">
-              Navigation
-            </h3>
-            <div className="space-y-1">
-              {mainNavigation
-                .filter(shouldShowItem)
-                .map((item, index) => (
-                  <NavItem
-                    key={index}
-                    item={item}
-                    onClick={() => handleItemClick(item)}
-                  />
-                ))
-              }
-            </div>
-          </div>
+        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+          {grouped.map((section, si) => {
+            const isCollapsible = showGroupHeaders && !!section.group
+            const groupKey = section.group || ''
+            // Force open if section contains active item
+            const isCollapsed = isCollapsible && collapsed[groupKey] && activeGroup !== groupKey
 
-          {/* Administration - visible uniquement pour admin/super_admin */}
-          {userRole === 'super_admin' && (
-            <div className="pt-6">
-              <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">
-                Administration
-              </h3>
-              <div className="space-y-1">
-                <button
-                  onClick={() => { window.location.hash = '#/super-admin'; }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100"
+            return (
+              <div key={si}>
+                {isCollapsible && (
+                  <button
+                    onClick={() => toggleGroup(groupKey)}
+                    className="w-full flex items-center justify-between mt-3 mb-0.5 px-3 py-1 rounded hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
+                  >
+                    <span className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
+                      {GROUP_LABELS[groupKey]}
+                    </span>
+                    <ChevronDown
+                      size={12}
+                      className={clsx(
+                        'text-neutral-400 transition-transform duration-200',
+                        isCollapsed && '-rotate-90'
+                      )}
+                    />
+                  </button>
+                )}
+                <div
+                  className={clsx(
+                    'space-y-0.5 overflow-hidden transition-all duration-200',
+                    isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[500px] opacity-100'
+                  )}
                 >
-                  <div className="flex items-center space-x-3">
-                    <Shield size={18} className="text-red-500 group-hover:text-red-600 transition-colors duration-200" />
-                    <span className="text-sm">Espace Super Admin</span>
-                  </div>
-                  <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">SA</span>
-                </button>
+                  {section.items.map((item, ii) => (
+                    <NavItem
+                      key={ii}
+                      item={item}
+                      onClick={() => handleItemClick(item)}
+                    />
+                  ))}
+                  {/* Super Admin button inside administration group */}
+                  {section.group === 'administration' && userRole === 'super_admin' && (
+                    <button
+                      onClick={() => { window.location.hash = '#/super-admin'; }}
+                      className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Shield size={16} className="text-red-500 group-hover:text-red-600 transition-colors duration-200" />
+                        <span className="text-sm">Espace Super Admin</span>
+                      </div>
+                      <span className="bg-red-100 text-red-800 text-[10px] font-medium px-1.5 py-0.5 rounded-full">SA</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })}
         </nav>
 
         {/* Mini calendar — always visible */}
@@ -263,7 +342,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
+        <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
           <div className="text-xs text-neutral-500 dark:text-neutral-400">
             <p className="font-medium">AntiPlanning v1.0</p>
             <p>Gestion premium pour établissements</p>
@@ -286,7 +365,7 @@ const NavItem: React.FC<NavItemProps> = ({ item, onClick }) => {
     <button
       onClick={onClick}
       className={clsx(
-        'w-full flex items-center justify-between px-3 py-2.5 rounded-lg',
+        'w-full flex items-center justify-between px-3 py-1.5 rounded-lg',
         'text-left transition-all duration-200 ease-out group',
         active
           ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 font-medium border-l-4 border-primary-600'
@@ -295,7 +374,7 @@ const NavItem: React.FC<NavItemProps> = ({ item, onClick }) => {
     >
       <div className="flex items-center space-x-3">
         <Icon
-          size={18}
+          size={16}
           className={clsx(
             'transition-colors duration-200',
             active ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200'

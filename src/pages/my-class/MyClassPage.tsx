@@ -14,7 +14,7 @@ import { useCenterSettings } from '@/hooks/useCenterSettings'
 import { isStudentRole } from '@/utils/helpers'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useBookings } from '@/hooks/useBookings'
-import { LoadingState, Badge } from '@/components/ui'
+import { LoadingState, Badge, HelpBanner } from '@/components/ui'
 import { getScheduleTypeLabel, getScheduleTypeBadgeVariant, DAY_OPTIONS } from '@/utils/scheduleUtils'
 import { transformUser } from '@/utils/transforms'
 import type { User as UserType } from '@/types'
@@ -217,6 +217,10 @@ function MyClassPage() {
           Exporter emploi du temps
         </button>
       </div>
+
+      <HelpBanner storageKey="student-myclass">
+        Retrouvez toutes les informations de votre classe : matières, professeurs, horaires et camarades. Les matières « dispensées » n'apparaissent pas dans vos moyennes. Vous pouvez aussi vous inscrire à des matières libres.
+      </HelpBanner>
 
       {/* Tabs multi-classe */}
       {myClasses.length > 1 && (

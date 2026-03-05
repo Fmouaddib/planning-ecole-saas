@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react'
 import { Mail, RefreshCw, Filter, CheckCircle, XCircle, Clock, Send, FileText, X, Eye, Pencil, Save, Info } from 'lucide-react'
+import { HelpBanner } from '@/components/ui'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
@@ -516,6 +517,10 @@ export default function EmailsPage() {
           Actualiser
         </button>
       </div>
+
+      <HelpBanner storageKey="admin-emails">
+        Consultez l'historique des emails envoyés et personnalisez les modèles. Les emails sont envoyés automatiquement selon la politique définie dans Paramètres (création, modification, annulation de séance, rappels).
+      </HelpBanner>
 
       {/* Tabs */}
       <div className="border-b border-neutral-200 dark:border-neutral-800 mb-6">

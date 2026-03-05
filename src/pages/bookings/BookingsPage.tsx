@@ -4,7 +4,7 @@ import { useRooms } from '@/hooks/useRooms'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useAuth } from '@/hooks/useAuth'
 import { usePagination } from '@/hooks/usePagination'
-import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
+import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, HelpBanner } from '@/components/ui'
 import { BOOKING_TYPES, BOOKING_STATUS } from '@/utils/constants'
 import { filterBySearch, formatDate, formatTimeRange, isTeacherRole } from '@/utils/helpers'
 import type { Booking, CreateBookingData, BookingType } from '@/types'
@@ -410,6 +410,12 @@ function BookingsPage() {
           </div>
         )}
       </div>
+
+      <HelpBanner storageKey={isTeacher ? 'teacher-bookings' : 'admin-bookings'}>
+        {isTeacher
+          ? "Retrouvez ici la liste de vos séances. Filtrez par statut, type ou date pour trouver rapidement une séance. Cliquez sur une séance pour en voir les détails."
+          : "Vue liste de toutes les séances de votre centre. Filtrez par statut, type ou date. Utilisez « Saisie en lot » pour créer plusieurs séances d'un coup."}
+      </HelpBanner>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-3">

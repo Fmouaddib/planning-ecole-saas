@@ -6,7 +6,7 @@ import { useUsers } from '@/hooks/useUsers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useGrades } from '@/hooks/useGrades'
 import { isDemoMode } from '@/lib/supabase'
-import { LoadingSpinner, BarChart, DonutChart, HeatmapGrid } from '@/components/ui'
+import { LoadingSpinner, BarChart, DonutChart, HeatmapGrid, HelpBanner } from '@/components/ui'
 import { CalendarCheck, Gauge, GraduationCap, Users, Award, School, BookOpen, Monitor, Download, ChevronDown } from 'lucide-react'
 import { getScheduleTypeLabel } from '@/utils/scheduleUtils'
 import type { AnalyticsExportData } from '@/utils/export-analytics'
@@ -747,6 +747,10 @@ function AnalyticsPage() {
           )}
         </div>
       </div>
+
+      <HelpBanner storageKey="admin-analytics">
+        Visualisez l'activité de votre centre : taux d'occupation des salles, répartition des séances par modalité, fréquentation par jour et créneau horaire. Exportez les rapports en PDF ou Excel.
+      </HelpBanner>
 
       {/* ==================== KPIs — Ligne 1 ==================== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">

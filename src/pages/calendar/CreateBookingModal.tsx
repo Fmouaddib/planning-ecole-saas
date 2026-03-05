@@ -35,6 +35,8 @@ interface CreateBookingModalProps {
   classOptionsByDiploma?: (diplomaId: string) => { value: string; label: string }[]
   subjectOptionsByClass?: (classId: string) => { value: string; label: string }[]
   getClassById?: (classId: string) => Class | undefined
+  isVisioAutoCreate?: boolean
+  visioProviderName?: string
 }
 
 const typeOptions = [
@@ -57,6 +59,8 @@ export function CreateBookingModal({
   classOptionsByDiploma,
   subjectOptionsByClass,
   getClassById,
+  isVisioAutoCreate,
+  visioProviderName,
 }: CreateBookingModalProps) {
   const dateStr = prefilledDate ? format(prefilledDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   const startH = prefilledHour != null ? prefilledHour : 8
@@ -308,7 +312,7 @@ export function CreateBookingModal({
         {isOnlineOrHybrid && (
           <div className="relative">
             <Input
-              label="Lien visio (Teams/Zoom)"
+              label="Lien visio (Zoom/Teams/Meet)"
               value={meetingUrl}
               onChange={e => setMeetingUrl(e.target.value)}
               placeholder="https://teams.microsoft.com/..."
@@ -316,6 +320,12 @@ export function CreateBookingModal({
               className={isUrlFromRoom ? 'bg-neutral-50 dark:bg-neutral-800 cursor-not-allowed' : ''}
             />
             <Video size={16} className={`absolute right-3 top-9 ${isUrlFromRoom ? 'text-primary-400' : 'text-neutral-400'}`} />
+          </div>
+        )}
+        {isOnlineOrHybrid && isVisioAutoCreate && !meetingUrl && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">
+            <Video size={14} />
+            Un lien {visioProviderName || 'visio'} sera créé automatiquement
           </div>
         )}
 

@@ -16,10 +16,11 @@ import { fr } from 'date-fns/locale'
 import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useAuth } from '@/hooks/useAuth'
-import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect, Input, Textarea } from '@/components/ui'
+import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect, Input, Textarea, HelpBanner } from '@/components/ui'
 import { formatTimeRange, isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useVisio } from '@/hooks/useVisio'
+import { useCenterSettings } from '@/hooks/useCenterSettings'
 import type { CalendarEvent, ExportFormat, BookingType, UpdateBookingData } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
@@ -98,6 +99,7 @@ function CalendarPage() {
     getClassIdsForStudent,
   } = useAcademicData()
   const { virtualRooms } = useVisio()
+  const { settings: centerSettings } = useCenterSettings()
 
   const virtualRoomOptions = useMemo(
     () => virtualRooms.map(r => ({
@@ -559,6 +561,14 @@ function CalendarPage() {
         </div>
       </div>
 
+      <HelpBanner storageKey={isStudent ? 'student-calendar' : isTeacher ? 'teacher-calendar' : 'admin-calendar'}>
+        {isStudent
+          ? "Consultez votre emploi du temps. Cliquez sur une séance pour voir les détails : salle, horaire et lien visio le cas échéant."
+          : isTeacher
+            ? "Consultez votre planning de séances. Cliquez sur une séance pour voir les détails. Pour demander un changement d'horaire ou de salle, passez par l'espace Collaboration."
+            : "Le calendrier affiche toutes les séances de votre centre. Basculez entre les vues Semaine, Mois, Jour et Salles. Cliquez sur un créneau vide pour créer une séance, ou sur une séance existante pour la modifier."}
+      </HelpBanner>
+
       {/* Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 no-print">
         <div className="flex items-center gap-2">
@@ -757,7 +767,7 @@ function CalendarPage() {
       )}
 
       {/* F2 - Color Legend */}
-      <ColorLegend activeTypes={activeTypes} onToggleType={handleToggleType} />
+      <ColorLegend activeTypes={activeTypes} onToggleType={handleToggleType} events={allEvents} />
 
       {/* Calendar Views */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden print-calendar">
@@ -1028,10 +1038,10 @@ function CalendarPage() {
 
             {(editSessionType === 'online' || editSessionType === 'hybrid') && (
               <Input
-                label="Lien visio (Teams/Zoom)"
+                label="Lien visio (Zoom/Teams/Meet)"
                 value={editMeetingUrl}
                 onChange={e => setEditMeetingUrl(e.target.value)}
-                placeholder="https://teams.microsoft.com/..."
+                placeholder="https://..."
               />
             )}
 
@@ -1119,6 +1129,8 @@ function CalendarPage() {
             classOptionsByDiploma={classOptionsByDiploma}
             subjectOptionsByClass={subjectOptionsByClass}
             getClassById={getClassById}
+            isVisioAutoCreate={!!centerSettings.visio_provider && !!centerSettings.visio_auto_create}
+            visioProviderName={centerSettings.visio_provider === 'zoom' ? 'Zoom' : centerSettings.visio_provider === 'teams' ? 'Teams' : centerSettings.visio_provider === 'meet' ? 'Google Meet' : undefined}
           />
         </Suspense>
       )}

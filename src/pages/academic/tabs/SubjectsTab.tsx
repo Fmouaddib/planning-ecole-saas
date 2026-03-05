@@ -4,6 +4,7 @@ import { filterBySearch } from '@/utils/helpers'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
 import { Plus, Search, Pencil, Trash2, BookOpen, Rss, Copy, Check, Send, RefreshCcw, Pause, Play } from 'lucide-react'
 import { useCalendarFeeds, getFeedUrl } from '@/hooks/useCalendarFeeds'
+import { getAutoSubjectColor } from '@/utils/constants'
 import type { CalendarFeed } from '@/hooks/useCalendarFeeds'
 import type { Subject, Program } from '@/types'
 
@@ -13,9 +14,10 @@ interface SubjectForm {
   description: string
   category: string
   programId: string
+  color: string
 }
 
-const emptySubjectForm: SubjectForm = { name: '', code: '', description: '', category: '', programId: '' }
+const emptySubjectForm: SubjectForm = { name: '', code: '', description: '', category: '', programId: '', color: '' }
 
 export function SubjectsTab({
   subjects,
@@ -28,8 +30,8 @@ export function SubjectsTab({
   subjects: Subject[]
   programs: Program[]
   programOptions: { value: string; label: string }[]
-  createSubject: (data: { name: string; code?: string; description?: string; category?: string; programId?: string }) => Promise<Subject>
-  updateSubject: (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string }) => Promise<Subject>
+  createSubject: (data: { name: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => Promise<Subject>
+  updateSubject: (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => Promise<Subject>
   deleteSubject: (id: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
@@ -61,7 +63,7 @@ export function SubjectsTab({
   const openCreate = () => { setForm(emptySubjectForm); setSelected(null); setModalMode('create') }
   const openEdit = (s: Subject) => {
     setSelected(s)
-    setForm({ name: s.name, code: s.code, description: s.description || '', category: s.category || '', programId: s.programId || '' })
+    setForm({ name: s.name, code: s.code, description: s.description || '', category: s.category || '', programId: s.programId || '', color: s.color || getAutoSubjectColor(s.name) })
     setModalMode('edit')
   }
   const openDelete = (s: Subject) => { setSelected(s); setModalMode('delete') }
@@ -87,9 +89,9 @@ export function SubjectsTab({
     setSubmitting(true)
     try {
       if (modalMode === 'create') {
-        await createSubject({ ...form, programId: form.programId || undefined })
+        await createSubject({ ...form, programId: form.programId || undefined, color: form.color || undefined })
       } else if (modalMode === 'edit' && selected) {
-        await updateSubject(selected.id, { ...form, programId: form.programId || undefined })
+        await updateSubject(selected.id, { ...form, programId: form.programId || undefined, color: form.color || undefined })
       }
       closeModal()
     } catch { /* toast in hook */ } finally { setSubmitting(false) }
@@ -146,7 +148,13 @@ export function SubjectsTab({
                   {paginatedData.map(s => (
                     <tr key={s.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-neutral-900 dark:text-neutral-100">{s.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: s.color || getAutoSubjectColor(s.name) }}
+                          />
+                          <span className="font-medium text-neutral-900 dark:text-neutral-100">{s.name}</span>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{s.code || '-'}</td>
                       <td className="px-4 py-3">
@@ -201,6 +209,31 @@ export function SubjectsTab({
           </div>
           <Textarea label="Description" placeholder="Description optionnelle..." value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Couleur calendrier</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.color || getAutoSubjectColor(form.name || 'Matière')}
+                onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
+                className="w-10 h-10 rounded-lg border border-neutral-300 dark:border-neutral-600 cursor-pointer p-0.5"
+              />
+              <span
+                className="w-6 h-6 rounded-full border border-neutral-200 dark:border-neutral-700"
+                style={{ backgroundColor: form.color || getAutoSubjectColor(form.name || 'Matière') }}
+              />
+              <span className="text-xs text-neutral-500">{form.color || 'Auto'}</span>
+              {form.color && (
+                <button
+                  type="button"
+                  className="text-xs text-primary-600 hover:underline"
+                  onClick={() => setForm(f => ({ ...f, color: '' }))}
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+          </div>
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { HelpCircle, Mail, Keyboard, ChevronDown } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, HelpBanner } from '@/components/ui'
 
 const faqItems = [
   {
@@ -56,6 +56,10 @@ function HelpPage() {
         <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Aide</h1>
         <p className="text-neutral-500 dark:text-neutral-400 mt-1">Trouvez des réponses à vos questions</p>
       </div>
+
+      <HelpBanner storageKey="help">
+        Retrouvez ici les réponses aux questions fréquentes, les raccourcis clavier et les informations de contact du support. N'hésitez pas à consulter cette page si vous avez un doute.
+      </HelpBanner>
 
       {/* FAQ */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { FeatureGate } from '@/components/addons/FeatureGate'
-import { Button, Card, CardContent } from '@/components/ui'
+import { Button, Card, CardContent, HelpBanner } from '@/components/ui'
 import { useAvailabilityRequests } from '@/hooks/useAvailabilityRequests'
 import { useReplacementRequests } from '@/hooks/useReplacementRequests'
 import { useSessionAssignments } from '@/hooks/useSessionAssignments'
@@ -1163,6 +1163,12 @@ export default function TeacherCollabPage() {
             }
           </p>
         </div>
+
+        <HelpBanner storageKey={isTeacher ? 'teacher-collab' : 'admin-collab'}>
+          {isTeacher
+            ? "Répondez aux demandes de disponibilité de l'administration, proposez-vous comme remplaçant et suivez vos affectations. Utilisez la messagerie pour communiquer avec l'équipe pédagogique."
+            : "Coordonnez les plannings de vos professeurs : envoyez des demandes de disponibilité, gérez les remplacements et affectations. Les professeurs reçoivent une notification et peuvent répondre depuis leur espace."}
+        </HelpBanner>
 
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-xl overflow-x-auto">

@@ -1,22 +1,31 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAcademicData } from '@/hooks/useAcademicData'
-import { Button, LoadingSpinner } from '@/components/ui'
+import { useCenterSettings } from '@/hooks/useCenterSettings'
+import { Button, LoadingSpinner, HelpBanner } from '@/components/ui'
 import { GraduationCap, BookOpen, Layers, RefreshCw, UserCheck, FolderOpen, Upload } from 'lucide-react'
 import { ProgramsTab } from './tabs/ProgramsTab'
 import { DiplomasTab } from './tabs/DiplomasTab'
 import { ClassesTab } from './tabs/ClassesTab'
 import { SubjectsTab } from './tabs/SubjectsTab'
 import { TeachersTab } from './tabs/TeachersTab'
+import { CoursTab } from './tabs/CoursTab'
 import { ImportModal } from '@/components/import/ImportModal'
 import type { ImportType } from '@/utils/import-validators'
 
-type Tab = 'programs' | 'diplomas' | 'classes' | 'subjects' | 'teachers'
+type Tab = 'programs' | 'diplomas' | 'classes' | 'subjects' | 'teachers' | 'cours'
 
-const tabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
+const normalTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { key: 'diplomas', label: 'Diplômes', icon: GraduationCap },
   { key: 'programs', label: 'Programmes', icon: FolderOpen },
   { key: 'classes', label: 'Classes', icon: Layers },
   { key: 'subjects', label: 'Matières', icon: BookOpen },
+  { key: 'teachers', label: 'Professeurs', icon: UserCheck },
+]
+
+const mergedTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
+  { key: 'diplomas', label: 'Diplômes', icon: GraduationCap },
+  { key: 'programs', label: 'Programmes', icon: FolderOpen },
+  { key: 'cours', label: 'Cours', icon: BookOpen },
   { key: 'teachers', label: 'Professeurs', icon: UserCheck },
 ]
 
@@ -29,11 +38,14 @@ const TAB_IMPORT_TYPE: Partial<Record<Tab, ImportType>> = {
 function AcademicPage() {
   const [activeTab, setActiveTab] = useState<Tab>('diplomas')
   const [showImport, setShowImport] = useState(false)
+  const { settings } = useCenterSettings()
+  const isMergedMode = !!settings.merge_class_subject
   const {
     programs, diplomas, classes, subjects, teachers, isLoading,
     programOptions, diplomaOptions,
     getSubjectIdsForClass,
     subjectOptionsByDiploma,
+    programOptionsByDiploma,
     createProgram, updateProgram, deleteProgram,
     createDiploma, updateDiploma, deleteDiploma,
     createClass, updateClass, deleteClass,
@@ -45,8 +57,21 @@ function AcademicPage() {
     classStudents,
     toggleDispensation,
     getStudentSubjectsForClass,
+    coursList, createCours, updateCours, deleteCours,
     refreshAll,
   } = useAcademicData()
+
+  const tabs = isMergedMode ? mergedTabs : normalTabs
+
+  // Reset tab when mode changes and current tab is hidden
+  useEffect(() => {
+    if (isMergedMode && (activeTab === 'classes' || activeTab === 'subjects')) {
+      setActiveTab('cours')
+    }
+    if (!isMergedMode && activeTab === 'cours') {
+      setActiveTab('classes')
+    }
+  }, [isMergedMode])
 
   const subjectOptions = useMemo(
     () => subjects.map(s => ({ value: s.id, label: `${s.name}${s.code ? ` (${s.code})` : ''}` })),
@@ -77,7 +102,11 @@ function AcademicPage() {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Référentiel académique</h1>
           <p className="text-neutral-500 mt-1">
-            {programs.length} programme{programs.length > 1 ? 's' : ''}, {diplomas.length} diplôme{diplomas.length > 1 ? 's' : ''}, {classes.length} classe{classes.length > 1 ? 's' : ''}, {subjects.length} matière{subjects.length > 1 ? 's' : ''}, {teachers.length} professeur{teachers.length > 1 ? 's' : ''}
+            {programs.length} programme{programs.length > 1 ? 's' : ''}, {diplomas.length} diplôme{diplomas.length > 1 ? 's' : ''},{' '}
+            {isMergedMode
+              ? `${coursList.length} cours`
+              : `${classes.length} classe${classes.length > 1 ? 's' : ''}, ${subjects.length} matière${subjects.length > 1 ? 's' : ''}`
+            }, {teachers.length} professeur{teachers.length > 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 mt-4 sm:mt-0">
@@ -91,6 +120,10 @@ function AcademicPage() {
           </Button>
         </div>
       </div>
+
+      <HelpBanner storageKey="admin-academic">
+        Le référentiel structure votre offre de formation : Diplômes → Programmes → Matières. Associez ensuite les matières aux classes et aux professeurs. Cette hiérarchie alimente le calendrier et les bulletins.
+      </HelpBanner>
 
       {/* Tabs */}
       <div className="border-b border-neutral-200 dark:border-neutral-800 mb-6">
@@ -161,6 +194,18 @@ function AcademicPage() {
           createSubject={createSubject}
           updateSubject={updateSubject}
           deleteSubject={deleteSubject}
+        />
+      )}
+      {activeTab === 'cours' && (
+        <CoursTab
+          coursList={coursList}
+          diplomas={diplomas}
+          programs={programs}
+          diplomaOptions={diplomaOptions}
+          programOptionsByDiploma={programOptionsByDiploma}
+          createCours={createCours}
+          updateCours={updateCours}
+          deleteCours={deleteCours}
         />
       )}
       {activeTab === 'teachers' && (

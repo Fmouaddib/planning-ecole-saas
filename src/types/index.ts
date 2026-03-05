@@ -113,6 +113,9 @@ export interface Booking {
   niveau?: string
   meetingUrl?: string
   sessionType?: 'in_person' | 'online' | 'hybrid'
+  subjectColor?: string
+  visioMeetingId?: string
+  visioProvider?: string
   needsReschedule?: boolean
   attendanceMarkingEnabled?: boolean
   createdAt: string
@@ -245,6 +248,8 @@ export interface CalendarEvent {
   diplomaId?: string
   meetingUrl?: string
   sessionType?: 'in_person' | 'online' | 'hybrid'
+  visioMeetingId?: string
+  visioProvider?: string
 }
 
 export interface Program {
@@ -313,6 +318,7 @@ export interface Subject {
   code: string
   description?: string
   category?: string
+  color?: string
   programId?: string
   program?: { id: string; name: string }
   isActive: boolean

@@ -11,7 +11,7 @@ import {
 import { isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { FeatureGate } from '@/components/addons/FeatureGate'
-import { Button, Badge, Card, CardContent } from '@/components/ui'
+import { Button, Badge, Card, CardContent, HelpBanner } from '@/components/ui'
 import { useBookings } from '@/hooks/useBookings'
 import { useBulletins } from '@/hooks/useBulletins'
 import { useStudentContacts } from '@/hooks/useStudentContacts'
@@ -800,6 +800,14 @@ export default function AttendancePage() {
             </p>
           </div>
         </div>
+
+        <HelpBanner storageKey={role === 'teacher' ? 'teacher-attendance' : role === 'student' ? 'student-attendance' : 'admin-attendance'}>
+          {role === 'teacher'
+            ? "Saisissez les présences de vos étudiants séance par séance. Sélectionnez une séance dans la liste, puis marquez chaque étudiant comme présent, absent, en retard ou excusé."
+            : role === 'student'
+              ? "Consultez votre historique de présences et votre taux d'assiduité. Les absences non excusées apparaissent en rouge. Contactez l'administration pour justifier une absence."
+              : "Suivez les présences de vos étudiants : taux global, absences par matière, signalement aux contacts. Vous pouvez saisir directement les présences ou activer/désactiver la saisie par les professeurs."}
+        </HelpBanner>
 
         {/* Demo mode banner */}
         {isDemoMode && (

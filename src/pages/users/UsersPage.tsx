@@ -3,7 +3,7 @@ import { useUsers } from '@/hooks/useUsers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useStudentContacts } from '@/hooks/useStudentContacts'
 import { usePagination } from '@/hooks/usePagination'
-import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
+import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, HelpBanner } from '@/components/ui'
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole, ContactRelationship } from '@/types'
@@ -255,6 +255,10 @@ function UsersPage() {
           )}
         </div>
       </div>
+
+      <HelpBanner storageKey="admin-users">
+        Administrez les comptes de votre centre : créez des profils étudiants, formateurs ou staff. Utilisez l'import CSV/Excel pour ajouter plusieurs utilisateurs d'un coup. Cliquez sur un utilisateur pour gérer ses matières ou contacts.
+      </HelpBanner>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">

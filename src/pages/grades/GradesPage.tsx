@@ -13,7 +13,7 @@ import {
 import { isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { FeatureGate } from '@/components/addons/FeatureGate'
-import { Button, Badge, Card, CardContent } from '@/components/ui'
+import { Button, Badge, Card, CardContent, HelpBanner } from '@/components/ui'
 import { useGrades } from '@/hooks/useGrades'
 import { useBulletins } from '@/hooks/useBulletins'
 import { useStudentContacts } from '@/hooks/useStudentContacts'
@@ -1007,6 +1007,14 @@ export default function GradesPage() {
             </p>
           </div>
         </div>
+
+        <HelpBanner storageKey={role === 'teacher' ? 'teacher-grades' : role === 'student' ? 'student-grades' : 'admin-grades'}>
+          {role === 'teacher'
+            ? "Créez des évaluations (examens, devoirs, projets…) et saisissez les notes. Publiez-les pour qu'elles soient visibles par les étudiants. Le coefficient pondère automatiquement la moyenne."
+            : role === 'student'
+              ? "Consultez vos notes et moyennes par matière. Les évaluations publiées par vos professeurs apparaissent ici avec leur coefficient. Téléchargez vos bulletins de période en PDF."
+              : "Consultez les moyennes par classe et par matière. Générez les bulletins de période, envoyez-les aux étudiants et à leurs contacts, ou téléchargez-les en PDF."}
+        </HelpBanner>
 
         {/* Demo mode banner */}
         {isDemoMode && (

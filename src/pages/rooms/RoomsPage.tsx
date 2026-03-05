@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useRooms } from '@/hooks/useRooms'
 import { useBookings } from '@/hooks/useBookings'
 import { usePagination } from '@/hooks/usePagination'
-import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, MultiSelect } from '@/components/ui'
+import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, MultiSelect, HelpBanner } from '@/components/ui'
 import { ROOM_TYPES, EQUIPMENT_CATEGORY_LABELS } from '@/utils/constants'
 import { buildEquipmentCatalog, catalogToOptions, namesToEquipment } from '@/utils/equipmentCatalog'
 import { filterBySearch } from '@/utils/helpers'
@@ -337,6 +337,10 @@ function RoomsPage() {
           Ajouter une salle
         </Button>
       </div>
+
+      <HelpBanner storageKey="admin-rooms">
+        Gérez ici les salles physiques et leur équipement. Chaque salle possède un type (cours, labo, amphi…) et des équipements. Les séances du calendrier sont automatiquement liées aux salles disponibles.
+      </HelpBanner>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">

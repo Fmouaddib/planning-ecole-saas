@@ -4,7 +4,7 @@ import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { useAddonInfo } from '@/hooks/useAddonInfo'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
-import { Button, Input, Modal, ModalFooter } from '@/components/ui'
+import { Button, Input, Modal, ModalFooter, HelpBanner } from '@/components/ui'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType } from '@/types'
 import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell } from 'lucide-react'
@@ -149,6 +149,10 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
         <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Mon profil</h1>
         <p className="text-neutral-500 dark:text-neutral-400 mt-1">Gérer vos informations personnelles et votre abonnement</p>
       </div>
+
+      <HelpBanner storageKey="profile">
+        Gérez vos informations personnelles, changez votre mot de passe et consultez votre abonnement. Activez les notifications push pour être alerté en temps réel.
+      </HelpBanner>
 
       {/* Informations personnelles */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">

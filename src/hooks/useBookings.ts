@@ -19,8 +19,11 @@ import type {
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { useEmailNotifications } from './useEmailNotifications'
+import { useVisioMeetings } from './useVisioMeetings'
+import { useCenterSettings } from './useCenterSettings'
 import { getErrorMessage } from '@/utils'
 import { transformBooking } from '@/utils/transforms'
+import { getAutoSubjectColor } from '@/utils/constants'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
@@ -31,6 +34,8 @@ export function useBookings(): UseBookingsReturn {
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
   const { notifySession } = useEmailNotifications()
+  const { createMeeting, updateMeeting, deleteMeeting } = useVisioMeetings()
+  const { settings: centerSettings } = useCenterSettings()
 
   // ==================== HELPER FUNCTIONS ====================
 
@@ -63,7 +68,7 @@ export function useBookings(): UseBookingsReturn {
           *,
           room:rooms(id, name, room_type, capacity),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
-          subject:subjects(id, name),
+          subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
         `)
         .eq('center_id', user.establishmentId)
@@ -194,7 +199,7 @@ export function useBookings(): UseBookingsReturn {
           *,
           room:rooms(id, name, room_type, capacity),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
-          subject:subjects(id, name),
+          subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
         `)
         .single()
@@ -212,13 +217,59 @@ export function useBookings(): UseBookingsReturn {
       // Notification email (async, non-bloquant)
       notifySession('session_created', transformed, transformed.room?.name)
 
+      // Visio auto-create (async, non-bloquant)
+      const visioProvider = centerSettings.visio_provider
+      if (
+        visioProvider &&
+        centerSettings.visio_auto_create &&
+        transformed.sessionType !== 'in_person' &&
+        !data.meetingUrl
+      ) {
+        const startDt = new Date(transformed.startDateTime)
+        const endDt = new Date(transformed.endDateTime)
+        const durationMin = Math.round((endDt.getTime() - startDt.getTime()) / 60000)
+
+        const providerLabel = visioProvider === 'zoom' ? 'Zoom' : visioProvider === 'teams' ? 'Teams' : 'Google Meet'
+
+        createMeeting({
+          topic: transformed.title,
+          startTime: transformed.startDateTime,
+          duration: durationMin,
+        }).then(async (visio) => {
+          // Update DB with visio info
+          await supabase
+            .from('training_sessions')
+            .update({
+              meeting_url: visio.join_url,
+              visio_meeting_id: visio.meeting_id,
+              visio_join_url: visio.join_url,
+              visio_password: visio.password,
+              visio_provider: visioProvider,
+            })
+            .eq('id', transformed.id)
+
+          // Update local state
+          setBookings(prev =>
+            prev.map(b =>
+              b.id === transformed.id
+                ? { ...b, meetingUrl: visio.join_url, visioMeetingId: visio.meeting_id, visioProvider }
+                : b
+            )
+          )
+          toast.success(`Lien ${providerLabel} créé automatiquement`)
+        }).catch(err => {
+          console.error('[Visio] auto-create failed:', err)
+          toast.error(`Visio : ${(err as Error).message}`)
+        })
+      }
+
       return transformed
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la création de la séance')
       toast.error(message)
       throw error
     }
-  }, [user?.id, user?.establishmentId, checkBookingConflict, handleError, notifySession])
+  }, [user?.id, user?.establishmentId, checkBookingConflict, handleError, notifySession, centerSettings, createMeeting])
 
   const updateBooking = useCallback(async (data: UpdateBookingData): Promise<Booking> => {
     try {
@@ -268,7 +319,7 @@ export function useBookings(): UseBookingsReturn {
           *,
           room:rooms(id, name, room_type, capacity),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
-          subject:subjects(id, name),
+          subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
         `)
         .single()
@@ -290,6 +341,34 @@ export function useBookings(): UseBookingsReturn {
 
       // Notification email (async, non-bloquant)
       notifySession('session_updated', transformed, transformed.room?.name)
+
+      // Visio update/delete (async, non-bloquant)
+      const oldBooking = bookings.find(b => b.id === data.id)
+      if (oldBooking?.visioMeetingId) {
+        if (data.sessionType === 'in_person') {
+          // Session became in_person → delete visio meeting
+          deleteMeeting(oldBooking.visioMeetingId, oldBooking.visioProvider).then(async () => {
+            await supabase
+              .from('training_sessions')
+              .update({ meeting_url: null, visio_meeting_id: null, visio_join_url: null, visio_password: null, visio_provider: null })
+              .eq('id', data.id)
+            setBookings(prev =>
+              prev.map(b => b.id === data.id ? { ...b, meetingUrl: undefined, visioMeetingId: undefined, visioProvider: undefined } : b)
+            )
+          }).catch(err => console.error('[Visio] delete on type change failed:', err))
+        } else if (data.title || data.startDateTime || data.endDateTime) {
+          // Title or schedule changed → update visio meeting
+          const newStart = data.startDateTime || oldBooking.startDateTime
+          const newEnd = data.endDateTime || oldBooking.endDateTime
+          const durationMin = Math.round((new Date(newEnd).getTime() - new Date(newStart).getTime()) / 60000)
+          updateMeeting(oldBooking.visioMeetingId, {
+            topic: data.title || oldBooking.title,
+            startTime: newStart,
+            duration: durationMin,
+            provider: oldBooking.visioProvider,
+          }).catch(err => console.error('[Visio] update failed:', err))
+        }
+      }
 
       // Auto-create change request if session has accepted assignment (teacher collab)
       if (user && (data.startDateTime || data.endDateTime || data.roomId)) {
@@ -336,11 +415,19 @@ export function useBookings(): UseBookingsReturn {
       toast.error(message)
       throw error
     }
-  }, [user, bookings, checkBookingConflict, handleError, notifySession])
+  }, [user, bookings, checkBookingConflict, handleError, notifySession, updateMeeting, deleteMeeting])
 
   const deleteBooking = useCallback(async (id: UUID): Promise<void> => {
     try {
       setError(null)
+
+      // Visio delete (fire-and-forget)
+      const booking = bookings.find(b => b.id === id)
+      if (booking?.visioMeetingId) {
+        deleteMeeting(booking.visioMeetingId, booking.visioProvider).catch(err =>
+          console.error('[Visio] delete on session delete failed:', err)
+        )
+      }
 
       const { error: deleteError } = await supabase
         .from('training_sessions')
@@ -361,11 +448,19 @@ export function useBookings(): UseBookingsReturn {
       toast.error(message)
       throw error
     }
-  }, [user, handleError])
+  }, [user, bookings, handleError, deleteMeeting])
 
   const cancelBooking = useCallback(async (id: UUID, _reason?: string): Promise<Booking> => {
     try {
       setError(null)
+
+      // Visio delete (fire-and-forget)
+      const existingBooking = bookings.find(b => b.id === id)
+      if (existingBooking?.visioMeetingId) {
+        deleteMeeting(existingBooking.visioMeetingId, existingBooking.visioProvider).catch(err =>
+          console.error('[Visio] delete on cancel failed:', err)
+        )
+      }
 
       const { data: cancelledBooking, error: cancelError } = await supabase
         .from('training_sessions')
@@ -377,7 +472,7 @@ export function useBookings(): UseBookingsReturn {
           *,
           room:rooms(id, name, room_type, capacity),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
-          subject:subjects(id, name),
+          subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
         `)
         .single()
@@ -401,7 +496,7 @@ export function useBookings(): UseBookingsReturn {
       toast.error(message)
       throw error
     }
-  }, [user?.id, handleError, notifySession])
+  }, [user?.id, bookings, handleError, notifySession, deleteMeeting])
 
   const createBatchBookings = useCallback(async (sessions: BatchCreateSessionInput[]): Promise<BatchCreateResult> => {
     if (!user?.establishmentId) {
@@ -442,7 +537,7 @@ export function useBookings(): UseBookingsReturn {
           *,
           room:rooms(id, name, room_type, capacity),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
-          subject:subjects(id, name),
+          subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
         `)
 
@@ -539,7 +634,11 @@ export function useBookings(): UseBookingsReturn {
       status: booking.status,
       type: booking.bookingType,
       description: booking.description,
-      color: getBookingColor(booking.status, booking.bookingType),
+      color: getBookingColor(
+        booking.status,
+        booking.bookingType,
+        booking.subjectColor || (booking.matiere ? getAutoSubjectColor(booking.matiere) : undefined)
+      ),
       recurrence: booking.recurrence,
       matiere: booking.matiere,
       diplome: booking.diplome,
@@ -548,6 +647,8 @@ export function useBookings(): UseBookingsReturn {
       subjectId: booking.subjectId,
       meetingUrl: booking.meetingUrl,
       sessionType: booking.sessionType,
+      visioMeetingId: booking.visioMeetingId,
+      visioProvider: booking.visioProvider,
     }))
   }, [bookings])
 
@@ -570,10 +671,11 @@ export function useBookings(): UseBookingsReturn {
 
   // ==================== HELPER FUNCTIONS ====================
 
-  function getBookingColor(status: string, type: string): string {
+  function getBookingColor(status: string, type: string, subjectColor?: string): string {
     if (status === 'cancelled') return '#ef4444'
     if (status === 'pending') return '#f59e0b'
-    
+    if (subjectColor) return subjectColor
+
     switch (type) {
       case 'course': return '#3b82f6'
       case 'exam': return '#dc2626'

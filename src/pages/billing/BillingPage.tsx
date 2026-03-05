@@ -11,7 +11,7 @@ import { useBillingHistory } from '@/hooks/useBillingHistory'
 import { isDemoMode } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Button, Badge } from '@/components/ui'
+import { Button, Badge, HelpBanner } from '@/components/ui'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -65,6 +65,10 @@ function BillingPage() {
           Gérer dans Stripe
         </Button>
       </div>
+
+      <HelpBanner storageKey="admin-billing">
+        Consultez votre plan actuel, gérez vos options (add-ons email, professeurs, étudiants) et suivez l'historique de facturation. Cliquez sur « Gérer dans Stripe » pour modifier votre abonnement.
+      </HelpBanner>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Plan actuel */}

@@ -15,7 +15,7 @@ import {
 import { useNotifications } from '@/hooks/useNotifications'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { useAuthContext } from '@/contexts/AuthContext'
-import { Button, Badge, LoadingSpinner } from '@/components/ui'
+import { Button, Badge, LoadingSpinner, HelpBanner } from '@/components/ui'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { InAppNotification, InAppNotificationType } from '@/types'
@@ -642,6 +642,10 @@ export default function NotificationsPage() {
           </Button>
         </div>
       </div>
+
+      <HelpBanner storageKey="notifications">
+        Retrouvez toutes vos notifications : séances créées ou modifiées, rappels, résultats publiés. Filtrez par catégorie et marquez-les comme lues. Activez les notifications push pour ne rien manquer.
+      </HelpBanner>
 
       {/* Preferences panel */}
       {showPrefs && <PreferencesSection onClose={() => setShowPrefs(false)} />}

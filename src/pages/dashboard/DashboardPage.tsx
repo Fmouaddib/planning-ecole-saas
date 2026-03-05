@@ -32,7 +32,7 @@ import { useAttendance } from '@/hooks/useAttendance'
 import { useNotifications } from '@/hooks/useNotifications'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { isDemoMode } from '@/lib/supabase'
-import { LoadingState } from '@/components/ui'
+import { LoadingState, HelpBanner } from '@/components/ui'
 import type { UsageSummary, Evaluation } from '@/types'
 
 // ==================== CONSTANTES DÉMO ====================
@@ -515,6 +515,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           </div>
         </div>
 
+        <HelpBanner storageKey="student-dashboard">
+          Bienvenue dans votre espace. Retrouvez ici un résumé de votre semaine : séances à venir, matières inscrites et prochaines évaluations. Consultez « Ma classe » pour plus de détails.
+        </HelpBanner>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <div className="card">
@@ -843,6 +847,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           </div>
         </div>
 
+        <HelpBanner storageKey="teacher-dashboard">
+          Voici votre tableau de bord. Retrouvez vos séances de la semaine, vos heures planifiées et vos matières. Consultez le calendrier pour voir votre planning complet ou la page Séances pour le détail.
+        </HelpBanner>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="card">
@@ -1058,6 +1066,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           Nouvelle séance
         </button>
       </div>
+
+      <HelpBanner storageKey="admin-dashboard">
+        Bienvenue sur votre tableau de bord. Retrouvez les indicateurs clés de votre centre : séances, salles, utilisateurs et taux d'occupation. Cliquez sur « Nouvelle séance » pour planifier directement.
+      </HelpBanner>
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

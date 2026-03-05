@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useVisio, detectPlatform } from '@/hooks/useVisio'
 import { usePagination } from '@/hooks/usePagination'
-import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
+import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, HelpBanner } from '@/components/ui'
 import { VISIO_PLATFORMS } from '@/utils/constants'
 import { filterBySearch } from '@/utils/helpers'
 import type { VirtualRoom, CreateVirtualRoomData, VirtualRoomPlatform, Booking } from '@/types'
@@ -228,6 +228,10 @@ function VisioPage() {
           </button>
         </div>
       </div>
+
+      <HelpBanner storageKey="admin-visio">
+        Gérez vos salles virtuelles (Teams, Zoom…) et suivez les sessions en ligne à venir. Configurez la création automatique de liens visio dans Paramètres → Intégration Visioconférence.
+      </HelpBanner>
 
       {/* Tabs */}
       <div className="border-b border-neutral-200 dark:border-neutral-700">

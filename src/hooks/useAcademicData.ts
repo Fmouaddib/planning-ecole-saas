@@ -46,6 +46,23 @@ export interface StudentSubjectLink {
   dispensation_reason?: string
 }
 
+export interface CoursEntity {
+  classId: string
+  subjectId: string
+  name: string
+  diplomaId: string
+  programId?: string
+  diploma?: { id: string; title: string }
+  program?: { id: string; name: string }
+  academicYear: string
+  scheduleType: string
+  attendanceDays: number[]
+  code: string
+  description?: string
+  hoursPlanned?: number
+  createdAt: string
+}
+
 export function useAcademicData() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [diplomas, setDiplomas] = useState<Diploma[]>([])
@@ -141,6 +158,7 @@ export function useAcademicData() {
         code: s.code || '',
         description: s.description ?? undefined,
         category: s.category ?? undefined,
+        color: s.color ?? undefined,
         programId: s.program_id || undefined,
         program: s.program || undefined,
         isActive: s.is_active ?? true,
@@ -412,7 +430,7 @@ export function useAcademicData() {
 
   // ==================== CRUD Subjects ====================
 
-  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; programId?: string }) => {
+  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('subjects')
@@ -421,6 +439,7 @@ export function useAcademicData() {
         code: data.code || null,
         description: data.description || null,
         category: data.category || null,
+        color: data.color || null,
         program_id: data.programId || null,
         center_id: user.establishmentId,
       })
@@ -429,7 +448,8 @@ export function useAcademicData() {
     if (error) { toast.error('Erreur création matière: ' + error.message); throw error }
     const newSubject: Subject = {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
-      category: row.category ?? undefined, programId: row.program_id || undefined,
+      category: row.category ?? undefined, color: row.color ?? undefined,
+      programId: row.program_id || undefined,
       program: row.program || undefined, isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
@@ -439,19 +459,21 @@ export function useAcademicData() {
     return newSubject
   }, [user?.establishmentId])
 
-  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string }) => {
+  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => {
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.code !== undefined) payload.code = data.code || null
     if (data.description !== undefined) payload.description = data.description || null
     if (data.category !== undefined) payload.category = data.category || null
+    if (data.color !== undefined) payload.color = data.color || null
     if (data.programId !== undefined) payload.program_id = data.programId || null
     const { data: row, error } = await supabase.from('subjects').update(payload).eq('id', id)
       .select('*, program:programs(id, name)').single()
     if (error) { toast.error('Erreur modification matière: ' + error.message); throw error }
     const updated: Subject = {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
-      category: row.category ?? undefined, programId: row.program_id || undefined,
+      category: row.category ?? undefined, color: row.color ?? undefined,
+      programId: row.program_id || undefined,
       program: row.program || undefined, isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
@@ -933,6 +955,95 @@ export function useAcademicData() {
     [classSubjects],
   )
 
+  // ==================== Cours (fusion class+subject) ====================
+
+  const coursList = useMemo((): CoursEntity[] => {
+    return classes.map(cls => {
+      const links = classSubjects.filter(cs => cs.class_id === cls.id)
+      if (links.length !== 1) return null
+      const subject = subjects.find(s => s.id === links[0].subject_id)
+      if (!subject) return null
+      return {
+        classId: cls.id,
+        subjectId: subject.id,
+        name: cls.name,
+        diplomaId: cls.diplomaId,
+        programId: subject.programId,
+        diploma: cls.diploma,
+        program: subject.program,
+        academicYear: cls.academicYear,
+        scheduleType: cls.scheduleType || 'initial',
+        attendanceDays: cls.attendanceDays || [1, 2, 3, 4, 5],
+        code: subject.code || '',
+        description: subject.description,
+        hoursPlanned: links[0].hours_planned,
+        createdAt: cls.createdAt,
+      } as CoursEntity
+    }).filter(Boolean) as CoursEntity[]
+  }, [classes, classSubjects, subjects])
+
+  const createCours = useCallback(async (data: {
+    name: string
+    diplomaId: string
+    programId?: string
+    academicYear?: string
+    scheduleType?: string
+    attendanceDays?: number[]
+    code?: string
+    description?: string
+  }) => {
+    // 1. Create class
+    const newClass = await createClass({
+      name: data.name,
+      diplomaId: data.diplomaId,
+      academicYear: data.academicYear,
+      scheduleType: data.scheduleType,
+      attendanceDays: data.attendanceDays,
+    })
+    // 2. Create subject
+    const newSubject = await createSubject({
+      name: data.name,
+      code: data.code,
+      description: data.description,
+      programId: data.programId,
+    })
+    // 3. Link them
+    await linkSubjectToClass(newClass.id, newSubject.id)
+    return { classId: newClass.id, subjectId: newSubject.id }
+  }, [createClass, createSubject, linkSubjectToClass])
+
+  const updateCours = useCallback(async (classId: string, subjectId: string, data: {
+    name?: string
+    diplomaId?: string
+    programId?: string
+    academicYear?: string
+    scheduleType?: string
+    attendanceDays?: number[]
+    code?: string
+    description?: string
+  }) => {
+    // Sync name on both class and subject
+    const classPayload: any = {}
+    const subjectPayload: any = {}
+    if (data.name !== undefined) { classPayload.name = data.name; subjectPayload.name = data.name }
+    if (data.diplomaId !== undefined) classPayload.diplomaId = data.diplomaId
+    if (data.academicYear !== undefined) classPayload.academicYear = data.academicYear
+    if (data.scheduleType !== undefined) classPayload.scheduleType = data.scheduleType
+    if (data.attendanceDays !== undefined) classPayload.attendanceDays = data.attendanceDays
+    if (data.programId !== undefined) subjectPayload.programId = data.programId
+    if (data.code !== undefined) subjectPayload.code = data.code
+    if (data.description !== undefined) subjectPayload.description = data.description
+
+    if (Object.keys(classPayload).length > 0) await updateClass(classId, classPayload)
+    if (Object.keys(subjectPayload).length > 0) await updateSubject(subjectId, subjectPayload)
+  }, [updateClass, updateSubject])
+
+  const deleteCours = useCallback(async (classId: string, subjectId: string) => {
+    await unlinkSubjectFromClass(classId, subjectId)
+    await deleteClass(classId)
+    await deleteSubject(subjectId)
+  }, [unlinkSubjectFromClass, deleteClass, deleteSubject])
+
   return {
     programs,
     diplomas,
@@ -1001,6 +1112,11 @@ export function useAcademicData() {
     removeFreeSubject,
     getStudentSubjectsForStudent,
     getStudentSubjectsForClass,
+    // Cours (fusion class+subject)
+    coursList,
+    createCours,
+    updateCours,
+    deleteCours,
     // Refresh
     refreshAll: fetchAll,
   }
