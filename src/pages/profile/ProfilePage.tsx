@@ -10,6 +10,7 @@ import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType
 import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import { SAAddonsService } from '@/services/super-admin/addons'
+import { navigateTo } from '@/utils/navigation'
 import toast from 'react-hot-toast'
 
 const upgradePlans = [
@@ -152,6 +153,9 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
 
       <HelpBanner storageKey="profile">
         Gérez vos informations personnelles, changez votre mot de passe et consultez votre abonnement. Activez les notifications push pour être alerté en temps réel.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Configuration du centre →</button>
+        </span>
       </HelpBanner>
 
       {/* Informations personnelles */}

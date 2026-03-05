@@ -10,6 +10,7 @@ import { SubjectsTab } from './tabs/SubjectsTab'
 import { TeachersTab } from './tabs/TeachersTab'
 import { CoursTab } from './tabs/CoursTab'
 import { ImportModal } from '@/components/import/ImportModal'
+import { navigateTo } from '@/utils/navigation'
 import type { ImportType } from '@/utils/import-validators'
 
 type Tab = 'programs' | 'diplomas' | 'classes' | 'subjects' | 'teachers' | 'cours'
@@ -123,6 +124,10 @@ function AcademicPage() {
 
       <HelpBanner storageKey="admin-academic">
         Le référentiel structure votre offre de formation : Diplômes → Programmes → Matières. Associez ensuite les matières aux classes et aux professeurs. Cette hiérarchie alimente le calendrier et les bulletins.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/users')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Gérer les utilisateurs →</button>
+          <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Voir le planning →</button>
+        </span>
       </HelpBanner>
 
       {/* Tabs */}

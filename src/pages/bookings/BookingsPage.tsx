@@ -9,6 +9,7 @@ import { BOOKING_TYPES, BOOKING_STATUS } from '@/utils/constants'
 import { filterBySearch, formatDate, formatTimeRange, isTeacherRole } from '@/utils/helpers'
 import type { Booking, CreateBookingData, BookingType } from '@/types'
 import { Plus, Search, Pencil, Trash2, XCircle, CalendarCheck, RefreshCw, Repeat, ArrowUp, ArrowDown, ArrowUpDown, SlidersHorizontal, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { navigateTo } from '@/utils/navigation'
 
 const BatchCreateModal = lazy(() => import('../calendar/BatchCreateModal'))
 
@@ -414,7 +415,11 @@ function BookingsPage() {
       <HelpBanner storageKey={isTeacher ? 'teacher-bookings' : 'admin-bookings'}>
         {isTeacher
           ? "Retrouvez ici la liste de vos séances. Filtrez par statut, type ou date pour trouver rapidement une séance. Cliquez sur une séance pour en voir les détails."
-          : "Vue liste de toutes les séances de votre centre. Filtrez par statut, type ou date. Utilisez « Saisie en lot » pour créer plusieurs séances d'un coup."}
+          : (<>Vue liste de toutes les séances de votre centre. Filtrez par statut, type ou date. Utilisez « Saisie en lot » pour créer plusieurs séances d'un coup.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Vue calendrier →</button>
+                <button onClick={() => navigateTo('/attendance')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Suivi des présences →</button>
+              </span></>)}
       </HelpBanner>
 
       {/* Filters */}

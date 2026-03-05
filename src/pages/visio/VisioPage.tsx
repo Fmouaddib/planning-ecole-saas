@@ -3,6 +3,7 @@ import { useVisio, detectPlatform } from '@/hooks/useVisio'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, HelpBanner } from '@/components/ui'
 import { VISIO_PLATFORMS } from '@/utils/constants'
+import { navigateTo } from '@/utils/navigation'
 import { filterBySearch } from '@/utils/helpers'
 import type { VirtualRoom, CreateVirtualRoomData, VirtualRoomPlatform, Booking } from '@/types'
 import {
@@ -230,7 +231,10 @@ function VisioPage() {
       </div>
 
       <HelpBanner storageKey="admin-visio">
-        Gérez vos salles virtuelles (Teams, Zoom…) et suivez les sessions en ligne à venir. Configurez la création automatique de liens visio dans Paramètres → Intégration Visioconférence.
+        Gérez vos salles virtuelles (Teams, Zoom, Meet) et suivez les sessions en ligne à venir. Configurez la création automatique de liens visio dans Paramètres.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Configurer la visio →</button>
+        </span>
       </HelpBanner>
 
       {/* Tabs */}

@@ -9,6 +9,7 @@ import { filterBySearch } from '@/utils/helpers'
 import type { Room, CreateRoomData, RoomType, EquipmentCategory } from '@/types'
 import { Plus, Search, Pencil, Trash2, Building2, RefreshCw, Tag, ChevronDown, ChevronRight } from 'lucide-react'
 import { startOfWeek, endOfWeek, differenceInMinutes } from 'date-fns'
+import { navigateTo } from '@/utils/navigation'
 
 const roomTypeLabels: Record<string, string> = {
   classroom: 'Salle de cours',
@@ -340,6 +341,9 @@ function RoomsPage() {
 
       <HelpBanner storageKey="admin-rooms">
         Gérez ici les salles physiques et leur équipement. Chaque salle possède un type (cours, labo, amphi…) et des équipements. Les séances du calendrier sont automatiquement liées aux salles disponibles.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Voir le planning →</button>
+        </span>
       </HelpBanner>
 
       {/* Filters */}

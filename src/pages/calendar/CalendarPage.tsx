@@ -20,6 +20,7 @@ import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect,
 import { formatTimeRange, isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useVisio } from '@/hooks/useVisio'
+import { navigateTo } from '@/utils/navigation'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
 import type { CalendarEvent, ExportFormat, BookingType, UpdateBookingData } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
@@ -565,8 +566,15 @@ function CalendarPage() {
         {isStudent
           ? "Consultez votre emploi du temps. Cliquez sur une séance pour voir les détails : salle, horaire et lien visio le cas échéant."
           : isTeacher
-            ? "Consultez votre planning de séances. Cliquez sur une séance pour voir les détails. Pour demander un changement d'horaire ou de salle, passez par l'espace Collaboration."
-            : "Le calendrier affiche toutes les séances de votre centre. Basculez entre les vues Semaine, Mois, Jour et Salles. Cliquez sur un créneau vide pour créer une séance, ou sur une séance existante pour la modifier."}
+            ? (<>Consultez votre planning de séances. Cliquez sur une séance pour voir les détails. Pour demander un changement, passez par l'espace Collaboration.
+                <span className="flex gap-2 mt-2">
+                  <button onClick={() => navigateTo('/teacher-collab')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Espace Collaboration →</button>
+                </span></>)
+            : (<>Le calendrier affiche toutes les séances de votre centre. Basculez entre les vues Semaine, Mois, Jour et Salles. Cliquez sur un créneau vide pour créer une séance.
+                <span className="flex gap-2 mt-2">
+                  <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Configurer le calendrier →</button>
+                  <button onClick={() => navigateTo('/rooms')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Gérer les salles →</button>
+                </span></>)}
       </HelpBanner>
 
       {/* Controls */}

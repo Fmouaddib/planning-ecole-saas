@@ -17,6 +17,7 @@ import { useBookings } from '@/hooks/useBookings'
 import { LoadingState, Badge, HelpBanner } from '@/components/ui'
 import { getScheduleTypeLabel, getScheduleTypeBadgeVariant, DAY_OPTIONS } from '@/utils/scheduleUtils'
 import { transformUser } from '@/utils/transforms'
+import { navigateTo } from '@/utils/navigation'
 import type { User as UserType } from '@/types'
 
 function MyClassPage() {
@@ -220,6 +221,10 @@ function MyClassPage() {
 
       <HelpBanner storageKey="student-myclass">
         Retrouvez toutes les informations de votre classe : matières, professeurs, horaires et camarades. Les matières « dispensées » n'apparaissent pas dans vos moyennes. Vous pouvez aussi vous inscrire à des matières libres.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mes notes →</button>
+          <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+        </span>
       </HelpBanner>
 
       {/* Tabs multi-classe */}

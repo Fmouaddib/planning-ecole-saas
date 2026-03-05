@@ -25,6 +25,7 @@ import { exportClassReportToPDF, exportClassReportToExcel } from '@/utils/export
 import type { ClassReportStudent } from '@/utils/export-class-report'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { navigateTo } from '@/utils/navigation'
 import type { Bulletin, StudentBulletin } from '@/types'
 
 // ==================== TYPES ====================
@@ -1010,10 +1011,20 @@ export default function GradesPage() {
 
         <HelpBanner storageKey={role === 'teacher' ? 'teacher-grades' : role === 'student' ? 'student-grades' : 'admin-grades'}>
           {role === 'teacher'
-            ? "Créez des évaluations (examens, devoirs, projets…) et saisissez les notes. Publiez-les pour qu'elles soient visibles par les étudiants. Le coefficient pondère automatiquement la moyenne."
+            ? <>Créez des évaluations (examens, devoirs, projets…) et saisissez les notes. Publiez-les pour qu'elles soient visibles par les étudiants. Le coefficient pondère automatiquement la moyenne.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/attendance')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Suivi des présences →</button>
+              </span></>
             : role === 'student'
-              ? "Consultez vos notes et moyennes par matière. Les évaluations publiées par vos professeurs apparaissent ici avec leur coefficient. Téléchargez vos bulletins de période en PDF."
-              : "Consultez les moyennes par classe et par matière. Générez les bulletins de période, envoyez-les aux étudiants et à leurs contacts, ou téléchargez-les en PDF."}
+              ? <>Consultez vos notes et moyennes par matière. Les évaluations publiées par vos professeurs apparaissent ici avec leur coefficient. Téléchargez vos bulletins de période en PDF.
+                <span className="flex gap-2 mt-2">
+                  <button onClick={() => navigateTo('/attendance')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mes présences →</button>
+                </span></>
+              : <>Consultez les moyennes par classe et par matière. Générez les bulletins de période, envoyez-les aux étudiants et à leurs contacts, ou téléchargez-les en PDF.
+                <span className="flex gap-2 mt-2">
+                  <button onClick={() => navigateTo('/attendance')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Suivi des présences →</button>
+                  <button onClick={() => navigateTo('/users')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Gérer les contacts →</button>
+                </span></>}
         </HelpBanner>
 
         {/* Demo mode banner */}

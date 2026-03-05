@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react'
 import { Mail, RefreshCw, Filter, CheckCircle, XCircle, Clock, Send, FileText, X, Eye, Pencil, Save, Info } from 'lucide-react'
 import { HelpBanner } from '@/components/ui'
+import { navigateTo } from '@/utils/navigation'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
@@ -519,7 +520,10 @@ export default function EmailsPage() {
       </div>
 
       <HelpBanner storageKey="admin-emails">
-        Consultez l'historique des emails envoyés et personnalisez les modèles. Les emails sont envoyés automatiquement selon la politique définie dans Paramètres (création, modification, annulation de séance, rappels).
+        Consultez l'historique des emails envoyés et personnalisez les modèles. Les emails sont envoyés automatiquement selon la politique définie dans Paramètres.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Configurer la politique email →</button>
+        </span>
       </HelpBanner>
 
       {/* Tabs */}

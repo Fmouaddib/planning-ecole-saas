@@ -31,6 +31,7 @@ import { useGrades } from '@/hooks/useGrades'
 import { useAttendance } from '@/hooks/useAttendance'
 import { useNotifications } from '@/hooks/useNotifications'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
+import { navigateTo } from '@/utils/navigation'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingState, HelpBanner } from '@/components/ui'
 import type { UsageSummary, Evaluation } from '@/types'
@@ -517,6 +518,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         <HelpBanner storageKey="student-dashboard">
           Bienvenue dans votre espace. Retrouvez ici un résumé de votre semaine : séances à venir, matières inscrites et prochaines évaluations. Consultez « Ma classe » pour plus de détails.
+          <span className="flex gap-2 mt-2">
+            <button onClick={() => navigateTo('/my-class')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Ma classe →</button>
+            <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+          </span>
         </HelpBanner>
 
         {/* KPI Cards */}
@@ -849,6 +854,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         <HelpBanner storageKey="teacher-dashboard">
           Voici votre tableau de bord. Retrouvez vos séances de la semaine, vos heures planifiées et vos matières. Consultez le calendrier pour voir votre planning complet ou la page Séances pour le détail.
+          <span className="flex gap-2 mt-2">
+            <button onClick={() => navigateTo('/teacher-collab')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Collaboration →</button>
+            <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+          </span>
         </HelpBanner>
 
         {/* KPI Cards */}
@@ -1069,6 +1078,11 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       <HelpBanner storageKey="admin-dashboard">
         Bienvenue sur votre tableau de bord. Retrouvez les indicateurs clés de votre centre : séances, salles, utilisateurs et taux d'occupation. Cliquez sur « Nouvelle séance » pour planifier directement.
+        <span className="flex gap-2 mt-2">
+          <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Configurer →</button>
+          <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Planning →</button>
+          <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+        </span>
       </HelpBanner>
 
       {/* Stats grid */}

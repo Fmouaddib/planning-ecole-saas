@@ -22,6 +22,7 @@ import { useAcademicData } from '@/hooks/useAcademicData'
 import { useBookings } from '@/hooks/useBookings'
 import { useUsers } from '@/hooks/useUsers'
 import { isTeacherRole } from '@/utils/helpers'
+import { navigateTo } from '@/utils/navigation'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type {
@@ -1166,8 +1167,16 @@ export default function TeacherCollabPage() {
 
         <HelpBanner storageKey={isTeacher ? 'teacher-collab' : 'admin-collab'}>
           {isTeacher
-            ? "Répondez aux demandes de disponibilité de l'administration, proposez-vous comme remplaçant et suivez vos affectations. Utilisez la messagerie pour communiquer avec l'équipe pédagogique."
-            : "Coordonnez les plannings de vos professeurs : envoyez des demandes de disponibilité, gérez les remplacements et affectations. Les professeurs reçoivent une notification et peuvent répondre depuis leur espace."}
+            ? <>Répondez aux demandes de disponibilité de l'administration, proposez-vous comme remplaçant et suivez vos affectations. Utilisez la messagerie pour communiquer avec l'équipe pédagogique.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+                <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mon planning →</button>
+              </span></>
+            : <>Coordonnez les plannings de vos professeurs : envoyez des demandes de disponibilité, gérez les remplacements et affectations. Les professeurs reçoivent une notification et peuvent répondre depuis leur espace.
+              <span className="flex gap-2 mt-2">
+                <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Messages →</button>
+                <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Paramètres →</button>
+              </span></>}
         </HelpBanner>
 
         {/* Tabs */}

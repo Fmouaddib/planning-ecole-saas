@@ -12,6 +12,7 @@ import { isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { FeatureGate } from '@/components/addons/FeatureGate'
 import { Button, Badge, Card, CardContent, HelpBanner } from '@/components/ui'
+import { navigateTo } from '@/utils/navigation'
 import { useBookings } from '@/hooks/useBookings'
 import { useBulletins } from '@/hooks/useBulletins'
 import { useStudentContacts } from '@/hooks/useStudentContacts'
@@ -805,8 +806,16 @@ export default function AttendancePage() {
           {role === 'teacher'
             ? "Saisissez les présences de vos étudiants séance par séance. Sélectionnez une séance dans la liste, puis marquez chaque étudiant comme présent, absent, en retard ou excusé."
             : role === 'student'
-              ? "Consultez votre historique de présences et votre taux d'assiduité. Les absences non excusées apparaissent en rouge. Contactez l'administration pour justifier une absence."
-              : "Suivez les présences de vos étudiants : taux global, absences par matière, signalement aux contacts. Vous pouvez saisir directement les présences ou activer/désactiver la saisie par les professeurs."}
+              ? (<>Consultez votre historique de présences et votre taux d'assiduité. Les absences non excusées apparaissent en rouge.
+                  <span className="flex gap-2 mt-2">
+                    <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Voir mes notes →</button>
+                    <button onClick={() => navigateTo('/chat')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Contacter l'administration →</button>
+                  </span></>)
+              : (<>Suivez les présences de vos étudiants : taux global, absences par matière, signalement aux contacts. Activez/désactivez la saisie par les professeurs.
+                  <span className="flex gap-2 mt-2">
+                    <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Notes et bulletins →</button>
+                    <button onClick={() => navigateTo('/users')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Gérer les contacts →</button>
+                  </span></>)}
         </HelpBanner>
 
         {/* Demo mode banner */}
