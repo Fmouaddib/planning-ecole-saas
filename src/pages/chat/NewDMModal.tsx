@@ -126,7 +126,7 @@ export function NewDMModal({ isOpen, onClose, onSelect }: NewDMModalProps) {
               {filteredUsers.map(u => (
                 <button
                   key={u.id}
-                  onClick={() => { onSelect(u.id); onClose() }}
+                  onClick={() => onSelect(u.id)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-left transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-xs font-bold text-neutral-600 dark:text-neutral-300">

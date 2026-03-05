@@ -49,6 +49,7 @@ function ChatPage() {
   const handleNewDM = async (userId: string) => {
     const channelId = await chat.createDM(userId)
     if (channelId) {
+      setShowNewDM(false)
       setMobileView('messages')
     }
   }
