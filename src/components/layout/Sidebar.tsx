@@ -43,7 +43,7 @@ const GROUP_LABELS: Record<string, string> = {
   enseignement: 'Enseignement',
   gestion: 'Gestion',
   fonctionnalites: 'Fonctionnalités',
-  administration: 'Administration',
+  parametres: 'Paramètres',
 }
 
 interface SidebarProps {
@@ -180,16 +180,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/emails',
       active: currentPath === '/emails',
       roles: ['admin'] as UserRole[],
-      group: 'fonctionnalites',
+      group: 'gestion',
     },
-    // --- Administration (refermé par défaut) ---
+    // --- Paramètres (refermé par défaut) ---
     {
       icon: CreditCard,
       label: 'Facturation',
       href: '/billing',
       active: currentPath === '/billing',
       roles: ['admin'] as UserRole[],
-      group: 'administration',
+      group: 'parametres',
     },
   ]
 
@@ -222,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [visibleItems])
 
   // Collapsed state per group — default: fonctionnalites + administration collapsed
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ fonctionnalites: true, administration: true })
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ fonctionnalites: true, parametres: true })
 
   const toggleGroup = (group: string) => {
     setCollapsed(prev => ({ ...prev, [group]: !prev[group] }))
@@ -325,8 +325,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onClick={() => handleItemClick(item)}
                     />
                   ))}
-                  {/* Super Admin button inside administration group */}
-                  {section.group === 'administration' && userRole === 'super_admin' && (
+                  {/* Super Admin button inside parametres group — only for super_admin */}
+                  {section.group === 'parametres' && userRole === 'super_admin' && (
                     <button
                       onClick={() => { window.location.hash = '#/super-admin'; }}
                       className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100"

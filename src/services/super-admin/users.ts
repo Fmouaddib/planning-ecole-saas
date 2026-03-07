@@ -134,6 +134,11 @@ export class SAUsersService {
   static async updateUser(id: string, data: Partial<CreateUserData>): Promise<SuperAdminUserProfile> {
     if (isDemoMode) return MockStore.updateUser(id, data as Partial<SuperAdminUserProfile>) || { id, ...data, is_active: true, created_at: '', updated_at: new Date().toISOString() } as SuperAdminUserProfile;
 
+    // Update password if provided
+    if (data.password) {
+      await this.resetPassword(id, data.password);
+    }
+
     const { data: updated, error } = await supabase
       .from('profiles')
       .update({ full_name: data.full_name, role: data.role, phone: data.phone, center_id: data.center_id })
@@ -181,13 +186,25 @@ export class SAUsersService {
   static async resetPassword(userId: string, newPassword: string): Promise<void> {
     if (isDemoMode) { console.log(`Demo: reset password for ${userId}`); return; }
 
-    const { error } = await supabase.rpc('sa_reset_user_password', {
-      p_user_id: userId,
-      p_new_password: newPassword,
-    });
-    if (error) {
-      console.error('[SAUsers] resetPassword RPC error:', error.message);
-      throw error;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Non authentifié');
+
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ user_id: userId, password: newPassword }),
+      }
+    );
+
+    const result = await res.json();
+    if (!res.ok) {
+      console.error('[SAUsers] resetPassword error:', result.error);
+      throw new Error(result.error || 'Erreur lors du changement de mot de passe');
     }
   }
 }
