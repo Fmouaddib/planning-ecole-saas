@@ -24,12 +24,19 @@ import {
   type DragState,
 } from './calendar-helpers'
 
+export type CalendarLabel = 'title' | 'room' | 'teacher' | 'matiere' | 'time'
+const DEFAULT_LABELS: CalendarLabel[] = ['title', 'room', 'teacher']
+
 interface WeekViewProps {
   currentDate: Date
   events: CalendarEvent[]
   onEventClick: (e: CalendarEvent) => void
   onSlotClick: (date: Date, hour: number) => void
   onEventUpdate: (eventId: string, newStart: string, newEnd: string) => void
+  hourStart?: number
+  hourEnd?: number
+  workingDays?: number[]
+  calendarLabels?: CalendarLabel[]
 }
 
 export default function WeekView({
@@ -38,14 +45,20 @@ export default function WeekView({
   onEventClick,
   onSlotClick,
   onEventUpdate,
+  hourStart = HOUR_START,
+  hourEnd = HOUR_END,
+  workingDays = [1, 2, 3, 4, 5],
+  calendarLabels = DEFAULT_LABELS,
 }: WeekViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
-  const days = eachDayOfInterval({
+  const allDays = eachDayOfInterval({
     start: weekStart,
     end: endOfWeek(currentDate, { weekStartsOn: 1 }),
-  }).slice(0, 5)
+  })
+  // Filter to working days only (getDay: 0=dim, 1=lun...)
+  const days = allDays.filter(d => workingDays.includes(d.getDay()))
 
-  const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
+  const hours = Array.from({ length: hourEnd - hourStart }, (_, i) => hourStart + i)
 
   const getEventsForDay = (day: Date) =>
     events.filter(e => {
@@ -65,7 +78,7 @@ export default function WeekView({
     const end = typeof event.end === 'string' ? parseISO(event.end) : event.end
     const startH = getHours(start) + getMinutes(start) / 60
     const duration = differenceInMinutes(end, start) / 60
-    const top = (startH - HOUR_START) * HOUR_HEIGHT
+    const top = (startH - hourStart) * HOUR_HEIGHT
     const height = Math.max(duration * HOUR_HEIGHT, 20)
     return { top, height }
   }
@@ -77,10 +90,10 @@ export default function WeekView({
   }
 
   const pxToTime = (px: number) => {
-    const totalMinutes = (px / HOUR_HEIGHT) * 60 + HOUR_START * 60
+    const totalMinutes = (px / HOUR_HEIGHT) * 60 + hourStart * 60
     const h = Math.floor(totalMinutes / 60)
     const m = Math.round(totalMinutes % 60)
-    return { h: Math.max(HOUR_START, Math.min(h, HOUR_END)), m: Math.min(m, 59) }
+    return { h: Math.max(hourStart, Math.min(h, hourEnd)), m: Math.min(m, 59) }
   }
 
   const handlePointerDown = useCallback(
@@ -134,14 +147,14 @@ export default function WeekView({
           if (gridRef.current) {
             const rect = gridRef.current.getBoundingClientRect()
             const hourColWidth = 60
-            const dayWidth = (rect.width - hourColWidth) / 5
+            const dayWidth = (rect.width - hourColWidth) / days.length
             const relX = e.clientX - rect.left - hourColWidth
-            newDayIndex = Math.max(0, Math.min(4, Math.floor(relX / dayWidth)))
+            newDayIndex = Math.max(0, Math.min(days.length - 1, Math.floor(relX / dayWidth)))
           }
           return {
             ...prev,
             active: true,
-            currentTop: Math.max(0, Math.min(newTop, (HOUR_END - HOUR_START) * HOUR_HEIGHT - prev.originHeight)),
+            currentTop: Math.max(0, Math.min(newTop, (hourEnd - hourStart) * HOUR_HEIGHT - prev.originHeight)),
             currentDayIndex: newDayIndex,
           }
         } else {
@@ -185,7 +198,7 @@ export default function WeekView({
   return (
     <div className="overflow-auto" ref={gridRef}>
       {/* Header */}
-      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)] border-b border-neutral-200 dark:border-neutral-800 sticky top-0 bg-white dark:bg-neutral-900 z-10">
+      <div className="min-w-[600px] grid border-b border-neutral-200 dark:border-neutral-800 sticky top-0 bg-white dark:bg-neutral-900 z-10" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
         <div className="p-2" />
         {days.map(day => (
           <div
@@ -207,7 +220,7 @@ export default function WeekView({
       </div>
 
       {/* Time grid */}
-      <div className="min-w-[600px] grid grid-cols-[60px_repeat(5,1fr)]">
+      <div className="min-w-[600px] grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
         {/* Hours column */}
         <div>
           {hours.map(hour => (
@@ -297,12 +310,21 @@ export default function WeekView({
                             : `${event.title} - ${event.roomName}`
                       }
                     >
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium truncate">{event.title}</span>
-                        {event.recurrence && <Repeat size={10} className="flex-shrink-0 opacity-80" />}
-                        {isConflict && <AlertTriangle size={10} className="flex-shrink-0 text-yellow-200" />}
-                      </div>
-                      <div className="opacity-80 truncate">{event.roomName}</div>
+                      {calendarLabels.includes('title') && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium truncate">{event.title}</span>
+                          {event.recurrence && <Repeat size={10} className="flex-shrink-0 opacity-80" />}
+                          {isConflict && <AlertTriangle size={10} className="flex-shrink-0 text-yellow-200" />}
+                        </div>
+                      )}
+                      {calendarLabels.includes('room') && event.roomName && <div className="opacity-80 truncate">{event.roomName}</div>}
+                      {calendarLabels.includes('teacher') && (event.teacher || event.userName) && <div className="opacity-70 truncate text-[10px]">{event.teacher || event.userName}</div>}
+                      {calendarLabels.includes('matiere') && event.matiere && <div className="opacity-70 truncate text-[10px]">{event.matiere}</div>}
+                      {calendarLabels.includes('time') && (
+                        <div className="opacity-70 truncate text-[10px]">
+                          {format(parseISO(typeof event.start === 'string' ? event.start : event.start.toISOString()), 'HH:mm')} - {format(parseISO(typeof event.end === 'string' ? event.end : event.end.toISOString()), 'HH:mm')}
+                        </div>
+                      )}
                       {/* Resize handle — masqué pour les séances passées */}
                       {!isPast && (
                         <div

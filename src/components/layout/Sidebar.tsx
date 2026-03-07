@@ -9,7 +9,6 @@ import {
   Clock,
   Shield,
   GraduationCap,
-  Settings,
   Video,
   Mail,
   ClipboardCheck,
@@ -18,12 +17,15 @@ import {
   CreditCard,
   ChevronDown,
   MessageCircle,
+  ArrowLeftRight,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { SidebarCalendar } from './SidebarCalendar'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useChatUnread } from '@/hooks/useChat'
+import { useAuthContext } from '@/contexts/AuthContext'
+import { getActiveContext } from '@/utils/userContext'
 import { isDemoMode } from '@/lib/supabase'
 
 interface NavigationItem {
@@ -64,6 +66,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { plan } = useSubscriptionInfo()
   const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
   const chatUnread = useChatUnread()
+  const { contexts, switchContext } = useAuthContext()
+  const activeCtx = getActiveContext()
+  const hasMultipleContexts = contexts.length > 1
 
   const mainNavigation: NavigationItem[] = [
     // --- Top (ungrouped) ---
@@ -186,14 +191,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       roles: ['admin'] as UserRole[],
       group: 'administration',
     },
-    {
-      icon: Settings,
-      label: 'Configuration',
-      href: '/settings',
-      active: currentPath === '/settings',
-      roles: ['admin'],
-      group: 'administration',
-    }
   ]
 
   const handleItemClick = (item: NavigationItem) => {
@@ -351,6 +348,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-4 pb-2">
           <SidebarCalendar onNavigate={onNavigate} />
         </div>
+
+        {/* Context switcher */}
+        {hasMultipleContexts && (
+          <div className="px-3 pb-2">
+            <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5 px-1">Espace actif</p>
+              <div className="space-y-1">
+                {contexts.map((ctx, i) => {
+                  const isActive = activeCtx?.centerId === ctx.centerId && activeCtx?.role === ctx.role
+                  const roleLabel = ctx.role === 'super_admin' ? 'Super Admin'
+                    : ctx.role === 'teacher' ? 'Professeur'
+                    : ctx.role === 'admin' ? 'Admin'
+                    : ctx.role === 'student' ? 'Étudiant'
+                    : ctx.role
+                  return (
+                    <button
+                      key={`${ctx.centerId}-${ctx.role}-${i}`}
+                      onClick={() => switchContext(ctx)}
+                      className={clsx(
+                        'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-xs transition-all',
+                        isActive
+                          ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium'
+                          : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                      )}
+                    >
+                      <ArrowLeftRight size={12} className={isActive ? 'text-primary-500' : 'text-neutral-400'} />
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{roleLabel}</span>
+                        <span className="block truncate text-[10px] opacity-70">{ctx.centerName}</span>
+                      </div>
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary-500 shrink-0" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">

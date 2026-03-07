@@ -1,26 +1,28 @@
 import { useState, useMemo } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, BookOpen, CalendarDays } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, BookOpen, CalendarDays, Copy, Link2, MessageCircle } from 'lucide-react'
 import { SCHEDULE_TYPE_OPTIONS, DAY_OPTIONS, DEFAULT_DAYS_BY_TYPE, getScheduleTypeLabel, getScheduleTypeBadgeVariant, formatDaysShort } from '@/utils/scheduleUtils'
-import type { Diploma, Program } from '@/types'
+import type { Diploma, Program, AcademicYear } from '@/types'
 import type { CoursEntity } from '@/hooks/useAcademicData'
 
 interface CoursForm {
   name: string
   diplomaId: string
   programId: string
-  academicYear: string
+  academicYearId: string
   scheduleType: string
   attendanceDays: number[]
   code: string
   description: string
+  whatsappLink: string
+  formationLink: string
 }
 
 const emptyCoursForm: CoursForm = {
-  name: '', diplomaId: '', programId: '', academicYear: '',
+  name: '', diplomaId: '', programId: '', academicYearId: '',
   scheduleType: 'initial', attendanceDays: [1, 2, 3, 4, 5],
-  code: '', description: '',
+  code: '', description: '', whatsappLink: '', formationLink: '',
 }
 
 export function CoursTab({
@@ -29,49 +31,73 @@ export function CoursTab({
   programs,
   diplomaOptions,
   programOptionsByDiploma,
+  academicYears,
+  academicYearOptions,
+  currentAcademicYear,
   createCours,
   updateCours,
   deleteCours,
+  duplicateCours,
+  isOnlineSchool,
 }: {
   coursList: CoursEntity[]
   diplomas: Diploma[]
   programs: Program[]
   diplomaOptions: { value: string; label: string }[]
   programOptionsByDiploma: (diplomaId: string) => { value: string; label: string }[]
-  createCours: (data: { name: string; diplomaId: string; programId?: string; academicYear?: string; scheduleType?: string; attendanceDays?: number[]; code?: string; description?: string }) => Promise<{ classId: string; subjectId: string }>
-  updateCours: (classId: string, subjectId: string, data: { name?: string; diplomaId?: string; programId?: string; academicYear?: string; scheduleType?: string; attendanceDays?: number[]; code?: string; description?: string }) => Promise<void>
+  academicYears: AcademicYear[]
+  academicYearOptions: { value: string; label: string }[]
+  currentAcademicYear: AcademicYear | null
+  createCours: (data: { name: string; diplomaId: string; programId?: string; academicYear?: string; academicYearId?: string; scheduleType?: string; attendanceDays?: number[]; code?: string; description?: string; whatsappLink?: string; formationLink?: string }) => Promise<{ classId: string; subjectId: string }>
+  updateCours: (classId: string, subjectId: string, data: { name?: string; diplomaId?: string; programId?: string; academicYear?: string; academicYearId?: string; scheduleType?: string; attendanceDays?: number[]; code?: string; description?: string; whatsappLink?: string; formationLink?: string }) => Promise<void>
   deleteCours: (classId: string, subjectId: string) => Promise<void>
+  duplicateCours: (cours: CoursEntity, targetAcademicYearId?: string) => Promise<{ classId: string; subjectId: string }>
+  isOnlineSchool?: boolean
 }) {
   const [search, setSearch] = useState('')
   const [diplomaFilter, setDiplomaFilter] = useState('')
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
+  const [yearFilter, setYearFilter] = useState('')
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'duplicate' | null>(null)
   const [selected, setSelected] = useState<CoursEntity | null>(null)
   const [form, setForm] = useState<CoursForm>(emptyCoursForm)
+  const [duplicateTargetYearId, setDuplicateTargetYearId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const filtered = useMemo(() => {
     let result = coursList
     if (search) result = result.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.code.toLowerCase().includes(search.toLowerCase()))
     if (diplomaFilter) result = result.filter(c => c.diplomaId === diplomaFilter)
+    if (yearFilter) result = result.filter(c => c.academicYearId === yearFilter)
     return result
-  }, [coursList, search, diplomaFilter])
+  }, [coursList, search, diplomaFilter, yearFilter])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
-  const openCreate = () => { setForm(emptyCoursForm); setSelected(null); setModalMode('create') }
+  const openCreate = () => {
+    setForm({ ...emptyCoursForm, academicYearId: currentAcademicYear?.id || '' })
+    setSelected(null)
+    setModalMode('create')
+  }
   const openEdit = (c: CoursEntity) => {
     setSelected(c)
     setForm({
       name: c.name,
       diplomaId: c.diplomaId,
       programId: c.programId || '',
-      academicYear: c.academicYear,
+      academicYearId: c.academicYearId || '',
       scheduleType: c.scheduleType || 'initial',
       attendanceDays: c.attendanceDays || [1, 2, 3, 4, 5],
       code: c.code || '',
       description: c.description || '',
+      whatsappLink: c.whatsappLink || '',
+      formationLink: c.formationLink || '',
     })
     setModalMode('edit')
+  }
+  const openDuplicate = (c: CoursEntity) => {
+    setSelected(c)
+    setDuplicateTargetYearId('')
+    setModalMode('duplicate')
   }
   const openDelete = (c: CoursEntity) => { setSelected(c); setModalMode('delete') }
   const closeModal = () => { setModalMode(null); setSelected(null) }
@@ -79,29 +105,47 @@ export function CoursTab({
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
+      const yearName = form.academicYearId
+        ? academicYears.find(y => y.id === form.academicYearId)?.name
+        : undefined
       if (modalMode === 'create') {
         await createCours({
           name: form.name,
           diplomaId: form.diplomaId,
           programId: form.programId || undefined,
-          academicYear: form.academicYear || undefined,
+          academicYear: yearName,
+          academicYearId: form.academicYearId || undefined,
           scheduleType: form.scheduleType,
           attendanceDays: form.attendanceDays,
           code: form.code || undefined,
           description: form.description || undefined,
+          whatsappLink: form.whatsappLink || undefined,
+          formationLink: form.formationLink || undefined,
         })
       } else if (modalMode === 'edit' && selected) {
         await updateCours(selected.classId, selected.subjectId, {
           name: form.name,
           diplomaId: form.diplomaId,
           programId: form.programId || undefined,
-          academicYear: form.academicYear || undefined,
+          academicYear: yearName,
+          academicYearId: form.academicYearId || undefined,
           scheduleType: form.scheduleType,
           attendanceDays: form.attendanceDays,
           code: form.code || undefined,
           description: form.description || undefined,
+          whatsappLink: form.whatsappLink || undefined,
+          formationLink: form.formationLink || undefined,
         })
       }
+      closeModal()
+    } catch { /* toast in hook */ } finally { setSubmitting(false) }
+  }
+
+  const handleDuplicate = async () => {
+    if (!selected) return
+    setSubmitting(true)
+    try {
+      await duplicateCours(selected, duplicateTargetYearId || undefined)
       closeModal()
     } catch { /* toast in hook */ } finally { setSubmitting(false) }
   }
@@ -123,7 +167,14 @@ export function CoursTab({
         <div className="flex-1">
           <Input placeholder="Rechercher par nom ou code..." leftIcon={Search} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="w-full sm:w-56">
+        <div className="w-full sm:w-48">
+          <Select
+            options={[{ value: '', label: 'Toutes les années' }, ...academicYearOptions]}
+            value={yearFilter}
+            onChange={e => setYearFilter(e.target.value)}
+          />
+        </div>
+        <div className="w-full sm:w-48">
           <Select
             options={[{ value: '', label: 'Tous les diplômes' }, ...diplomaOptions]}
             value={diplomaFilter}
@@ -185,6 +236,7 @@ export function CoursTab({
                       <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{c.academicYear || '-'}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openDuplicate(c)} title="Dupliquer"><Copy size={14} className="text-primary-600" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil size={14} /></Button>
                           <Button variant="ghost" size="sm" onClick={() => openDelete(c)}><Trash2 size={14} className="text-error-600" /></Button>
                         </div>
@@ -225,8 +277,10 @@ export function CoursTab({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Code" placeholder="Ex: DEV-WEB" value={form.code}
               onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
-            <Input label="Année académique" placeholder="Ex: 2025-2026" value={form.academicYear}
-              onChange={e => setForm(f => ({ ...f, academicYear: e.target.value }))} />
+            <Select label="Année académique"
+              options={[{ value: '', label: 'Aucune' }, ...academicYearOptions]}
+              value={form.academicYearId}
+              onChange={e => setForm(f => ({ ...f, academicYearId: e.target.value }))} />
           </div>
           <Textarea label="Description" placeholder="Description du cours (optionnel)" value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
@@ -284,6 +338,32 @@ export function CoursTab({
               </div>
             </div>
           </div>
+
+          {/* Liens (école en ligne uniquement) */}
+          {isOnlineSchool && (
+            <div className="border-t border-neutral-100 dark:border-neutral-800 pt-4 mt-2">
+              <div className="flex items-center gap-2 mb-3">
+                <Link2 size={16} className="text-primary-600" />
+                <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Liens du cours</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Groupe WhatsApp"
+                  placeholder="https://chat.whatsapp.com/..."
+                  value={form.whatsappLink}
+                  onChange={e => setForm(f => ({ ...f, whatsappLink: e.target.value }))}
+                  leftIcon={MessageCircle}
+                />
+                <Input
+                  label="Lien de la formation"
+                  placeholder="https://..."
+                  value={form.formationLink}
+                  onChange={e => setForm(f => ({ ...f, formationLink: e.target.value }))}
+                  leftIcon={Link2}
+                />
+              </div>
+            </div>
+          )}
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
@@ -302,6 +382,25 @@ export function CoursTab({
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={submitting}>Supprimer</Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Duplicate Modal */}
+      <Modal isOpen={modalMode === 'duplicate'} onClose={closeModal} title="Dupliquer le cours" size="sm">
+        <div className="space-y-4">
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Dupliquer <strong>{selected?.name}</strong> avec ses affectations professeurs.
+          </p>
+          <Select
+            label="Année cible"
+            options={[{ value: '', label: 'Même année' }, ...academicYearOptions]}
+            value={duplicateTargetYearId}
+            onChange={e => setDuplicateTargetYearId(e.target.value)}
+          />
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+          <Button onClick={handleDuplicate} isLoading={submitting} leftIcon={Copy}>Dupliquer</Button>
         </ModalFooter>
       </Modal>
     </>

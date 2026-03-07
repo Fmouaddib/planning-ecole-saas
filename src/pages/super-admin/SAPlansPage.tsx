@@ -49,6 +49,7 @@ export const SAPlansPage = () => {
       max_students: parseInt(form.get('max_students') as string) || 0,
       features: (form.get('features') as string || '').split('\n').filter(f => f.trim()),
       has_chat: !!form.get('has_chat'),
+      has_subject_links: !!form.get('has_subject_links'),
     };
 
     if (editingPlan) {
@@ -144,6 +145,10 @@ export const SAPlansPage = () => {
                 <div className="sa-plan-limit">
                   <span>Messagerie</span>
                   <strong>{plan.has_chat ? 'Incluse' : 'Non incluse'}</strong>
+                </div>
+                <div className="sa-plan-limit">
+                  <span>Liens pedagogiques</span>
+                  <strong>{plan.has_subject_links ? 'Inclus' : 'Non inclus'}</strong>
                 </div>
               </div>
 
@@ -246,6 +251,12 @@ export const SAPlansPage = () => {
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input type="checkbox" name="has_chat" defaultChecked={editingPlan?.has_chat ?? false} />
                   <span className="sa-form-label" style={{ margin: 0 }}>Messagerie temps réel incluse</span>
+                </label>
+              </div>
+              <div className="sa-form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input type="checkbox" name="has_subject_links" defaultChecked={editingPlan?.has_subject_links ?? false} />
+                  <span className="sa-form-label" style={{ margin: 0 }}>Liens pedagogiques par matiere (WhatsApp, Web, Slides)</span>
                 </label>
               </div>
               <div className="sa-modal-actions" style={{ marginTop: '24px' }}>

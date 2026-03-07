@@ -14,6 +14,7 @@ import { SAConfirmModal } from '@/components/super-admin/components/SAConfirmMod
 import type { CreateCenterData, CreateCenterWithAdminData, SuperAdminCenter } from '@/types/super-admin';
 import { centerDisplayName, formatCenterAddress } from '@/utils/helpers';
 import { setImpersonation } from '@/utils/impersonation';
+import { getCenterUrl, BASE_DOMAIN } from '@/utils/subdomain';
 
 export const SACentersPage = () => {
   const [search, setSearch] = useState('');
@@ -51,6 +52,7 @@ export const SACentersPage = () => {
     const data: CreateCenterData = {
       name: form.get('name') as string,
       acronym: form.get('acronym') as string || undefined,
+      slug: (form.get('slug') as string || '').toLowerCase().replace(/[^a-z0-9-]/g, '') || undefined,
       address: form.get('address') as string || undefined,
       address_line_2: form.get('address_line_2') as string || undefined,
       postal_code: form.get('postal_code') as string || undefined,
@@ -87,6 +89,7 @@ export const SACentersPage = () => {
     exportToCSV(allCenters, [
       { header: 'Nom', accessor: (c) => c.name },
       { header: 'Acronyme', accessor: (c) => c.acronym || '' },
+      { header: 'Slug', accessor: (c) => c.slug || '' },
       { header: 'Code', accessor: (c) => c.enrollment_code || '' },
       { header: 'Email', accessor: (c) => c.email || '' },
       { header: 'Adresse', accessor: (c) => formatCenterAddress(c) },
@@ -147,6 +150,17 @@ export const SACentersPage = () => {
                     <span className={`sa-status ${center.is_active ? 'active' : 'inactive'}`}>
                       {center.is_active ? 'Actif' : 'Inactif'}
                     </span>
+                    {center.slug && (
+                      <a
+                        href={getCenterUrl(center.slug)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--sa-accent)', background: 'var(--sa-bg-subtle)', padding: '2px 6px', borderRadius: '4px', textDecoration: 'none' }}
+                        title={`${center.slug}.${BASE_DOMAIN}`}
+                      >
+                        {center.slug}.{BASE_DOMAIN}
+                      </a>
+                    )}
                     {center.enrollment_code && (
                       <span style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--sa-text-secondary)', background: 'var(--sa-bg-subtle)', padding: '2px 6px', borderRadius: '4px' }}>
                         {center.enrollment_code}
@@ -276,6 +290,21 @@ export const SACentersPage = () => {
               <div className="sa-form-group">
                 <label className="sa-form-label">Acronyme / Sigle <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)' }}>(optionnel)</span></label>
                 <input name="acronym" className="sa-form-input" placeholder="Ex: ISP" defaultValue={editingCenter?.acronym || ''} />
+              </div>
+              <div className="sa-form-group">
+                <label className="sa-form-label">Slug (sous-domaine) <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)' }}>(auto-généré si vide)</span></label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    name="slug"
+                    className="sa-form-input"
+                    placeholder="ex: zec"
+                    defaultValue={editingCenter?.slug || ''}
+                    pattern="[a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9]"
+                    title="Lettres minuscules, chiffres et tirets uniquement"
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)', whiteSpace: 'nowrap' }}>.{BASE_DOMAIN}</span>
+                </div>
               </div>
               <div className="sa-form-group">
                 <label className="sa-form-label">Email</label>

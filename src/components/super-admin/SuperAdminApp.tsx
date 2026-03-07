@@ -10,6 +10,7 @@ const SAPlansPage = lazy(() => import('@/pages/super-admin/SAPlansPage').then(m 
 const SASubscriptionsPage = lazy(() => import('@/pages/super-admin/SASubscriptionsPage').then(m => ({ default: m.SASubscriptionsPage })));
 const SAAddonsPage = lazy(() => import('@/pages/super-admin/SAAddonsPage').then(m => ({ default: m.SAAddonsPage })));
 const SAAuditPage = lazy(() => import('@/pages/super-admin/SAAuditPage').then(m => ({ default: m.SAAuditPage })));
+const SASettingsPage = lazy(() => import('@/pages/super-admin/SASettingsPage').then(m => ({ default: m.SASettingsPage })));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center p-12">
@@ -45,6 +46,8 @@ export const SuperAdminApp = ({ user, onLogout }: SuperAdminAppProps) => {
         return <SASubscriptionsPage />;
       case 'sa-audit':
         return <SAAuditPage />;
+      case 'sa-settings':
+        return <SASettingsPage />;
       default:
         return <SADashboardPage />;
     }

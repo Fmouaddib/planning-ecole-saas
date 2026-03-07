@@ -12,6 +12,7 @@ import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
 import { clearImpersonation, getImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
 import { ImpersonationBanner } from '@/components/ui/ImpersonationBanner'
+import { getSubdomainContext, resolveCenterSlug, navigateToCenter, navigateToAdmin, getLandingUrl, type SubdomainContext } from '@/utils/subdomain'
 import toast, { Toaster } from 'react-hot-toast'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
@@ -92,6 +93,24 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [hash, setHash] = useState(window.location.hash)
 
+  // Subdomain context
+  const [subdomainCtx] = useState<SubdomainContext>(() => getSubdomainContext())
+  const [centerInfo, setCenterInfo] = useState<{ id: string; name: string; logoUrl?: string; slug: string } | null>(null)
+  const [centerNotFound, setCenterNotFound] = useState(false)
+
+  // Resolve center slug on mount
+  useEffect(() => {
+    if (subdomainCtx.type === 'center') {
+      resolveCenterSlug(subdomainCtx.slug).then(info => {
+        if (info) {
+          setCenterInfo(info)
+        } else {
+          setCenterNotFound(true)
+        }
+      })
+    }
+  }, [subdomainCtx])
+
   // Impersonation : recalculer le user effectif quand l'impersonation change
   const [_impTick, setImpTick] = useState(0)
   useEffect(() => {
@@ -154,6 +173,14 @@ export default function App() {
             .single()
 
           if (profile) {
+            // If on a center subdomain, verify the user belongs to this center
+            if (subdomainCtx.type === 'center' && centerInfo && profile.center_id !== centerInfo.id && profile.role !== 'super_admin') {
+              console.warn('[Auth] User center mismatch — signing out from this subdomain')
+              await supabase.auth.signOut()
+              setAppState('unauthenticated')
+              return
+            }
+
             const { firstName, lastName } = parseFullName(profile.full_name)
             setUser({
               id: profile.id,
@@ -220,7 +247,8 @@ export default function App() {
 
       return () => subscription.unsubscribe()
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerInfo])
 
   // Listen to hash changes for landing/auth routing
   useEffect(() => {
@@ -309,6 +337,27 @@ export default function App() {
         }
 
         console.log('[Login] Profile OK:', profile.email, 'role:', profile.role, 'center:', profile.center_id)
+
+        // If super_admin logging in, redirect to admin subdomain
+        if (profile.role === 'super_admin' && subdomainCtx.type !== 'admin') {
+          navigateToAdmin()
+          return
+        }
+
+        // If on generic login (app.*) or landing, redirect to center subdomain
+        if (profile.center_id && (subdomainCtx.type === 'app' || subdomainCtx.type === 'landing')) {
+          const { data: center } = await supabase
+            .from('training_centers')
+            .select('slug')
+            .eq('id', profile.center_id)
+            .single()
+
+          if (center?.slug) {
+            navigateToCenter(center.slug)
+            return
+          }
+        }
+
         const { firstName, lastName } = parseFullName(profile.full_name)
         setUser({
           id: profile.id,
@@ -421,6 +470,15 @@ export default function App() {
 
   // Le thème est appliqué par le script inline dans index.html (pas de FOUC)
 
+  // Wait for center slug resolution before rendering anything
+  if (subdomainCtx.type === 'center' && !centerInfo && !centerNotFound) {
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+        <LoadingState size="lg" text="Chargement du centre..." />
+      </div>
+    )
+  }
+
   // États de chargement et d'erreur
   if (appState === 'loading') {
     return (
@@ -446,9 +504,38 @@ export default function App() {
     )
   }
 
+  // Center subdomain not found → 404 page
+  if (centerNotFound && subdomainCtx.type === 'center') {
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="h-16 w-16 rounded-2xl bg-error-100 dark:bg-error-900/30 flex items-center justify-center mx-auto mb-6">
+            <span className="text-error-600 dark:text-error-400 text-2xl font-bold">?</span>
+          </div>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">
+            Centre introuvable
+          </h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-6">
+            Le centre &quot;{subdomainCtx.slug}&quot; n'existe pas ou n'est plus actif.
+          </p>
+          <a
+            href={getLandingUrl()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white shadow-md transition-colors"
+            style={{ background: 'linear-gradient(135deg, #FF5B46, #FBA625)' }}
+          >
+            Retour à l'accueil
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   // Pages d'authentification / Landing
   if (appState === 'unauthenticated') {
-    if (hash === '#/login') {
+    // On a center subdomain → show login directly (no landing page)
+    const isCenterSub = subdomainCtx.type === 'center'
+
+    if (hash === '#/login' || (isCenterSub && hash !== '#/signup' && hash !== '#/forgot-password' && !hash.startsWith('#/checkout-success') && !hash.startsWith('#/onboarding'))) {
       return (
         <Suspense fallback={<div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center"><LoadingState size="lg" text="Chargement..." /></div>}>
           <Toaster position="top-center" />
@@ -457,6 +544,7 @@ export default function App() {
             onSwitchToSignup={() => { window.location.hash = '#/signup' }}
             isLoading={isLoading}
             error={authError}
+            centerInfo={centerInfo || undefined}
           />
         </Suspense>
       )
@@ -522,7 +610,7 @@ export default function App() {
       )
     }
 
-    // Detail pages
+    // Detail pages (only on landing/www, not on center subdomains)
     const landingSuspense = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
       <Suspense
         fallback={

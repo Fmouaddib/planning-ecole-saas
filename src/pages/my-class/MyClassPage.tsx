@@ -7,10 +7,14 @@ import {
   Clock,
   User,
   Download,
+  MessageCircle,
+  Globe,
+  FileText,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
+import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { isStudentRole } from '@/utils/helpers'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useBookings } from '@/hooks/useBookings'
@@ -33,8 +37,10 @@ function MyClassPage() {
     isLoading: academicLoading,
   } = useAcademicData()
   const { settings: centerSettings } = useCenterSettings()
+  const { plan } = useSubscriptionInfo()
   const { calendarEvents } = useBookings()
   const hideSubjects = !!centerSettings.hide_subjects
+  const hasSubjectLinks = !!plan?.hasSubjectLinks
   const hideClassmates = !!centerSettings.hide_classmates
 
   const [classmates, setClassmates] = useState<UserType[]>([])
@@ -94,6 +100,9 @@ function MyClassPage() {
           hoursPlanned: link?.hours_planned || undefined,
           isDispensed: enrollment.status === 'dispensed',
           dispensationReason: enrollment.dispensation_reason,
+          whatsappLink: subject?.whatsappLink,
+          webLink: subject?.webLink,
+          slideLink: subject?.slideLink,
         }
       }).sort((a, b) => {
         // Dispensés en bas
@@ -115,6 +124,9 @@ function MyClassPage() {
         hoursPlanned: link.hours_planned || undefined,
         isDispensed: false,
         dispensationReason: undefined as string | undefined,
+        whatsappLink: subject?.whatsappLink,
+        webLink: subject?.webLink,
+        slideLink: subject?.slideLink,
       }
     }).sort((a, b) => a.subjectName.localeCompare(b.subjectName))
   }, [currentClass, hasStudentSubjects, classEnrollments, getClassSubjectsForClass, subjects, teachers])
@@ -310,6 +322,7 @@ function MyClassPage() {
                         <th className="text-left py-2 px-3 font-medium text-neutral-500 dark:text-neutral-400">Code</th>
                         <th className="text-left py-2 px-3 font-medium text-neutral-500 dark:text-neutral-400">Professeur</th>
                         <th className="text-right py-2 px-3 font-medium text-neutral-500 dark:text-neutral-400">Volume (h)</th>
+                        {hasSubjectLinks && <th className="text-center py-2 px-3 font-medium text-neutral-500 dark:text-neutral-400">Ressources</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -337,6 +350,30 @@ function MyClassPage() {
                           <td className="py-2.5 px-3 text-right font-medium text-neutral-900 dark:text-neutral-100">
                             {d.hoursPlanned != null ? `${d.hoursPlanned}h` : '—'}
                           </td>
+                          {hasSubjectLinks && (
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center justify-center gap-1">
+                                {d.whatsappLink && (
+                                  <a href={d.whatsappLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-950 transition-colors" title="Groupe WhatsApp">
+                                    <MessageCircle size={14} />
+                                  </a>
+                                )}
+                                {d.webLink && (
+                                  <a href={d.webLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors" title="Ressources web">
+                                    <Globe size={14} />
+                                  </a>
+                                )}
+                                {d.slideLink && (
+                                  <a href={d.slideLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 transition-colors" title="Support de cours">
+                                    <FileText size={14} />
+                                  </a>
+                                )}
+                                {!d.whatsappLink && !d.webLink && !d.slideLink && (
+                                  <span className="text-xs text-neutral-300">—</span>
+                                )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -347,6 +384,7 @@ function MyClassPage() {
                           <td className="py-2.5 px-3 text-right font-bold text-neutral-900 dark:text-neutral-100">
                             {classSubjectDetails.filter(d => !d.isDispensed).reduce((sum, d) => sum + (d.hoursPlanned || 0), 0)}h
                           </td>
+                          {hasSubjectLinks && <td></td>}
                         </tr>
                       </tfoot>
                     )}

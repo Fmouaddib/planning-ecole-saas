@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Button, Select, HelpBanner } from '@/components/ui'
+import { Button, Input, Select, HelpBanner } from '@/components/ui'
 import {
   Settings, Bell, Monitor, Save, LogOut, User, HelpCircle,
-  GraduationCap, Mail, BookOpen, Video, Link as LinkIcon,
+  GraduationCap, Mail, BookOpen, Video, Link as LinkIcon, Clock,
+  Plus, X, Tag,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { navigateTo } from '@/utils/navigation'
@@ -86,6 +87,163 @@ const TABS: TabDef[] = [
   { key: 'account', label: 'Compte', icon: User },
 ]
 
+const DEFAULT_SESSION_TYPES = [
+  { value: 'course', label: 'Cours' },
+  { value: 'exam', label: 'Examen' },
+  { value: 'meeting', label: 'Réunion' },
+  { value: 'event', label: 'Événement' },
+  { value: 'maintenance', label: 'Maintenance' },
+]
+
+function SessionTypesSettings({ types, onChange }: { types: { value: string; label: string }[]; onChange: (t: { value: string; label: string }[]) => void }) {
+  const [newLabel, setNewLabel] = useState('')
+  const effectiveTypes = types.length > 0 ? types : DEFAULT_SESSION_TYPES
+  const isCustom = types.length > 0
+
+  const addType = () => {
+    if (!newLabel.trim()) return
+    const value = newLabel.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')
+    if (effectiveTypes.some(t => t.value === value)) return
+    onChange([...effectiveTypes, { value, label: newLabel.trim() }])
+    setNewLabel('')
+  }
+
+  const removeType = (value: string) => {
+    const filtered = effectiveTypes.filter(t => t.value !== value)
+    onChange(filtered)
+  }
+
+  const resetToDefaults = () => {
+    onChange([])
+  }
+
+  return (
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+          <Tag size={20} className="text-orange-600 dark:text-orange-400" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Types de séance</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">Personnalisez les types de séance disponibles dans le calendrier</p>
+        </div>
+      </div>
+      <div className="space-y-4 max-w-md">
+        <div className="flex flex-wrap gap-2">
+          {effectiveTypes.map(t => (
+            <span key={t.value} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm text-neutral-700 dark:text-neutral-300">
+              {t.label}
+              <button
+                type="button"
+                onClick={() => removeType(t.value)}
+                className="text-neutral-400 hover:text-error-500 transition-colors"
+                title="Supprimer"
+              >
+                <X size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Nouveau type (ex: TP, TD, Tutorat...)"
+            value={newLabel}
+            onChange={e => setNewLabel(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addType() } }}
+          />
+          <Button variant="secondary" size="sm" leftIcon={Plus} onClick={addType} disabled={!newLabel.trim()}>
+            Ajouter
+          </Button>
+        </div>
+        {isCustom && (
+          <button
+            type="button"
+            onClick={resetToDefaults}
+            className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+          >
+            Réinitialiser les types par défaut
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const LABEL_OPTIONS: { value: string; label: string; description: string }[] = [
+  { value: 'title', label: 'Titre', description: 'Nom de la séance' },
+  { value: 'room', label: 'Salle', description: 'Salle attribuée' },
+  { value: 'teacher', label: 'Professeur', description: 'Nom du professeur' },
+  { value: 'matiere', label: 'Matière', description: 'Matière du cours' },
+  { value: 'time', label: 'Horaire', description: 'Heure début - fin' },
+]
+
+const DEFAULT_CALENDAR_LABELS = ['title', 'room', 'teacher']
+
+function CalendarLabelsSettings({ labels, onChange }: { labels: string[]; onChange: (l: string[]) => void }) {
+  const effectiveLabels = labels.length > 0 ? labels : DEFAULT_CALENDAR_LABELS
+
+  const toggle = (value: string) => {
+    if (value === 'title') return // Title always shown
+    const newLabels = effectiveLabels.includes(value)
+      ? effectiveLabels.filter(l => l !== value)
+      : [...effectiveLabels, value]
+    onChange(newLabels)
+  }
+
+  const resetToDefaults = () => onChange([])
+
+  return (
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+          <Tag size={20} className="text-blue-600 dark:text-blue-400" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Étiquettes du calendrier</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">Choisissez les informations affichées sur chaque bloc du calendrier</p>
+        </div>
+      </div>
+      <div className="space-y-3 max-w-md">
+        {LABEL_OPTIONS.map(opt => {
+          const isActive = effectiveLabels.includes(opt.value)
+          const isTitle = opt.value === 'title'
+          return (
+            <label
+              key={opt.value}
+              className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                isActive
+                  ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-950/30'
+                  : 'border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+              } ${isTitle ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={() => toggle(opt.value)}
+                disabled={isTitle}
+                className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{opt.label}</span>
+                <span className="text-xs text-neutral-500 dark:text-neutral-400 ml-2">{opt.description}</span>
+              </div>
+            </label>
+          )
+        })}
+        {JSON.stringify(effectiveLabels) !== JSON.stringify(DEFAULT_CALENDAR_LABELS) && (
+          <button
+            type="button"
+            onClick={resetToDefaults}
+            className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+          >
+            Réinitialiser par défaut
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
   const { user } = useAuthContext()
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
@@ -135,6 +293,11 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
         </div>
         {(activeTab === 'general' || activeTab === 'notifications' || activeTab === 'display') && (
           <Button leftIcon={Save} onClick={handleSave} className="self-start sm:self-auto">
+            {saved ? 'Enregistré !' : 'Enregistrer'}
+          </Button>
+        )}
+        {activeTab === 'center' && isAdmin && (
+          <Button leftIcon={Save} onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000) }} className="self-start sm:self-auto">
             {saved ? 'Enregistré !' : 'Enregistrer'}
           </Button>
         )}
@@ -239,30 +402,60 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Politique email de l'établissement</h3>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Contrôlez quels emails sont envoyés et à qui</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Contrôlez quels emails sont envoyés, par type et par destinataire</p>
                   </div>
                 </div>
-                <div className="space-y-6 max-w-md">
-                  <div>
-                    <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-3">Types d'email envoyés</h4>
-                    <div className="space-y-3">
-                      <Toggle label="Création de séance" description="Email envoyé lorsqu'une nouvelle séance est créée" checked={centerSettings.email_session_created ?? true} onChange={v => updateCenterSettings({ email_session_created: v })} />
-                      <Toggle label="Modification de séance" description="Email envoyé lorsqu'une séance est modifiée" checked={centerSettings.email_session_updated ?? true} onChange={v => updateCenterSettings({ email_session_updated: v })} />
-                      <Toggle label="Annulation de séance" description="Email envoyé lorsqu'une séance est annulée" checked={centerSettings.email_session_cancelled ?? true} onChange={v => updateCenterSettings({ email_session_cancelled: v })} />
-                      <Toggle label="Rappels automatiques" description="Rappels J-1 et H-1 avant chaque séance" checked={centerSettings.email_reminders ?? true} onChange={v => updateCenterSettings({ email_reminders: v })} />
-                      <Toggle label="Récapitulatif hebdomadaire" description="Email récap envoyé chaque dimanche soir" checked={centerSettings.email_weekly_recap ?? true} onChange={v => updateCenterSettings({ email_weekly_recap: v })} />
-                    </div>
-                  </div>
-                  <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
-                    <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200 mb-3">Destinataires</h4>
-                    <div className="space-y-3">
-                      <Toggle label="Notifier les formateurs" description="Les formateurs reçoivent les emails liés à leurs séances" checked={centerSettings.email_notify_trainers ?? true} onChange={v => updateCenterSettings({ email_notify_trainers: v })} />
-                      <Toggle label="Notifier les étudiants / participants" description="Les étudiants et participants reçoivent les emails liés à leurs séances" checked={centerSettings.email_notify_students ?? true} onChange={v => updateCenterSettings({ email_notify_students: v })} />
-                    </div>
-                  </div>
+
+                {/* Tableau email par type et destinataire */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                        <th className="text-left py-2 pr-4 text-neutral-600 dark:text-neutral-400 font-medium">Type d'email</th>
+                        <th className="text-center py-2 px-3 text-neutral-600 dark:text-neutral-400 font-medium">Professeurs</th>
+                        <th className="text-center py-2 px-3 text-neutral-600 dark:text-neutral-400 font-medium">Etudiants</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                      {[
+                        { label: 'Création de séance', desc: 'Email lors de la création d\'une séance', keyT: 'email_session_created_teachers' as const, keyS: 'email_session_created_students' as const },
+                        { label: 'Modification de séance', desc: 'Email lors de la modification d\'une séance', keyT: 'email_session_updated_teachers' as const, keyS: 'email_session_updated_students' as const },
+                        { label: 'Annulation de séance', desc: 'Email lors de l\'annulation d\'une séance', keyT: 'email_session_cancelled_teachers' as const, keyS: 'email_session_cancelled_students' as const },
+                        { label: 'Rappels automatiques', desc: 'Rappels J-1 et H-1 avant chaque séance', keyT: 'email_reminders_teachers' as const, keyS: 'email_reminders_students' as const },
+                        { label: 'Récap. hebdomadaire', desc: 'Chaque dimanche soir', keyT: 'email_recap_weekly_teachers' as const, keyS: 'email_recap_weekly_students' as const },
+                        { label: 'Récap. mensuel', desc: 'Chaque fin de mois', keyT: 'email_recap_monthly_teachers' as const, keyS: 'email_recap_monthly_students' as const },
+                        { label: 'Récap. trimestriel', desc: 'Tous les 3 mois', keyT: 'email_recap_quarterly_teachers' as const, keyS: 'email_recap_quarterly_students' as const },
+                        { label: 'Récap. semestriel', desc: 'Tous les 6 mois', keyT: 'email_recap_semester_teachers' as const, keyS: 'email_recap_semester_students' as const },
+                      ].map(row => (
+                        <tr key={row.keyT}>
+                          <td className="py-3 pr-4">
+                            <span className="text-neutral-800 dark:text-neutral-200">{row.label}</span>
+                            <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{row.desc}</p>
+                          </td>
+                          <td className="text-center py-3 px-3">
+                            <input
+                              type="checkbox"
+                              checked={centerSettings[row.keyT] ?? true}
+                              onChange={e => updateCenterSettings({ [row.keyT]: e.target.checked })}
+                              className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500 h-4 w-4"
+                            />
+                          </td>
+                          <td className="text-center py-3 px-3">
+                            <input
+                              type="checkbox"
+                              checked={centerSettings[row.keyS] ?? true}
+                              onChange={e => updateCenterSettings({ [row.keyS]: e.target.checked })}
+                              className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500 h-4 w-4"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
+
           </div>
         )}
 
@@ -292,6 +485,76 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
 
         {activeTab === 'center' && isAdmin && (
           <div className="space-y-6">
+            {/* Horaires et jours d'ouverture */}
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <Clock size={20} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Horaires d'ouverture</h3>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">Définit les plages horaires du calendrier et la validation des séances</p>
+                </div>
+              </div>
+              <div className="space-y-5 max-w-lg">
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Heure d'ouverture"
+                    type="time"
+                    value={centerSettings.opening_time || '08:00'}
+                    onChange={e => updateCenterSettings({ opening_time: e.target.value })}
+                  />
+                  <Input
+                    label="Heure de fermeture"
+                    type="time"
+                    value={centerSettings.closing_time || '20:00'}
+                    onChange={e => updateCenterSettings({ closing_time: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                    Jours ouvrés
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 1, label: 'Lun' },
+                      { value: 2, label: 'Mar' },
+                      { value: 3, label: 'Mer' },
+                      { value: 4, label: 'Jeu' },
+                      { value: 5, label: 'Ven' },
+                      { value: 6, label: 'Sam' },
+                      { value: 0, label: 'Dim' },
+                    ].map(day => {
+                      const currentDays = centerSettings.working_days || [1, 2, 3, 4, 5]
+                      const isSelected = currentDays.includes(day.value)
+                      return (
+                        <button
+                          key={day.value}
+                          type="button"
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isSelected
+                              ? 'bg-primary-600 text-white'
+                              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                          }`}
+                          onClick={() => {
+                            const newDays = isSelected
+                              ? currentDays.filter((d: number) => d !== day.value)
+                              : [...currentDays, day.value].sort((a: number, b: number) => a - b)
+                            updateCenterSettings({ working_days: newDays })
+                          }}
+                        >
+                          {day.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-neutral-400 mt-2">
+                    Les jours non sélectionnés seront masqués dans la vue semaine du calendrier.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Espace étudiant */}
             <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6">
@@ -340,6 +603,42 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
                   description="Les onglets Classes et Matières du référentiel sont remplacés par un onglet unique « Cours ». Chaque cours crée automatiquement une classe et une matière liées."
                   checked={!!centerSettings.merge_class_subject}
                   onChange={v => updateCenterSettings({ merge_class_subject: v })}
+                />
+              </div>
+            </div>
+
+            {/* Types de séance */}
+            <SessionTypesSettings
+              types={centerSettings.custom_session_types || []}
+              onChange={types => updateCenterSettings({ custom_session_types: types.length > 0 ? types : undefined })}
+            />
+
+            {/* Étiquettes du calendrier */}
+            <CalendarLabelsSettings
+              labels={centerSettings.calendar_labels || []}
+              onChange={labels => updateCenterSettings({ calendar_labels: labels.length > 0 && JSON.stringify(labels) !== JSON.stringify(DEFAULT_CALENDAR_LABELS) ? labels as any : undefined })}
+            />
+
+            {/* Gestion des salles */}
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg">
+                  <Monitor size={20} className="text-cyan-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Gestion des salles</h3>
+              </div>
+              <div className="space-y-4">
+                <Toggle
+                  checked={centerSettings.room_optional ?? false}
+                  onChange={v => updateCenterSettings({ room_optional: v })}
+                  label="Salle facultative"
+                  description="Permet de créer des séances sans attribuer de salle (utile pour les cours en ligne)"
+                />
+                <Toggle
+                  checked={centerSettings.allow_multi_room ?? false}
+                  onChange={v => updateCenterSettings({ allow_multi_room: v })}
+                  label="Plusieurs salles par séance"
+                  description="Permet d'attribuer plusieurs salles à une même séance (examens, événements)"
                 />
               </div>
             </div>

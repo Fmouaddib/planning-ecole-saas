@@ -44,6 +44,26 @@ async function getCenterSettings(
 
 type Provider = "zoom" | "teams" | "meet";
 
+// ==================== AUTH ====================
+
+async function resolveCenterId(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return null;
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user } } = await createClient(
+    SUPABASE_URL,
+    Deno.env.get("SUPABASE_ANON_KEY")!
+  ).auth.getUser(token);
+  if (!user) return null;
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("center_id")
+    .eq("id", user.id)
+    .single();
+  return profile?.center_id || null;
+}
+
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req: Request) => {
@@ -63,31 +83,14 @@ Deno.serve(async (req: Request) => {
       timezone,
     } = await req.json();
 
-    const supabaseAdmin = getSupabaseAdmin();
-
     // Resolve center_id from JWT → profile
-    let centerId = bodyCenterId as string | undefined;
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user } } = await createClient(
-        SUPABASE_URL,
-        Deno.env.get("SUPABASE_ANON_KEY")!
-      ).auth.getUser(token);
-      if (user) {
-        const { data: profile } = await supabaseAdmin
-          .from("profiles")
-          .select("center_id")
-          .eq("id", user.id)
-          .single();
-        if (profile) centerId = profile.center_id;
-      }
-    }
+    const centerId = bodyCenterId || await resolveCenterId(req);
 
     if (!centerId) {
-      return json({ error: "center_id required" }, 400);
+      return json({ error: "Non authentifié — veuillez vous reconnecter" }, 401);
     }
 
+    const supabaseAdmin = getSupabaseAdmin();
     const settings = await getCenterSettings(supabaseAdmin, centerId);
 
     // Resolve provider: explicit body.provider > settings.visio_provider

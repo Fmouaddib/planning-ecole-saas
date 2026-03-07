@@ -22,6 +22,7 @@ import { useAcademicData } from '@/hooks/useAcademicData'
 import { useVisio } from '@/hooks/useVisio'
 import { navigateTo } from '@/utils/navigation'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
+import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import type { CalendarEvent, ExportFormat, BookingType, UpdateBookingData } from '@/types'
 import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
@@ -42,6 +43,12 @@ import {
   Pencil,
   Trash2,
   XCircle,
+  Share2,
+  Mail,
+  Copy,
+  Check,
+  MessageCircle,
+  RotateCcw,
 } from 'lucide-react'
 
 // Lazy-loaded views & modals
@@ -85,7 +92,7 @@ const recurrenceLabels: Record<string, string> = {
 // ==================== MAIN COMPONENT ====================
 
 function CalendarPage() {
-  const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking, deleteBooking, cancelBooking, createBatchBookings, checkBookingConflict, checkTrainerConflict } = useBookings()
+  const { calendarEvents, isLoading, error, refreshBookings, createBooking, updateBooking, deleteBooking, cancelBooking, reactivateBooking, createBatchBookings, checkBookingConflict, checkTrainerConflict } = useBookings()
   const { rooms, buildingsWithRooms } = useRooms()
   const {
     diplomaOptions,
@@ -98,9 +105,44 @@ function CalendarPage() {
     getTeachersBySubject,
     getClassById,
     getClassIdsForStudent,
+    coursList,
   } = useAcademicData()
   const { virtualRooms } = useVisio()
   const { settings: centerSettings } = useCenterSettings()
+  const { plan } = useSubscriptionInfo()
+  const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
+  const isMergedMode = !!centerSettings.merge_class_subject
+
+  // Cours options (mode fusionné class+subject)
+  const coursOptions = useMemo(
+    () => coursList.map(c => ({
+      value: `${c.classId}::${c.subjectId}`,
+      label: c.name,
+      classId: c.classId,
+      subjectId: c.subjectId,
+    })),
+    [coursList],
+  )
+
+  // Type options (custom or default)
+  const typeOptions = useMemo(() => {
+    if (centerSettings.custom_session_types && centerSettings.custom_session_types.length > 0) {
+      return centerSettings.custom_session_types
+    }
+    return [
+      { value: 'course', label: 'Cours' },
+      { value: 'exam', label: 'Examen' },
+      { value: 'meeting', label: 'Réunion' },
+      { value: 'event', label: 'Événement' },
+      { value: 'maintenance', label: 'Maintenance' },
+    ]
+  }, [centerSettings.custom_session_types])
+
+  // Horaires et jours d'ouverture du centre
+  const centerHourStart = centerSettings.opening_time ? parseInt(centerSettings.opening_time.split(':')[0], 10) : 8
+  const centerHourEnd = centerSettings.closing_time ? parseInt(centerSettings.closing_time.split(':')[0], 10) : 20
+  const centerWorkingDays = centerSettings.working_days || [1, 2, 3, 4, 5]
+  const calendarLabels = centerSettings.calendar_labels || ['title', 'room', 'teacher']
 
   const virtualRoomOptions = useMemo(
     () => virtualRooms.map(r => ({
@@ -133,6 +175,7 @@ function CalendarPage() {
   const [editMode, setEditMode] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editRoomId, setEditRoomId] = useState('')
+  const [editAdditionalRoomIds, setEditAdditionalRoomIds] = useState<string[]>([])
   const [editType, setEditType] = useState<BookingType>('course')
   const [editDate, setEditDate] = useState('')
   const [editStartTime, setEditStartTime] = useState('')
@@ -146,6 +189,9 @@ function CalendarPage() {
   const [editErrors, setEditErrors] = useState<Record<string, string>>({})
   const [editSaving, setEditSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [shareCopied, setShareCopied] = useState<'email' | 'whatsapp' | null>(null)
+  const [visioCopied, setVisioCopied] = useState(false)
 
   // Batch create modal state
   const [showBatchModal, setShowBatchModal] = useState(false)
@@ -436,6 +482,7 @@ function CalendarPage() {
     const endDt = typeof selectedEvent.end === 'string' ? parseISO(selectedEvent.end) : selectedEvent.end
     setEditTitle(selectedEvent.title)
     setEditRoomId(selectedEvent.roomId || '')
+    setEditAdditionalRoomIds(selectedEvent.additionalRoomIds || [])
     setEditType((selectedEvent.type as BookingType) || 'course')
     setEditDate(format(startDt, 'yyyy-MM-dd'))
     setEditStartTime(format(startDt, 'HH:mm'))
@@ -460,7 +507,7 @@ function CalendarPage() {
   const validateEdit = () => {
     const errs: Record<string, string> = {}
     if (!editTitle.trim()) errs.title = 'Le titre est requis'
-    if (!editRoomId) errs.roomId = 'La salle est requise'
+    if (!isOnlineSchool && !centerSettings.room_optional && !editRoomId) errs.roomId = 'La salle est requise'
     if (!editDate) errs.date = 'La date est requise'
     if (editStartTime >= editEndTime) errs.endTime = "L'heure de fin doit être après le début"
     setEditErrors(errs)
@@ -474,7 +521,8 @@ function CalendarPage() {
       const data: UpdateBookingData = {
         id: selectedEvent.id,
         title: editTitle.trim(),
-        roomId: editRoomId,
+        roomId: editRoomId || undefined,
+        additionalRoomIds: editAdditionalRoomIds,
         bookingType: editType,
         startDateTime: `${editDate}T${editStartTime}:00`,
         endDateTime: `${editDate}T${editEndTime}:00`,
@@ -512,8 +560,117 @@ function CalendarPage() {
       await cancelBooking(selectedEvent.id)
       setSelectedEvent(null)
       setEditMode(false)
+      setShowCancelConfirm(false)
     } catch {
       // Error handled by hook toast
+    }
+  }
+
+  const handleReactivateEvent = async () => {
+    if (!selectedEvent) return
+    try {
+      await reactivateBooking(selectedEvent.id)
+      setSelectedEvent(null)
+    } catch {
+      // Error handled by hook toast
+    }
+  }
+
+  const copyVisioLink = async () => {
+    if (!selectedEvent?.meetingUrl) return
+    try {
+      await navigator.clipboard.writeText(selectedEvent.meetingUrl)
+      setVisioCopied(true)
+      setTimeout(() => setVisioCopied(false), 2000)
+    } catch {
+      const ta = document.createElement('textarea')
+      ta.value = selectedEvent.meetingUrl
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      setVisioCopied(true)
+      setTimeout(() => setVisioCopied(false), 2000)
+    }
+  }
+
+  // ─── Share helpers ─────────────────────────────────
+  const getCoursForEvent = (event: CalendarEvent) => {
+    if (!event.classId || !event.subjectId) return null
+    return coursList.find(c => c.classId === event.classId && c.subjectId === event.subjectId) || null
+  }
+
+  const buildShareMessage = (event: CalendarEvent, format: 'email' | 'whatsapp') => {
+    const startDt = typeof event.start === 'string' ? parseISO(event.start) : event.start
+    const endDt = typeof event.end === 'string' ? parseISO(event.end) : event.end
+    const dateStr = startDt ? `${startDt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}` : ''
+    const timeStr = startDt && endDt ? `${startDt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${endDt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''
+    const teacher = event.teacher || event.userName || ''
+    const room = event.roomName || ''
+    const subject = event.matiere || ''
+    const visio = event.meetingUrl || ''
+    const cours = getCoursForEvent(event)
+    const formationLink = cours?.formationLink || ''
+
+    if (format === 'whatsapp') {
+      let msg = `📅 *${event.title}*\n📆 ${dateStr}\n⏰ ${timeStr}`
+      if (teacher) msg += `\n👨‍🏫 ${teacher}`
+      if (subject) msg += `\n📚 ${subject}`
+      if (room) msg += `\n📍 ${room}`
+      if (visio) msg += `\n🔗 ${visio}`
+      if (formationLink) msg += `\n🎓 ${formationLink}`
+      if (event.description) msg += `\n\n${event.description}`
+      return msg
+    }
+    // email
+    let msg = `${event.title}\n\nDate : ${dateStr}\nHoraire : ${timeStr}`
+    if (teacher) msg += `\nProfesseur : ${teacher}`
+    if (subject) msg += `\nMatière : ${subject}`
+    if (room) msg += `\nSalle : ${room}`
+    if (visio) msg += `\nLien visio : ${visio}`
+    if (formationLink) msg += `\nLien formation : ${formationLink}`
+    if (event.description) msg += `\n\nDescription :\n${event.description}`
+    return msg
+  }
+
+  const copyShareMessage = async (fmt: 'email' | 'whatsapp') => {
+    if (!selectedEvent) return
+    const msg = buildShareMessage(selectedEvent, fmt)
+    try {
+      await navigator.clipboard.writeText(msg)
+      setShareCopied(fmt)
+      setTimeout(() => setShareCopied(null), 2000)
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea')
+      ta.value = msg
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      setShareCopied(fmt)
+      setTimeout(() => setShareCopied(null), 2000)
+    }
+  }
+
+  const openMailtoShare = () => {
+    if (!selectedEvent) return
+    const msg = buildShareMessage(selectedEvent, 'email')
+    const subject = encodeURIComponent(selectedEvent.title)
+    const body = encodeURIComponent(msg)
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_self')
+  }
+
+  const openWhatsAppShare = () => {
+    if (!selectedEvent) return
+    const msg = buildShareMessage(selectedEvent, 'whatsapp')
+    const encoded = encodeURIComponent(msg)
+    // If course has a WhatsApp group link, open that group directly
+    const cours = getCoursForEvent(selectedEvent)
+    if (cours?.whatsappLink) {
+      window.open(cours.whatsappLink, '_blank')
+    } else {
+      window.open(`https://wa.me/?text=${encoded}`, '_blank')
     }
   }
 
@@ -596,7 +753,7 @@ function CalendarPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            {(['day', 'week', 'month', ...(!isReadOnly ? ['rooms'] : [])] as ViewMode[]).map(v => (
+            {(['day', 'week', 'month', ...(!isReadOnly && !isOnlineSchool ? ['rooms'] : [])] as ViewMode[]).map(v => (
               <button
                 key={v}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -737,15 +894,17 @@ function CalendarPage() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <Select
-                label="Salle"
-                options={[{ value: '', label: 'Toutes les salles' }, ...roomOptions]}
-                value={roomFilter}
-                onChange={e => setRoomFilter(e.target.value)}
-              />
-            </div>
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${isOnlineSchool ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-4`}>
+            {!isOnlineSchool && (
+              <div>
+                <Select
+                  label="Salle"
+                  options={[{ value: '', label: 'Toutes les salles' }, ...roomOptions]}
+                  value={roomFilter}
+                  onChange={e => setRoomFilter(e.target.value)}
+                />
+              </div>
+            )}
             <MultiSelect
               label="Professeur"
               options={teacherOptions}
@@ -791,6 +950,10 @@ function CalendarPage() {
               onEventClick={setSelectedEvent}
               onSlotClick={handleSlotClick}
               onEventUpdate={handleEventUpdate}
+              hourStart={centerHourStart}
+              hourEnd={centerHourEnd}
+              workingDays={centerWorkingDays}
+              calendarLabels={calendarLabels as any}
             />
           )}
           {view === 'month' && (
@@ -809,6 +972,9 @@ function CalendarPage() {
               onEventClick={setSelectedEvent}
               onSlotClick={handleSlotClick}
               onEventUpdate={handleEventUpdate}
+              hourStart={centerHourStart}
+              hourEnd={centerHourEnd}
+              calendarLabels={calendarLabels as any}
             />
           )}
         </Suspense>
@@ -833,7 +999,7 @@ function CalendarPage() {
       {/* Event Detail / Edit Modal */}
       <Modal
         isOpen={!!selectedEvent}
-        onClose={() => { setSelectedEvent(null); exitEditMode(); setShowDeleteConfirm(false) }}
+        onClose={() => { setSelectedEvent(null); exitEditMode(); setShowDeleteConfirm(false); setShowCancelConfirm(false); setVisioCopied(false) }}
         title={editMode ? 'Modifier la séance' : 'Détail de la séance'}
         size={editMode ? 'md' : 'sm'}
       >
@@ -849,13 +1015,20 @@ function CalendarPage() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Salle</label>
-                <p className="text-neutral-900 dark:text-neutral-100">{selectedEvent.roomName || '-'}</p>
-              </div>
+              {!isOnlineSchool && (
+                <div>
+                  <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Salle</label>
+                  <p className="text-neutral-900 dark:text-neutral-100">
+                    {selectedEvent.roomName || '-'}
+                    {selectedEvent.additionalRoomIds && selectedEvent.additionalRoomIds.length > 0 && (
+                      <span className="text-neutral-500"> + {selectedEvent.additionalRoomIds.map(rid => rooms.find(r => r.id === rid)?.name || '?').join(', ')}</span>
+                    )}
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Type</label>
-                <p className="text-neutral-900 dark:text-neutral-100">{bookingTypeLabels[selectedEvent.type || ''] || selectedEvent.type}</p>
+                <p className="text-neutral-900 dark:text-neutral-100">{typeOptions.find(t => t.value === selectedEvent.type)?.label || bookingTypeLabels[selectedEvent.type || ''] || selectedEvent.type}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Horaire</label>
@@ -917,27 +1090,45 @@ function CalendarPage() {
             {selectedEvent.meetingUrl && (
               <div>
                 {isStudent ? (
-                  <a
-                    href={selectedEvent.meetingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm transition-colors"
-                  >
-                    <Video size={18} />
-                    Rejoindre la visio
-                  </a>
-                ) : (
-                  <>
-                    <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Lien visio</label>
+                  <div className="flex gap-2">
                     <a
                       href={selectedEvent.meetingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 mt-1 text-sm font-medium"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium text-sm transition-colors"
                     >
-                      <Video size={16} />
+                      <Video size={18} />
                       Rejoindre la visio
                     </a>
+                    <button
+                      onClick={copyVisioLink}
+                      className="flex items-center justify-center px-3 py-2.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 transition-colors"
+                      title="Copier le lien"
+                    >
+                      {visioCopied ? <Check size={18} className="text-green-600" /> : <Copy size={18} />}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Lien visio</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <a
+                        href={selectedEvent.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 text-sm font-medium"
+                      >
+                        <Video size={16} />
+                        Rejoindre la visio
+                      </a>
+                      <button
+                        onClick={copyVisioLink}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 transition-colors"
+                        title="Copier le lien"
+                      >
+                        {visioCopied ? <><Check size={12} className="text-green-600" /> Copié</> : <><Copy size={12} /> Copier</>}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -948,14 +1139,91 @@ function CalendarPage() {
                 <p className="text-neutral-700 dark:text-neutral-300 mt-1">{selectedEvent.description}</p>
               </div>
             )}
+
+            {/* ─── Partage ─── */}
+            <div className="border-t border-neutral-200 dark:border-neutral-700 pt-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Share2 size={14} className="text-neutral-400" />
+                <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Partager</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {/* Email */}
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => copyShareMessage('email')}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors border border-purple-200 dark:border-purple-800"
+                  >
+                    {shareCopied === 'email' ? <Check size={14} /> : <Copy size={14} />}
+                    {shareCopied === 'email' ? 'Copié !' : 'Copier email'}
+                  </button>
+                  <button
+                    onClick={openMailtoShare}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors border border-purple-200 dark:border-purple-800"
+                  >
+                    <Mail size={14} />
+                    Envoyer par email
+                  </button>
+                </div>
+                {/* WhatsApp */}
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => copyShareMessage('whatsapp')}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors border border-green-200 dark:border-green-800"
+                  >
+                    {shareCopied === 'whatsapp' ? <Check size={14} /> : <Copy size={14} />}
+                    {shareCopied === 'whatsapp' ? 'Copié !' : 'Copier WhatsApp'}
+                  </button>
+                  <button
+                    onClick={openWhatsAppShare}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors border border-green-200 dark:border-green-800"
+                  >
+                    <MessageCircle size={14} />
+                    Ouvrir WhatsApp
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Cancel confirmation */}
+            {showCancelConfirm && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <p className="text-sm text-amber-700 dark:text-amber-400 font-medium mb-3">
+                  Annuler la séance « {selectedEvent?.title} » ? Les participants seront notifiés.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="danger" size="sm" onClick={handleCancelEvent}>
+                    Confirmer l'annulation
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setShowCancelConfirm(false)}>
+                    Non, garder
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* ─── Edit Form (admin only) ─── */}
         {selectedEvent && editMode && (
           <div className="space-y-4">
-            {/* Cascade académique */}
-            {diplomaOptions.length > 0 && (
+            {/* Cascade académique ou sélecteur Cours (mode fusionné) */}
+            {isMergedMode && coursOptions.length > 0 ? (
+              <Select
+                label="Cours"
+                options={[{ value: '', label: 'Sélectionner un cours...' }, ...coursOptions]}
+                value={editClassId && editSubjectId ? `${editClassId}::${editSubjectId}` : ''}
+                onChange={e => {
+                  const val = e.target.value
+                  if (!val) { setEditClassId(''); setEditSubjectId(''); return }
+                  const cours = coursOptions.find(c => c.value === val)
+                  if (cours) {
+                    setEditClassId(cours.classId)
+                    setEditSubjectId(cours.subjectId)
+                    if (!editTitle.trim()) setEditTitle(cours.label)
+                  }
+                }}
+              />
+            ) : diplomaOptions.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Select
                   label="Diplôme"
@@ -988,27 +1256,32 @@ function CalendarPage() {
               error={editErrors.title}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="Salle"
-                options={[{ value: '', label: 'Sélectionner...' }, ...roomOptions]}
-                value={editRoomId}
-                onChange={e => setEditRoomId(e.target.value)}
-                error={editErrors.roomId}
-              />
+            <div className={`grid ${isOnlineSchool ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+              {!isOnlineSchool && (
+                <Select
+                  label={centerSettings.room_optional ? 'Salle (facultative)' : 'Salle'}
+                  options={[{ value: '', label: centerSettings.room_optional ? 'Aucune salle' : 'Sélectionner...' }, ...roomOptions]}
+                  value={editRoomId}
+                  onChange={e => setEditRoomId(e.target.value)}
+                  error={editErrors.roomId}
+                />
+              )}
               <Select
                 label="Type"
-                options={[
-                  { value: 'course', label: 'Cours' },
-                  { value: 'exam', label: 'Examen' },
-                  { value: 'meeting', label: 'Réunion' },
-                  { value: 'event', label: 'Événement' },
-                  { value: 'maintenance', label: 'Maintenance' },
-                ]}
+                options={typeOptions}
                 value={editType}
                 onChange={e => setEditType(e.target.value as BookingType)}
               />
             </div>
+            {!isOnlineSchool && centerSettings.allow_multi_room && editRoomId && (
+              <MultiSelect
+                label="Salles supplémentaires"
+                options={roomOptions.filter(r => r.value !== editRoomId)}
+                value={editAdditionalRoomIds}
+                onChange={setEditAdditionalRoomIds}
+                placeholder="Ajouter des salles..."
+              />
+            )}
 
             <div className="grid grid-cols-3 gap-4">
               <Input
@@ -1023,8 +1296,8 @@ function CalendarPage() {
                 type="time"
                 value={editStartTime}
                 onChange={e => setEditStartTime(e.target.value)}
-                min="08:00"
-                max="19:00"
+                min={centerSettings.opening_time || '08:00'}
+                max={centerSettings.closing_time || '20:00'}
               />
               <Input
                 label="Fin"
@@ -1032,7 +1305,7 @@ function CalendarPage() {
                 value={editEndTime}
                 onChange={e => setEditEndTime(e.target.value)}
                 min={editStartTime}
-                max="20:00"
+                max={centerSettings.closing_time || '20:00'}
                 error={editErrors.endTime}
               />
             </div>
@@ -1094,10 +1367,15 @@ function CalendarPage() {
                     <Button variant="primary" size="sm" leftIcon={Pencil} onClick={enterEditMode}>
                       Modifier
                     </Button>
-                    <Button variant="secondary" size="sm" leftIcon={XCircle} onClick={handleCancelEvent}>
+                    <Button variant="secondary" size="sm" leftIcon={XCircle} onClick={() => setShowCancelConfirm(true)}>
                       Annuler la séance
                     </Button>
                   </>
+                )}
+                {isAdmin && selectedEvent?.status === 'cancelled' && (
+                  <Button variant="primary" size="sm" leftIcon={RotateCcw} onClick={handleReactivateEvent}>
+                    Réactiver la séance
+                  </Button>
                 )}
               </div>
               <Button variant="secondary" onClick={() => setSelectedEvent(null)}>Fermer</Button>
@@ -1143,6 +1421,13 @@ function CalendarPage() {
             getClassById={getClassById}
             isVisioAutoCreate={!!centerSettings.visio_provider && !!centerSettings.visio_auto_create}
             visioProviderName={centerSettings.visio_provider === 'zoom' ? 'Zoom' : centerSettings.visio_provider === 'teams' ? 'Teams' : centerSettings.visio_provider === 'meet' ? 'Google Meet' : undefined}
+            openingTime={centerSettings.opening_time || '08:00'}
+            closingTime={centerSettings.closing_time || '20:00'}
+            isOnlineSchool={isOnlineSchool}
+            roomOptional={!!centerSettings.room_optional}
+            isMergedMode={isMergedMode}
+            coursOptions={coursOptions}
+            customTypeOptions={typeOptions}
           />
         </Suspense>
       )}

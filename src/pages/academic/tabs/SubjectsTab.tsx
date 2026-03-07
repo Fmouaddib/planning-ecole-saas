@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { filterBySearch } from '@/utils/helpers'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, BookOpen, Rss, Copy, Check, Send, RefreshCcw, Pause, Play } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, BookOpen, Rss, Copy, Check, Send, RefreshCcw, Pause, Play, MessageCircle, Globe, FileText, ExternalLink } from 'lucide-react'
 import { useCalendarFeeds, getFeedUrl } from '@/hooks/useCalendarFeeds'
 import { getAutoSubjectColor } from '@/utils/constants'
 import type { CalendarFeed } from '@/hooks/useCalendarFeeds'
@@ -15,9 +15,12 @@ interface SubjectForm {
   category: string
   programId: string
   color: string
+  whatsappLink: string
+  webLink: string
+  slideLink: string
 }
 
-const emptySubjectForm: SubjectForm = { name: '', code: '', description: '', category: '', programId: '', color: '' }
+const emptySubjectForm: SubjectForm = { name: '', code: '', description: '', category: '', programId: '', color: '', whatsappLink: '', webLink: '', slideLink: '' }
 
 export function SubjectsTab({
   subjects,
@@ -26,13 +29,15 @@ export function SubjectsTab({
   createSubject,
   updateSubject,
   deleteSubject,
+  hasSubjectLinks = false,
 }: {
   subjects: Subject[]
   programs: Program[]
   programOptions: { value: string; label: string }[]
-  createSubject: (data: { name: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => Promise<Subject>
-  updateSubject: (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => Promise<Subject>
+  createSubject: (data: { name: string; code?: string; description?: string; category?: string; programId?: string; color?: string; whatsappLink?: string; webLink?: string; slideLink?: string }) => Promise<Subject>
+  updateSubject: (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string; color?: string; whatsappLink?: string; webLink?: string; slideLink?: string }) => Promise<Subject>
   deleteSubject: (id: string) => Promise<void>
+  hasSubjectLinks?: boolean
 }) {
   const [search, setSearch] = useState('')
   const [programFilter, setProgramFilter] = useState('')
@@ -63,7 +68,7 @@ export function SubjectsTab({
   const openCreate = () => { setForm(emptySubjectForm); setSelected(null); setModalMode('create') }
   const openEdit = (s: Subject) => {
     setSelected(s)
-    setForm({ name: s.name, code: s.code, description: s.description || '', category: s.category || '', programId: s.programId || '', color: s.color || getAutoSubjectColor(s.name) })
+    setForm({ name: s.name, code: s.code, description: s.description || '', category: s.category || '', programId: s.programId || '', color: s.color || getAutoSubjectColor(s.name), whatsappLink: s.whatsappLink || '', webLink: s.webLink || '', slideLink: s.slideLink || '' })
     setModalMode('edit')
   }
   const openDelete = (s: Subject) => { setSelected(s); setModalMode('delete') }
@@ -89,9 +94,9 @@ export function SubjectsTab({
     setSubmitting(true)
     try {
       if (modalMode === 'create') {
-        await createSubject({ ...form, programId: form.programId || undefined, color: form.color || undefined })
+        await createSubject({ ...form, programId: form.programId || undefined, color: form.color || undefined, whatsappLink: form.whatsappLink || undefined, webLink: form.webLink || undefined, slideLink: form.slideLink || undefined })
       } else if (modalMode === 'edit' && selected) {
-        await updateSubject(selected.id, { ...form, programId: form.programId || undefined, color: form.color || undefined })
+        await updateSubject(selected.id, { ...form, programId: form.programId || undefined, color: form.color || undefined, whatsappLink: form.whatsappLink || undefined, webLink: form.webLink || undefined, slideLink: form.slideLink || undefined })
       }
       closeModal()
     } catch { /* toast in hook */ } finally { setSubmitting(false) }
@@ -141,6 +146,7 @@ export function SubjectsTab({
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Programme</th>
                     <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Catégorie</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Description</th>
+                    {hasSubjectLinks && <th className="hidden lg:table-cell text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Liens</th>}
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -168,6 +174,30 @@ export function SubjectsTab({
                         {s.category ? <Badge variant="warning" size="sm">{s.category}</Badge> : <span className="text-sm text-neutral-400">-</span>}
                       </td>
                       <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400 max-w-xs truncate">{s.description || '-'}</td>
+                      {hasSubjectLinks && (
+                        <td className="hidden lg:table-cell px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            {s.whatsappLink && (
+                              <a href={s.whatsappLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-950 transition-colors" title="WhatsApp">
+                                <MessageCircle size={14} />
+                              </a>
+                            )}
+                            {s.webLink && (
+                              <a href={s.webLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors" title="Lien web">
+                                <Globe size={14} />
+                              </a>
+                            )}
+                            {s.slideLink && (
+                              <a href={s.slideLink} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 transition-colors" title="Support de cours">
+                                <FileText size={14} />
+                              </a>
+                            )}
+                            {!s.whatsappLink && !s.webLink && !s.slideLink && (
+                              <span className="text-xs text-neutral-300">—</span>
+                            )}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openIcal(s)} title="Flux calendrier iCal"><Rss size={14} className="text-primary-600" /></Button>
@@ -209,6 +239,25 @@ export function SubjectsTab({
           </div>
           <Textarea label="Description" placeholder="Description optionnelle..." value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          {/* Liens pédagogiques — visible uniquement si le plan l'inclut */}
+          {hasSubjectLinks && (
+            <div className="pt-2 border-t border-neutral-200 dark:border-neutral-700">
+              <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-3 flex items-center gap-2">
+                <ExternalLink size={14} /> Liens pédagogiques
+              </p>
+              <div className="space-y-3">
+                <Input label="Groupe WhatsApp" placeholder="https://chat.whatsapp.com/..." value={form.whatsappLink}
+                  leftIcon={MessageCircle}
+                  onChange={e => setForm(f => ({ ...f, whatsappLink: e.target.value }))} />
+                <Input label="Lien web (replay, site, ressources)" placeholder="https://..." value={form.webLink}
+                  leftIcon={Globe}
+                  onChange={e => setForm(f => ({ ...f, webLink: e.target.value }))} />
+                <Input label="Support de cours (slides, PDF)" placeholder="https://docs.google.com/... ou https://..." value={form.slideLink}
+                  leftIcon={FileText}
+                  onChange={e => setForm(f => ({ ...f, slideLink: e.target.value }))} />
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Couleur calendrier</label>
             <div className="flex items-center gap-3">

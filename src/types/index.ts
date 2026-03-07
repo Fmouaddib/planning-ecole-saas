@@ -10,6 +10,8 @@ export interface User {
   establishmentId: string
   avatar?: string
   profilePicture?: string
+  phone?: string
+  linkedin?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -92,6 +94,7 @@ export interface Booking {
   startDateTime: string // alias pour compatibilité hooks
   endDateTime: string   // alias pour compatibilité hooks
   roomId: string
+  additionalRoomIds?: string[]
   userId: string
   attendeeIds: string[]
   status: BookingStatus
@@ -233,6 +236,7 @@ export interface CalendarEvent {
   color?: string
   roomId?: string
   roomName?: string
+  additionalRoomIds?: string[]
   userId?: string
   userName?: string
   type?: BookingType | string
@@ -277,6 +281,19 @@ export interface Diploma {
   createdAt: string
 }
 
+export interface AcademicYear {
+  id: string
+  centerId: string
+  diplomaId: string
+  name: string
+  startDate: string
+  endDate: string
+  isCurrent: boolean
+  createdAt: string
+  updatedAt: string
+  diploma?: { id: string; title: string }
+}
+
 export interface AlternanceConfig {
   schoolWeeks: number
   companyWeeks: number
@@ -300,6 +317,7 @@ export interface Class {
   diplomaId: string
   centerId: string
   academicYear: string
+  academicYearId?: string
   startDate?: string
   endDate?: string
   scheduleType: string
@@ -321,6 +339,9 @@ export interface Subject {
   color?: string
   programId?: string
   program?: { id: string; name: string }
+  whatsappLink?: string
+  webLink?: string
+  slideLink?: string
   isActive: boolean
   centerId: string
   createdAt: string
@@ -430,6 +451,11 @@ export interface AuthUser {
   lastName: string
   role: UserRole
   establishmentId: string
+  phone?: string
+  linkedin?: string
+  avatar?: string
+  profilePicture?: string
+  isActive?: boolean
 }
 
 export interface LoginCredentials {
@@ -446,6 +472,12 @@ export interface RegisterData {
   role?: UserRole
 }
 
+export interface UserContextInfo {
+  centerId: string
+  centerName: string
+  role: UserRole
+}
+
 export interface UseAuthReturn {
   user: AuthUser | null
   isLoading: boolean
@@ -456,6 +488,14 @@ export interface UseAuthReturn {
   updateProfile: (data: Partial<User>) => Promise<User>
   error: string | null
   clearError: () => void
+  /** All available contexts for the authenticated user */
+  contexts: UserContextInfo[]
+  /** Whether the context picker should be shown */
+  showContextPicker: boolean
+  /** Dismiss the context picker */
+  dismissContextPicker: () => void
+  /** Switch to a different context */
+  switchContext: (ctx: UserContextInfo) => void
 }
 
 // ==================== TYPES ROOMS ÉTENDUS ====================
@@ -510,7 +550,8 @@ export interface CreateBookingData {
   description?: string
   startDateTime: DateString
   endDateTime: DateString
-  roomId: string
+  roomId?: string
+  additionalRoomIds?: string[]
   bookingType: BookingType
   subjectId?: string
   classId?: string
@@ -565,6 +606,7 @@ export interface UseBookingsReturn {
   updateBooking: (data: UpdateBookingData) => Promise<Booking>
   deleteBooking: (id: UUID) => Promise<void>
   cancelBooking: (id: UUID, reason?: string) => Promise<Booking>
+  reactivateBooking: (id: UUID) => Promise<Booking>
   createBatchBookings: (sessions: BatchCreateSessionInput[]) => Promise<BatchCreateResult>
   checkBookingConflict: (roomId: UUID, start: DateString, end: DateString, excludeId?: UUID) => Promise<boolean>
   checkTrainerConflict: (trainerId: UUID, start: DateString, end: DateString, excludeId?: UUID) => Promise<boolean>
@@ -623,6 +665,7 @@ export interface SubscriptionPlan {
   priceYearly: number
   features: string[]
   hasChat?: boolean
+  hasSubjectLinks?: boolean
 }
 
 export interface EstablishmentSubscription {
@@ -668,7 +711,7 @@ export interface SubscriptionInfo {
 
 // ==================== TYPES VIRTUAL ROOMS ====================
 
-export type VirtualRoomPlatform = 'teams' | 'zoom' | 'other'
+export type VirtualRoomPlatform = 'teams' | 'zoom' | 'meet' | 'other'
 
 export interface VirtualRoom {
   id: string

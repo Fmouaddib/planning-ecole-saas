@@ -1,21 +1,25 @@
 /**
  * Hook d'authentification personnalisé avec Supabase Auth
  * Gère toutes les opérations d'authentification et l'état utilisateur
+ * Supporte le multi-centres/rôles via user_centers
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { AuthUser, LoginCredentials, RegisterData, User, UseAuthReturn } from '@/types'
+import type { AuthUser, LoginCredentials, RegisterData, User, UseAuthReturn, UserContextInfo } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { getErrorMessage, parseFullName } from '@/utils'
 import { AuditService } from '@/services/auditService'
 import { getImpersonation, clearImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
+import { getActiveContext, setActiveContext, clearActiveContext, USER_CONTEXT_EVENT } from '@/utils/userContext'
 import toast from 'react-hot-toast'
 
 export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [contexts, setContexts] = useState<UserContextInfo[]>([])
+  const [showContextPicker, setShowContextPicker] = useState(false)
   const navigate = useNavigate()
 
   // ==================== HELPER FUNCTIONS ====================
@@ -39,7 +43,7 @@ export function useAuth(): UseAuthReturn {
       // Récupérer les informations complètes de l'utilisateur depuis la table profiles
       const { data: userData, error: userError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role, center_id')
+        .select('id, email, full_name, role, center_id, phone, linkedin, avatar_url, is_active')
         .eq('id', supabaseUser.id)
         .single()
 
@@ -56,10 +60,57 @@ export function useAuth(): UseAuthReturn {
         lastName,
         role: userData.role,
         establishmentId: userData.center_id,
+        phone: userData.phone ?? undefined,
+        linkedin: userData.linkedin ?? undefined,
+        avatar: userData.avatar_url ?? undefined,
+        profilePicture: userData.avatar_url ?? undefined,
+        isActive: userData.is_active ?? true,
       }
     } catch (error) {
       console.error('Error transforming user:', error)
       return null
+    }
+  }, [])
+
+  // Fetch all contexts for a user (profile + user_centers)
+  const fetchContexts = useCallback(async (authUser: AuthUser): Promise<UserContextInfo[]> => {
+    try {
+      // 1. Primary context from profiles
+      const { data: centerData } = await supabase
+        .from('training_centers')
+        .select('id, name')
+        .eq('id', authUser.establishmentId)
+        .single()
+
+      const primaryCtx: UserContextInfo = {
+        centerId: authUser.establishmentId,
+        centerName: centerData?.name || 'Centre principal',
+        role: authUser.role,
+      }
+
+      // 2. Additional contexts from user_centers
+      const { data: extraContexts } = await supabase
+        .from('user_centers')
+        .select('center_id, role, training_centers:center_id(name)')
+        .eq('user_id', authUser.id)
+        .eq('is_active', true)
+
+      const additional: UserContextInfo[] = (extraContexts || [])
+        .filter((uc: any) => !(uc.center_id === primaryCtx.centerId && uc.role === primaryCtx.role))
+        .map((uc: any) => ({
+          centerId: uc.center_id,
+          centerName: (uc.training_centers as any)?.name || 'Centre',
+          role: uc.role,
+        }))
+
+      return [primaryCtx, ...additional]
+    } catch (err) {
+      console.error('Error fetching contexts:', err)
+      return [{
+        centerId: authUser.establishmentId,
+        centerName: 'Centre principal',
+        role: authUser.role,
+      }]
     }
   }, [])
 
@@ -82,6 +133,22 @@ export function useAuth(): UseAuthReturn {
       if (!authUser) throw new Error('Impossible de récupérer les informations utilisateur')
 
       setUser(authUser)
+
+      // Fetch contexts and show picker if multiple
+      const allContexts = await fetchContexts(authUser)
+      setContexts(allContexts)
+
+      // Check if there's a saved context from before
+      const savedCtx = getActiveContext()
+      if (savedCtx && allContexts.some(c => c.centerId === savedCtx.centerId && c.role === savedCtx.role)) {
+        // Restore saved context
+        setActiveContext(savedCtx)
+      } else if (allContexts.length > 1) {
+        // Multiple contexts, show picker
+        clearActiveContext()
+        setShowContextPicker(true)
+      }
+
       toast.success('Connexion réussie')
 
       // Audit logging
@@ -97,7 +164,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [transformUser, handleError])
+  }, [transformUser, fetchContexts, handleError])
 
   const register = useCallback(async (data: RegisterData): Promise<AuthUser> => {
     try {
@@ -138,7 +205,7 @@ export function useAuth(): UseAuthReturn {
 
       setUser(authUser)
       toast.success('Compte créé avec succès')
-      
+
       return authUser
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la création du compte')
@@ -154,8 +221,9 @@ export function useAuth(): UseAuthReturn {
       setIsLoading(true)
       setError(null)
 
-      // Nettoyer l'impersonation avant déconnexion
+      // Nettoyer l'impersonation et le contexte avant déconnexion
       clearImpersonation()
+      clearActiveContext()
 
       // Audit logging avant la déconnexion
       if (user?.establishmentId) {
@@ -166,6 +234,8 @@ export function useAuth(): UseAuthReturn {
       if (error) throw error
 
       setUser(null)
+      setContexts([])
+      setShowContextPicker(false)
       toast.success('Déconnexion réussie')
       navigate('/login')
     } catch (error) {
@@ -191,6 +261,8 @@ export function useAuth(): UseAuthReturn {
       const updateFields: Record<string, unknown> = {}
       if (fullName) updateFields.full_name = fullName
       if (updateData.email) updateFields.email = updateData.email
+      if (updateData.phone !== undefined) updateFields.phone = updateData.phone || null
+      if (updateData.linkedin !== undefined) updateFields.linkedin = updateData.linkedin || null
 
       const { error: updateError } = await supabase
         .from('profiles')
@@ -214,6 +286,8 @@ export function useAuth(): UseAuthReturn {
         firstName: updateData.firstName ?? prev.firstName,
         lastName: updateData.lastName ?? prev.lastName,
         email: updateData.email ?? prev.email,
+        phone: updateData.phone !== undefined ? (updateData.phone || undefined) : prev.phone,
+        linkedin: updateData.linkedin !== undefined ? (updateData.linkedin || undefined) : prev.linkedin,
       } : null)
 
       toast.success('Profil mis à jour avec succès')
@@ -227,6 +301,22 @@ export function useAuth(): UseAuthReturn {
     }
   }, [user, handleError])
 
+  // ==================== CONTEXT SWITCHING ====================
+
+  const switchContext = useCallback((ctx: UserContextInfo) => {
+    setActiveContext(ctx)
+    setShowContextPicker(false)
+    toast.success(`Espace actif : ${ctx.centerName} (${ctx.role === 'super_admin' ? 'Super Admin' : ctx.role === 'teacher' ? 'Professeur' : ctx.role === 'admin' ? 'Admin' : ctx.role === 'student' ? 'Étudiant' : ctx.role})`)
+  }, [])
+
+  const dismissContextPicker = useCallback(() => {
+    // If no active context set, use the first one (primary)
+    if (!getActiveContext() && contexts.length > 0) {
+      setActiveContext(contexts[0])
+    }
+    setShowContextPicker(false)
+  }, [contexts])
+
   // ==================== EFFECTS ====================
 
   // Initialiser l'authentification au chargement
@@ -235,7 +325,7 @@ export function useAuth(): UseAuthReturn {
       try {
         // Récupérer la session actuelle
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        
+
         if (sessionError) {
           console.error('Error getting session:', sessionError)
           return
@@ -244,6 +334,18 @@ export function useAuth(): UseAuthReturn {
         if (session?.user) {
           const authUser = await transformUser(session.user)
           setUser(authUser)
+
+          // Fetch contexts
+          if (authUser) {
+            const allContexts = await fetchContexts(authUser)
+            setContexts(allContexts)
+
+            // If multiple contexts and no saved context, show picker
+            const savedCtx = getActiveContext()
+            if (allContexts.length > 1 && !savedCtx) {
+              setShowContextPicker(true)
+            }
+          }
         }
       } catch (error) {
         console.error('Error initializing auth:', error)
@@ -253,7 +355,7 @@ export function useAuth(): UseAuthReturn {
     }
 
     initializeAuth()
-  }, [transformUser])
+  }, [transformUser, fetchContexts])
 
   // Écouter les changements d'authentification
   useEffect(() => {
@@ -266,20 +368,26 @@ export function useAuth(): UseAuthReturn {
             if (session?.user) {
               const authUser = await transformUser(session.user)
               setUser(authUser)
+              if (authUser) {
+                const allContexts = await fetchContexts(authUser)
+                setContexts(allContexts)
+              }
             }
             break
-          
+
           case 'SIGNED_OUT':
             setUser(null)
+            setContexts([])
+            clearActiveContext()
             break
-          
+
           case 'TOKEN_REFRESHED':
             if (session?.user) {
               const authUser = await transformUser(session.user)
               setUser(authUser)
             }
             break
-          
+
           default:
             break
         }
@@ -289,43 +397,65 @@ export function useAuth(): UseAuthReturn {
     )
 
     return () => subscription.unsubscribe()
-  }, [transformUser])
+  }, [transformUser, fetchContexts])
 
-  // ==================== IMPERSONATION ====================
+  // ==================== IMPERSONATION + CONTEXT ====================
 
-  // Tick counter pour forcer le recalcul de effectiveUser quand l'impersonation change
+  // Tick counter pour forcer le recalcul de effectiveUser
   const [_impersonationTick, setImpersonationTick] = useState(0)
+  const [_contextTick, setContextTick] = useState(0)
 
   useEffect(() => {
-    const onChanged = () => setImpersonationTick(t => t + 1)
-    window.addEventListener(IMPERSONATION_EVENT, onChanged)
-    return () => window.removeEventListener(IMPERSONATION_EVENT, onChanged)
+    const onImpChanged = () => setImpersonationTick(t => t + 1)
+    window.addEventListener(IMPERSONATION_EVENT, onImpChanged)
+    return () => window.removeEventListener(IMPERSONATION_EVENT, onImpChanged)
   }, [])
 
-  // Override establishmentId si super_admin en mode impersonation
+  useEffect(() => {
+    const onCtxChanged = () => setContextTick(t => t + 1)
+    window.addEventListener(USER_CONTEXT_EVENT, onCtxChanged)
+    return () => window.removeEventListener(USER_CONTEXT_EVENT, onCtxChanged)
+  }, [])
+
+  // Compute effective user based on context + impersonation
   const effectiveUser = useMemo(() => {
     if (!user) return null
-    if (user.role !== 'super_admin') return user
 
-    const imp = getImpersonation()
-    if (!imp) return user
-
-    const overrides: Partial<AuthUser> = {
-      establishmentId: imp.centerId,
-    }
-    if (imp.userRole) overrides.role = imp.userRole as AuthUser['role']
-    if (imp.userId) {
-      overrides.id = imp.userId
-      if (imp.userName) {
-        const parts = imp.userName.trim().split(/\s+/)
-        overrides.firstName = parts[0] || ''
-        overrides.lastName = parts.slice(1).join(' ') || ''
+    // 1. Apply context switching (multi-role/center)
+    let base = { ...user }
+    const activeCtx = getActiveContext()
+    if (activeCtx) {
+      base = {
+        ...base,
+        role: activeCtx.role,
+        establishmentId: activeCtx.centerId,
       }
-      if (imp.userEmail) overrides.email = imp.userEmail
     }
-    return { ...user, ...overrides }
+
+    // 2. Apply impersonation on top (only for super_admin base role)
+    if (user.role === 'super_admin') {
+      const imp = getImpersonation()
+      if (imp) {
+        const overrides: Partial<AuthUser> = {
+          establishmentId: imp.centerId,
+        }
+        if (imp.userRole) overrides.role = imp.userRole as AuthUser['role']
+        if (imp.userId) {
+          overrides.id = imp.userId
+          if (imp.userName) {
+            const parts = imp.userName.trim().split(/\s+/)
+            overrides.firstName = parts[0] || ''
+            overrides.lastName = parts.slice(1).join(' ') || ''
+          }
+          if (imp.userEmail) overrides.email = imp.userEmail
+        }
+        return { ...base, ...overrides }
+      }
+    }
+
+    return base
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, _impersonationTick])
+  }, [user, _impersonationTick, _contextTick])
 
   // ==================== COMPUTED VALUES ====================
 
@@ -341,5 +471,9 @@ export function useAuth(): UseAuthReturn {
     updateProfile,
     error,
     clearError,
+    contexts,
+    showContextPicker,
+    dismissContextPicker,
+    switchContext,
   }
 }

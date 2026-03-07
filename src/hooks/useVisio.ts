@@ -31,6 +31,7 @@ export function detectPlatform(url: string): VirtualRoomPlatform {
   const lower = url.toLowerCase()
   if (lower.includes('teams.microsoft') || lower.includes('teams.live')) return 'teams'
   if (lower.includes('zoom.us') || lower.includes('zoom.com')) return 'zoom'
+  if (lower.includes('meet.google.com')) return 'meet'
   return 'other'
 }
 
@@ -110,7 +111,7 @@ export function useVisio() {
 
       const transformed = transformVirtualRoom(newRoom)
       setVirtualRooms(prev => [...prev, transformed])
-      toast.success(`Salle virtuelle "${transformed.name}" créée`)
+      toast.success(`Lien favori "${transformed.name}" créé`)
 
       return transformed
     } catch (err) {
@@ -141,7 +142,7 @@ export function useVisio() {
 
       const transformed = transformVirtualRoom(updatedRoom)
       setVirtualRooms(prev => prev.map(r => r.id === data.id ? transformed : r))
-      toast.success(`Salle virtuelle "${transformed.name}" mise à jour`)
+      toast.success(`Lien favori "${transformed.name}" mis à jour`)
 
       return transformed
     } catch (err) {
@@ -164,7 +165,7 @@ export function useVisio() {
       if (deleteError) throw deleteError
 
       setVirtualRooms(prev => prev.filter(r => r.id !== id))
-      toast.success('Salle virtuelle supprimée')
+      toast.success('Lien favori supprimé')
     } catch (err) {
       const message = handleError(err)
       toast.error(message)
@@ -203,7 +204,7 @@ export function useVisio() {
   // ==================== STATS ====================
 
   const stats = useMemo(() => {
-    const byPlatform: Record<VirtualRoomPlatform, number> = { teams: 0, zoom: 0, other: 0 }
+    const byPlatform: Record<VirtualRoomPlatform, number> = { teams: 0, zoom: 0, meet: 0, other: 0 }
 
     for (const session of onlineSessions) {
       const p = detectPlatform(session.meetingUrl || '')

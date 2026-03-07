@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react'
-import { Mail, RefreshCw, Filter, CheckCircle, XCircle, Clock, Send, FileText, X, Eye, Pencil, Save, Info } from 'lucide-react'
+import { Mail, RefreshCw, Filter, CheckCircle, XCircle, Clock, Send, FileText, X, Eye, Pencil, Save, Info, RotateCcw } from 'lucide-react'
 import { HelpBanner } from '@/components/ui'
 import { navigateTo } from '@/utils/navigation'
 import { supabase, isDemoMode } from '@/lib/supabase'
@@ -61,6 +61,7 @@ const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle; color: string; l
   sent: { icon: CheckCircle, color: 'text-emerald-500', label: 'Envoyé' },
   failed: { icon: XCircle, color: 'text-red-500', label: 'Échoué' },
   pending: { icon: Clock, color: 'text-amber-500', label: 'En attente' },
+  quota_exceeded: { icon: XCircle, color: 'text-orange-500', label: 'Quota dépassé' },
 }
 
 /** Variables disponibles par type de template */
@@ -391,6 +392,7 @@ export default function EmailsPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [previewLog, setPreviewLog] = useState<EmailLog | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null)
+  const [resendingId, setResendingId] = useState<string | null>(null)
   const { user } = useAuth()
 
   // ─── Fetch logs ──────────────────────────────────
@@ -405,6 +407,7 @@ export default function EmailsPage() {
       const { data, error } = await supabase
         .from('email_logs')
         .select('*')
+        .eq('center_id', user.establishmentId)
         .order('sent_at', { ascending: false })
         .limit(200)
 
@@ -452,6 +455,41 @@ export default function EmailsPage() {
     if (error) throw error
     setTemplates(prev => prev.map(t => t.id === id ? { ...t, subject, body_html: bodyHtml, updated_at: new Date().toISOString() } : t))
   }, [])
+
+  // ─── Resend email ──────────────────────────────
+  const resendEmail = useCallback(async (log: EmailLog) => {
+    if (!log.rendered_subject || !log.rendered_html) return
+    setResendingId(log.id)
+    try {
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: [{ email: log.participant_email }],
+          subject: log.rendered_subject,
+          htmlContent: log.rendered_html,
+          tags: [log.email_type, 'resend'],
+        },
+      })
+
+      // Log the resend
+      await supabase.from('email_logs').insert({
+        session_id: log.session_id,
+        center_id: user?.establishmentId || null,
+        participant_email: log.participant_email,
+        email_type: log.email_type,
+        status: error ? 'failed' : 'sent',
+        error_message: error?.message || null,
+        rendered_subject: log.rendered_subject,
+        rendered_html: log.rendered_html,
+      })
+
+      // Refresh logs
+      await fetchLogs()
+    } catch (err) {
+      console.error('Error resending email:', err)
+    } finally {
+      setResendingId(null)
+    }
+  }, [user?.establishmentId, fetchLogs])
 
   // ─── Filtered logs ──────────────────────────────
   const filteredLogs = useMemo(() => {
@@ -656,6 +694,7 @@ export default function EmailsPage() {
                       <th className="text-left px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Type</th>
                       <th className="text-left px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Date</th>
                       <th className="text-left px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Erreur</th>
+                      <th className="text-left px-4 py-3 font-medium text-neutral-600 dark:text-neutral-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -698,6 +737,22 @@ export default function EmailsPage() {
                               <span className="text-neutral-300 dark:text-neutral-600">—</span>
                             )}
                           </td>
+                          <td className="px-4 py-3">
+                            {log.email_type === 'session_cancelled' && log.rendered_html && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  resendEmail(log)
+                                }}
+                                disabled={resendingId === log.id}
+                                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 hover:bg-amber-100 dark:hover:bg-amber-900 rounded-lg transition-colors disabled:opacity-50"
+                                title="Renvoyer cet email d'annulation"
+                              >
+                                <RotateCcw size={12} className={resendingId === log.id ? 'animate-spin' : ''} />
+                                {resendingId === log.id ? 'Envoi...' : 'Renvoyer'}
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       )
                     })}
@@ -722,57 +777,62 @@ export default function EmailsPage() {
               <p className="text-neutral-500 dark:text-neutral-400">Aucun template configuré</p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-3">
               {templates.map(tpl => (
                 <div
                   key={tpl.id}
-                  className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 flex flex-col"
+                  className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4 flex items-center gap-4"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">
-                      {TEMPLATE_FRIENDLY_NAMES[tpl.name] || tpl.name}
-                    </h3>
-                    <span className={`shrink-0 ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      tpl.is_active
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
-                        : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400'
-                    }`}>
-                      {tpl.is_active ? 'Actif' : 'Inactif'}
-                    </span>
+                  {/* Left: icon + info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Mail size={16} className="shrink-0 text-primary-500" />
+                      <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm truncate">
+                        {tpl.subject}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2 ml-6">
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                        {TEMPLATE_FRIENDLY_NAMES[tpl.name] || tpl.name}
+                      </span>
+                      <span className="text-neutral-300 dark:text-neutral-600">·</span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        tpl.is_active
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
+                          : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400'
+                      }`}>
+                        {tpl.is_active ? 'Actif' : 'Inactif'}
+                      </span>
+                      <span className="text-neutral-300 dark:text-neutral-600">·</span>
+                      <span className="text-[11px] text-neutral-400">
+                        {tpl.updated_at ? format(new Date(tpl.updated_at), "d MMM yyyy", { locale: fr }) : '—'}
+                      </span>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Objet :</p>
-                  <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-4 line-clamp-2 font-mono bg-neutral-50 dark:bg-neutral-900 px-2 py-1 rounded">
-                    {tpl.subject}
-                  </p>
-
-                  <div className="mt-auto flex items-center justify-between">
-                    <span className="text-xs text-neutral-400">
-                      {tpl.updated_at ? format(new Date(tpl.updated_at), "d MMM yyyy", { locale: fr }) : '—'}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditingTemplate(tpl)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950 hover:bg-primary-100 dark:hover:bg-primary-900 rounded-lg transition-colors"
-                      >
-                        <Pencil size={13} />
-                        Modifier
-                      </button>
-                      <button
-                        onClick={() => {
-                          const previewHtml = previewTemplate(tpl.body_html)
-                          const w = window.open('', '_blank', 'width=700,height=600')
-                          if (w) {
-                            w.document.write(previewHtml)
-                            w.document.close()
-                          }
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 rounded-lg transition-colors"
-                      >
-                        <Eye size={13} />
-                        Aperçu
-                      </button>
-                    </div>
+                  {/* Right: actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setEditingTemplate(tpl)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-950 hover:bg-primary-100 dark:hover:bg-primary-900 rounded-lg transition-colors"
+                    >
+                      <Pencil size={13} />
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => {
+                        const previewHtml = previewTemplate(tpl.body_html)
+                        const w = window.open('', '_blank', 'width=700,height=600')
+                        if (w) {
+                          w.document.write(previewHtml)
+                          w.document.close()
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 rounded-lg transition-colors"
+                    >
+                      <Eye size={13} />
+                      Aperçu
+                    </button>
                   </div>
                 </div>
               ))}

@@ -5,50 +5,25 @@ import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
+import { supabase } from '@/lib/supabase'
 import LandingLayout from '@/components/landing/LandingLayout'
 
-const plans = [
-  {
-    nameKey: 'plan.free',
-    slug: 'free',
-    price: 0,
-    priceAnnual: 0,
-    features: ['plan.free.f1', 'plan.free.f2', 'plan.free.f3', 'plan.free.f4'],
-    ctaKey: 'pricing.cta.free',
-    popular: false,
-    btnStyle: 'outline' as const,
-  },
-  {
-    nameKey: 'plan.ecole',
-    slug: 'ecole-en-ligne',
-    price: 59,
-    priceAnnual: 47,
-    features: ['plan.ecole.f1', 'plan.ecole.f2', 'plan.ecole.f3', 'plan.ecole.f4', 'plan.ecole.f5', 'plan.ecole.f6'],
-    ctaKey: 'pricing.cta.ecole',
-    popular: true,
-    btnStyle: 'filled' as const,
-  },
-  {
-    nameKey: 'plan.pro',
-    slug: 'pro',
-    price: 99,
-    priceAnnual: 79,
-    features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
-    ctaKey: 'pricing.cta.pro',
-    popular: false,
-    btnStyle: 'outline' as const,
-  },
-  {
-    nameKey: 'plan.enterprise',
-    slug: 'enterprise',
-    price: 149,
-    priceAnnual: 119,
-    features: ['plan.enterprise.f1', 'plan.enterprise.f2', 'plan.enterprise.f3', 'plan.enterprise.f4', 'plan.enterprise.f5', 'plan.enterprise.f6'],
-    ctaKey: 'pricing.cta.enterprise',
-    popular: false,
-    btnStyle: 'outline' as const,
-  },
-]
+interface DBPlan {
+  slug: string
+  name: string
+  price_monthly: number
+  price_yearly: number
+  features: string[]
+  is_active: boolean
+  sort_order: number
+  max_users: number
+  max_sessions: number
+  max_rooms: number
+  max_students: number
+}
+
+// Slug qui est marqué "popular"
+const POPULAR_SLUG = 'ecole-en-ligne'
 
 const faqItems = [
   { qKey: 'faq.1.q', aKey: 'faq.1.a' },
@@ -67,7 +42,7 @@ type CellValue = boolean | string
 
 interface CompareRow {
   labelKey: string
-  values: [CellValue, CellValue, CellValue, CellValue]
+  values: CellValue[]
   isSection?: boolean
 }
 
@@ -79,10 +54,38 @@ export default function PricingPage() {
   const [annualBilling, setAnnualBilling] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [loadingSlug, setLoadingSlug] = useState<string | null>(null)
+  const [dbPlans, setDbPlans] = useState<DBPlan[]>([])
+  const [plansLoading, setPlansLoading] = useState(true)
 
   const isAuthenticated = !!user
 
   useEffect(() => { window.scrollTo(0, 0) }, [])
+
+  // Fetch plans from subscription_plans table
+  useEffect(() => {
+    supabase
+      .from('subscription_plans')
+      .select('slug, name, price_monthly, price_yearly, features, is_active, sort_order, max_users, max_sessions, max_rooms, max_students')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setDbPlans(data as DBPlan[])
+        }
+        setPlansLoading(false)
+      })
+  }, [])
+
+  // Build display plans from DB
+  const plans = dbPlans.map(p => ({
+    name: p.name,
+    slug: p.slug,
+    price: Number(p.price_monthly),
+    priceAnnual: p.price_yearly > 0 ? Math.round(Number(p.price_yearly) / 12) : 0,
+    features: (p.features || []) as string[],
+    popular: p.slug === POPULAR_SLUG,
+    btnStyle: (p.slug === POPULAR_SLUG ? 'filled' : 'outline') as 'filled' | 'outline',
+  }))
 
   const handlePlanClick = async (slug: string) => {
     if (!isAuthenticated) return
@@ -100,50 +103,59 @@ export default function PricingPage() {
     setLoadingSlug(null)
   }
 
-  const compareRows: CompareRow[] = [
+  // Build compare rows dynamically from DB plans
+  const fmtLimit = (v: number) => v === -1 ? 'Illimité' : String(v)
+  const planVal = (slugs: string[], getter: (p: DBPlan) => CellValue): CellValue[] =>
+    slugs.map(s => { const p = dbPlans.find(pp => pp.slug === s); return p ? getter(p) : false })
+  const planSlugs = dbPlans.map(p => p.slug)
+  const isPaid = (slug: string) => { const p = dbPlans.find(pp => pp.slug === slug); return p ? Number(p.price_monthly) > 0 : false }
+  const isTop = (slug: string) => slug === 'enterprise'
+  const sectionRow = (labelKey: string): CompareRow => ({ labelKey, values: planSlugs.map(() => '') as CellValue[], isSection: true })
+
+  const compareRows: CompareRow[] = plans.length > 0 ? [
     // Section: Planning
-    { labelKey: 'pricingPage.section.planning', values: ['', '', '', ''], isSection: true },
-    { labelKey: 'pricingPage.row.teachers', values: ['3', '15', '50', t('plan.enterprise.f1').split(' ')[0]] },
-    { labelKey: 'pricingPage.row.students', values: ['\u2014', '200', '\u2014', t('plan.enterprise.f1').split(' ')[0]] },
-    { labelKey: 'pricingPage.row.rooms', values: ['3', t('plan.pro.f2').split(' ')[0], t('plan.pro.f2').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
-    { labelKey: 'pricingPage.row.sessions', values: ['50', t('plan.ecole.f4').split(' ')[0], t('plan.pro.f3').split(' ')[0], t('plan.enterprise.f1').split(' ')[0]] },
-    { labelKey: 'pricingPage.row.calendar', values: [true, true, true, true] },
-    { labelKey: 'pricingPage.row.conflicts', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.dragdrop', values: [true, true, true, true] },
-    { labelKey: 'pricingPage.row.export', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.academic', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.visio', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.studentAccess', values: [false, false, false, true] },
-    { labelKey: 'pricingPage.row.multiCampus', values: [false, false, false, true] },
+    sectionRow('pricingPage.section.planning'),
+    { labelKey: 'pricingPage.row.teachers', values: planVal(planSlugs, p => fmtLimit(p.max_users)) },
+    { labelKey: 'pricingPage.row.students', values: planVal(planSlugs, p => p.max_students === 0 ? '\u2014' : fmtLimit(p.max_students)) },
+    { labelKey: 'pricingPage.row.rooms', values: planVal(planSlugs, p => fmtLimit(p.max_rooms)) },
+    { labelKey: 'pricingPage.row.sessions', values: planVal(planSlugs, p => fmtLimit(p.max_sessions)) },
+    { labelKey: 'pricingPage.row.calendar', values: planSlugs.map(() => true) },
+    { labelKey: 'pricingPage.row.conflicts', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.dragdrop', values: planSlugs.map(() => true) },
+    { labelKey: 'pricingPage.row.export', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.academic', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.visio', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.studentAccess', values: planSlugs.map(s => isTop(s)) },
+    { labelKey: 'pricingPage.row.multiCampus', values: planSlugs.map(s => isTop(s)) },
 
     // Section: Pedagogy
-    { labelKey: 'pricingPage.section.pedagogy', values: ['', '', '', ''], isSection: true },
-    { labelKey: 'pricingPage.row.attendance', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.grades', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.bulletins', values: [false, false, true, true] },
-    { labelKey: 'pricingPage.row.certificates', values: [false, false, false, true] },
-    { labelKey: 'pricingPage.row.parentContacts', values: [false, false, true, true] },
-    { labelKey: 'pricingPage.row.absenceReports', values: [false, false, true, true] },
+    sectionRow('pricingPage.section.pedagogy'),
+    { labelKey: 'pricingPage.row.attendance', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.grades', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.bulletins', values: planSlugs.map(s => s === 'pro' || isTop(s)) },
+    { labelKey: 'pricingPage.row.certificates', values: planSlugs.map(s => isTop(s)) },
+    { labelKey: 'pricingPage.row.parentContacts', values: planSlugs.map(s => s === 'pro' || isTop(s)) },
+    { labelKey: 'pricingPage.row.absenceReports', values: planSlugs.map(s => s === 'pro' || isTop(s)) },
 
     // Section: Collaboration
-    { labelKey: 'pricingPage.section.collaboration', values: ['', '', '', ''], isSection: true },
-    { labelKey: 'pricingPage.row.teacherCollab', values: [false, false, true, true] },
-    { labelKey: 'pricingPage.row.replacements', values: [false, false, true, true] },
-    { labelKey: 'pricingPage.row.assignments', values: [false, false, true, true] },
-    { labelKey: 'pricingPage.row.planningMessages', values: [false, false, true, true] },
+    sectionRow('pricingPage.section.collaboration'),
+    { labelKey: 'pricingPage.row.teacherCollab', values: planSlugs.map(s => s === 'pro' || isTop(s)) },
+    { labelKey: 'pricingPage.row.replacements', values: planSlugs.map(s => s === 'pro' || isTop(s)) },
+    { labelKey: 'pricingPage.row.assignments', values: planSlugs.map(s => s === 'pro' || isTop(s)) },
+    { labelKey: 'pricingPage.row.planningMessages', values: planSlugs.map(s => s === 'pro' || isTop(s)) },
 
     // Section: Technical
-    { labelKey: 'pricingPage.section.technical', values: ['', '', '', ''], isSection: true },
-    { labelKey: 'pricingPage.row.csvImport', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.pwa', values: [true, true, true, true] },
-    { labelKey: 'pricingPage.row.pushNotif', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.billing', values: [false, true, true, true] },
-    { labelKey: 'pricingPage.row.api', values: [false, false, false, true] },
-    { labelKey: 'pricingPage.row.sso', values: [false, false, false, true] },
-    { labelKey: 'pricingPage.row.sla', values: ['\u2014', '\u2014', '\u2014', '99.9%'] },
-    { labelKey: 'pricingPage.row.support', values: [t('pricingPage.support.email'), t('pricingPage.support.priority'), t('pricingPage.support.priority'), t('pricingPage.support.dedicated')] },
-    { labelKey: 'pricingPage.row.manager', values: [false, false, false, true] },
-  ]
+    sectionRow('pricingPage.section.technical'),
+    { labelKey: 'pricingPage.row.csvImport', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.pwa', values: planSlugs.map(() => true) },
+    { labelKey: 'pricingPage.row.pushNotif', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.billing', values: planSlugs.map(s => isPaid(s)) },
+    { labelKey: 'pricingPage.row.api', values: planSlugs.map(s => isTop(s)) },
+    { labelKey: 'pricingPage.row.sso', values: planSlugs.map(s => isTop(s)) },
+    { labelKey: 'pricingPage.row.sla', values: planSlugs.map(s => isTop(s) ? '99.9%' : '\u2014') },
+    { labelKey: 'pricingPage.row.support', values: planSlugs.map(s => s === 'free' ? t('pricingPage.support.email') : isTop(s) ? t('pricingPage.support.dedicated') : t('pricingPage.support.priority')) },
+    { labelKey: 'pricingPage.row.manager', values: planSlugs.map(s => isTop(s)) },
+  ] : []
 
   const renderCell = (val: CellValue) => {
     if (val === true) return <Check size={18} className="text-green-500 mx-auto" />
@@ -246,7 +258,11 @@ export default function PricingPage() {
           </div>
 
           <div className="landing-pricing-grid">
-            {plans.map((plan, i) => {
+            {plansLoading ? (
+              <div className="flex items-center justify-center py-12 col-span-full">
+                <Loader2 size={32} className="animate-spin text-neutral-400" />
+              </div>
+            ) : plans.map((plan, i) => {
               const price = annualBilling ? plan.priceAnnual : plan.price
               const billing = annualBilling ? 'yearly' : 'monthly'
               const ctaHref = plan.slug === 'free'
@@ -254,7 +270,7 @@ export default function PricingPage() {
                 : `#/onboarding?plan=${plan.slug}&billing=${billing}`
               return (
                 <div
-                  key={plan.nameKey}
+                  key={plan.slug}
                   className={`landing-pricing-card ${plan.popular ? 'landing-pricing-popular' : ''}`}
                   ref={reveal}
                   data-reveal-delay={i + 1}
@@ -262,7 +278,7 @@ export default function PricingPage() {
                   {plan.popular && (
                     <div className="landing-pricing-badge">{t('pricing.popular')}</div>
                   )}
-                  <div className="landing-pricing-card-name">{t(plan.nameKey)}</div>
+                  <div className="landing-pricing-card-name">{plan.name}</div>
                   <div className="landing-pricing-card-price">
                     <span className="currency">&euro;</span>
                     <span className="amount">{price}</span>
@@ -274,10 +290,10 @@ export default function PricingPage() {
                     </div>
                   )}
                   <ul className="landing-pricing-features">
-                    {plan.features.map((fKey) => (
-                      <li key={fKey}>
+                    {plan.features.map((feat, fi) => (
+                      <li key={fi}>
                         <Check size={18} />
-                        {t(fKey)}
+                        {feat}
                       </li>
                     ))}
                   </ul>
@@ -298,7 +314,7 @@ export default function PricingPage() {
                       href={ctaHref}
                       className={`landing-pricing-card-btn ${plan.btnStyle}`}
                     >
-                      {t(plan.ctaKey)}
+                      {plan.slug === 'free' ? t('pricing.cta.free') : t('pricing.cta.pro')}
                     </a>
                   )}
                 </div>
@@ -322,8 +338,8 @@ export default function PricingPage() {
                 <tr>
                   <th></th>
                   {plans.map(p => (
-                    <th key={p.nameKey} className={p.popular ? 'popular' : ''}>
-                      {t(p.nameKey)}
+                    <th key={p.slug} className={p.popular ? 'popular' : ''}>
+                      {p.name}
                     </th>
                   ))}
                 </tr>
@@ -333,7 +349,7 @@ export default function PricingPage() {
                   if (row.isSection) {
                     return (
                       <tr key={row.labelKey} className="landing-compare-section-header">
-                        <td colSpan={5}>{t(row.labelKey)}</td>
+                        <td colSpan={plans.length + 1}>{t(row.labelKey)}</td>
                       </tr>
                     )
                   }
@@ -341,7 +357,7 @@ export default function PricingPage() {
                     <tr key={row.labelKey}>
                       <td className="landing-compare-label">{t(row.labelKey)}</td>
                       {row.values.map((val, i) => (
-                        <td key={i} className={plans[i].popular ? 'popular' : ''}>
+                        <td key={i} className={plans[i]?.popular ? 'popular' : ''}>
                           {renderCell(val)}
                         </td>
                       ))}

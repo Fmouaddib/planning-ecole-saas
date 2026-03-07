@@ -122,6 +122,10 @@ function ZoomGuide() {
         </ul>
       </StepItem>
 
+      <div className="bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 text-xs text-neutral-600 dark:text-neutral-400">
+        <strong>Note :</strong> Vous verrez aussi un <strong>Secret Token</strong> et un <strong>Verification Token</strong> dans l'onglet « Feature ». Ces tokens servent uniquement aux <em>webhooks</em> Zoom (notifications entrantes) et ne sont <strong>pas nécessaires</strong> pour AntiPlanning. Seuls les 3 identifiants ci-dessus sont requis.
+      </div>
+
       <StepItem number={6}>
         <p>Dans l'onglet <strong>Scopes</strong>, ajoutez les permissions suivantes :</p>
         <ul className="list-disc list-inside text-xs mt-1 space-y-1">
@@ -185,6 +189,9 @@ function TeamsGuide() {
           <li>Choisissez une durée (24 mois recommandé)</li>
           <li>Copiez immédiatement la <strong>Valeur</strong> du secret → collez dans « Client Secret »</li>
         </ul>
+        <p className="text-xs text-neutral-400 mt-1.5">
+          <strong>Attention :</strong> Azure affiche aussi un « ID du secret » — ce n'est <strong>pas</strong> le Client Secret. Copiez bien la colonne <strong>Valeur</strong>, visible uniquement juste après la création.
+        </p>
       </StepItem>
 
       <StepItem number={6}>
@@ -277,10 +284,11 @@ function MeetGuide() {
 }
 
 export default function VisioSettingsSection({ settings, onUpdateSettings }: VisioSettingsSectionProps) {
-  const { testConnection, isTesting } = useVisioMeetings()
+  const { testConnection } = useVisioMeetings()
 
   const [showSecret, setShowSecret] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [testPhase, setTestPhase] = useState<'idle' | 'saving' | 'testing'>('idle')
 
   const [zoomAccountId, setZoomAccountId] = useState(settings.zoom_account_id || '')
   const [zoomClientId, setZoomClientId] = useState(settings.zoom_client_id || '')
@@ -319,10 +327,18 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
   }
 
   const handleTest = async () => {
-    await handleSave()
     setTestResult(null)
-    const result = await testConnection(provider || undefined)
-    setTestResult(result)
+    setTestPhase('saving')
+    try {
+      await handleSave()
+      setTestPhase('testing')
+      const result = await testConnection(provider || undefined)
+      setTestResult(result)
+    } catch (e) {
+      setTestResult({ success: false, message: `Erreur lors de la sauvegarde : ${(e as Error).message}` })
+    } finally {
+      setTestPhase('idle')
+    }
   }
 
   const canTest = (() => {
@@ -445,11 +461,18 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
       {provider && (
         <div className="space-y-4 max-w-lg mb-6">
           <div className="flex items-center gap-3">
-            <Button onClick={handleTest} disabled={!canTest || isTesting} variant="secondary" size="sm">
-              {isTesting ? 'Test en cours...' : 'Tester la connexion'}
-            </Button>
-            <Button onClick={handleSave} variant="ghost" size="sm">
-              Enregistrer
+            <Button onClick={handleTest} disabled={!canTest || testPhase !== 'idle'} variant="primary" size="sm">
+              {testPhase === 'saving' ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Sauvegarde en cours...
+                </span>
+              ) : testPhase === 'testing' ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Test de connexion...
+                </span>
+              ) : 'Enregistrer et tester la connexion'}
             </Button>
           </div>
 

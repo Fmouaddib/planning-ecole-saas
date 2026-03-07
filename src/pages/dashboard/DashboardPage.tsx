@@ -222,23 +222,23 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
       .slice(0, 5)
 
     return sorted.map(b => {
-      const userName = b.user
+      const teacherName = b.user
         ? `${b.user.firstName} ${b.user.lastName}`.trim()
-        : 'Quelqu\'un'
+        : null
 
       let text: string
       let color: string
       switch (b.status) {
         case 'scheduled':
-          text = `${userName} a planifié "${b.title}"`
+          text = `"${b.title}" planifiée${teacherName ? ` — ${teacherName}` : ''}`
           color = 'bg-primary-500'
           break
         case 'in_progress':
-          text = `"${b.title}" est en cours`
+          text = `"${b.title}" en cours${teacherName ? ` — ${teacherName}` : ''}`
           color = 'bg-warning-500'
           break
         case 'cancelled':
-          text = `${userName} a annulé "${b.title}"`
+          text = `"${b.title}" annulée`
           color = 'bg-error-500'
           break
         case 'completed':

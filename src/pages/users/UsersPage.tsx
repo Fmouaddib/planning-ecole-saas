@@ -7,7 +7,7 @@ import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSp
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole, ContactRelationship } from '@/types'
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle, Linkedin } from 'lucide-react'
 import { navigateTo, navigateToDM } from '@/utils/navigation'
 import { ImportModal } from '@/components/import/ImportModal'
 
@@ -41,6 +41,8 @@ interface UserFormData {
   password: string
   role: UserRole
   classId: string
+  phone: string
+  linkedin: string
 }
 
 const emptyForm: UserFormData = {
@@ -50,6 +52,8 @@ const emptyForm: UserFormData = {
   password: '',
   role: 'student',
   classId: '',
+  phone: '',
+  linkedin: '',
 }
 
 function UsersPage() {
@@ -113,6 +117,8 @@ function UsersPage() {
       password: '',
       role: user.role,
       classId: cId,
+      phone: user.phone || '',
+      linkedin: user.linkedin || '',
     })
     // Charger les dispensations existantes pour cet étudiant
     if (user.role === 'student') {
@@ -165,6 +171,8 @@ function UsersPage() {
           lastName: form.lastName,
           email: form.email,
           role: form.role,
+          phone: form.phone,
+          linkedin: form.linkedin,
         })
         // Mettre à jour la classe si étudiant
         if (form.role === 'student') {
@@ -312,8 +320,16 @@ function UsersPage() {
                   {paginatedData.map(u => (
                     <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-neutral-900 dark:text-neutral-100">{u.firstName} {u.lastName}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-neutral-900 dark:text-neutral-100">{u.firstName} {u.lastName}</span>
+                          {u.linkedin && (
+                            <a href={u.linkedin} target="_blank" rel="noopener noreferrer" title="LinkedIn" className="text-blue-500 hover:text-blue-700 shrink-0">
+                              <Linkedin size={14} />
+                            </a>
+                          )}
+                        </div>
                         <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{u.email}</span>
+                        {u.phone && <span className="block text-xs text-neutral-400 mt-0.5">{u.phone}</span>}
                       </td>
                       <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{u.email}</td>
                       <td className="px-4 py-3">
@@ -429,6 +445,21 @@ function UsersPage() {
               required
             />
           )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Téléphone"
+              type="tel"
+              placeholder="06 12 34 56 78"
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+            />
+            <Input
+              label="LinkedIn"
+              placeholder="https://linkedin.com/in/..."
+              value={form.linkedin}
+              onChange={e => setForm(f => ({ ...f, linkedin: e.target.value }))}
+            />
+          </div>
           <Select
             label="Rôle"
             options={roleOptions}

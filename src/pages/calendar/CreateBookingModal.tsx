@@ -12,6 +12,13 @@ interface VirtualRoomOption {
   url: string
 }
 
+interface CoursOption {
+  value: string  // "classId::subjectId"
+  label: string
+  classId: string
+  subjectId: string
+}
+
 interface CreateBookingModalProps {
   isOpen: boolean
   onClose: () => void
@@ -37,9 +44,16 @@ interface CreateBookingModalProps {
   getClassById?: (classId: string) => Class | undefined
   isVisioAutoCreate?: boolean
   visioProviderName?: string
+  openingTime?: string
+  closingTime?: string
+  isOnlineSchool?: boolean
+  roomOptional?: boolean
+  isMergedMode?: boolean
+  coursOptions?: CoursOption[]
+  customTypeOptions?: { value: string; label: string }[]
 }
 
-const typeOptions = [
+const DEFAULT_TYPE_OPTIONS = [
   { value: 'course', label: 'Cours' },
   { value: 'exam', label: 'Examen' },
   { value: 'meeting', label: 'Réunion' },
@@ -61,10 +75,19 @@ export function CreateBookingModal({
   getClassById,
   isVisioAutoCreate,
   visioProviderName,
+  openingTime = '08:00',
+  closingTime = '20:00',
+  isOnlineSchool = false,
+  roomOptional = false,
+  isMergedMode = false,
+  coursOptions = [],
+  customTypeOptions,
 }: CreateBookingModalProps) {
   const dateStr = prefilledDate ? format(prefilledDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
-  const startH = prefilledHour != null ? prefilledHour : 8
-  const endH = Math.min(startH + 1, 20)
+  const openH = parseInt(openingTime.split(':')[0], 10)
+  const closeH = parseInt(closingTime.split(':')[0], 10)
+  const startH = prefilledHour != null ? prefilledHour : openH
+  const endH = Math.min(startH + 1, closeH)
 
   const [title, setTitle] = useState('')
   const [roomId, setRoomId] = useState('')
@@ -78,10 +101,13 @@ export function CreateBookingModal({
   const [virtualRoomId, setVirtualRoomId] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const typeOptions = customTypeOptions && customTypeOptions.length > 0 ? customTypeOptions : DEFAULT_TYPE_OPTIONS
+
   // Cascade académique
   const [diplomaId, setDiplomaId] = useState('')
   const [classId, setClassId] = useState('')
   const [subjectId, setSubjectId] = useState('')
+  const [selectedCoursId, setSelectedCoursId] = useState('')
 
   const classOptions = useMemo(
     () => (diplomaId && classOptionsByDiploma ? classOptionsByDiploma(diplomaId) : []),
@@ -142,6 +168,23 @@ export function CreateBookingModal({
     }
   }
 
+  const handleCoursChange = (coursValue: string) => {
+    setSelectedCoursId(coursValue)
+    if (!coursValue) {
+      setClassId('')
+      setSubjectId('')
+      return
+    }
+    const cours = coursOptions.find(c => c.value === coursValue)
+    if (cours) {
+      setClassId(cours.classId)
+      setSubjectId(cours.subjectId)
+      if (!title.trim()) {
+        setTitle(cours.label)
+      }
+    }
+  }
+
   const isOnlineOrHybrid = sessionType === 'online' || sessionType === 'hybrid'
   const hasVirtualRooms = virtualRooms.length > 0 && isOnlineOrHybrid
   const isUrlFromRoom = hasVirtualRooms && virtualRoomId !== ''
@@ -164,11 +207,11 @@ export function CreateBookingModal({
     }
   }
 
-  // Auto-ajuster l'heure de fin quand le début change (+1h, max 20:00)
+  // Auto-ajuster l'heure de fin quand le début change (+1h, max closing)
   const handleStartTimeChange = (newStart: string) => {
     setStartTime(newStart)
     const [h, m] = newStart.split(':').map(Number)
-    const endH = Math.min(h + 1, 20)
+    const endH = Math.min(h + 1, closeH)
     const newEnd = `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`
     // Ajuster la fin seulement si elle serait avant le nouveau début
     if (newEnd > endTime || newStart >= endTime) {
@@ -185,11 +228,11 @@ export function CreateBookingModal({
   const validate = () => {
     const errs: Record<string, string> = {}
     if (!title.trim()) errs.title = 'Le titre est requis'
-    if (!roomId) errs.roomId = 'La salle est requise'
+    if (!isOnlineSchool && !roomOptional && !roomId) errs.roomId = 'La salle est requise'
     if (!date) errs.date = 'La date est requise'
     if (startTime >= endTime) errs.endTime = 'L\'heure de fin doit être après le début'
-    if (startTime < '08:00') errs.startTime = 'Début minimum : 08:00'
-    if (endTime > '20:00') errs.endTime = 'Fin maximum : 20:00'
+    if (startTime < openingTime) errs.startTime = `Début minimum : ${openingTime}`
+    if (endTime > closingTime) errs.endTime = `Fin maximum : ${closingTime}`
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -221,6 +264,7 @@ export function CreateBookingModal({
     setDiplomaId('')
     setClassId('')
     setSubjectId('')
+    setSelectedCoursId('')
     setErrors({})
     onClose()
   }
@@ -236,8 +280,15 @@ export function CreateBookingModal({
       )}
 
       <div className="space-y-4">
-        {/* Cascade académique */}
-        {hasDiplomaData && (
+        {/* Cascade académique ou sélecteur Cours (mode fusionné) */}
+        {isMergedMode && coursOptions.length > 0 ? (
+          <Select
+            label="Cours"
+            options={[{ value: '', label: 'Sélectionner un cours...' }, ...coursOptions]}
+            value={selectedCoursId}
+            onChange={e => handleCoursChange(e.target.value)}
+          />
+        ) : hasDiplomaData && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Select
               label="Diplôme"
@@ -270,14 +321,16 @@ export function CreateBookingModal({
           error={errors.title}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Select
-            label="Salle"
-            options={[{ value: '', label: 'Sélectionner...' }, ...rooms]}
-            value={roomId}
-            onChange={e => setRoomId(e.target.value)}
-            error={errors.roomId}
-          />
+        <div className={`grid ${isOnlineSchool ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+          {!isOnlineSchool && (
+            <Select
+              label="Salle"
+              options={[{ value: '', label: 'Sélectionner...' }, ...rooms]}
+              value={roomId}
+              onChange={e => setRoomId(e.target.value)}
+              error={errors.roomId}
+            />
+          )}
           <Select
             label="Type"
             options={typeOptions}
@@ -299,9 +352,9 @@ export function CreateBookingModal({
           />
           {hasVirtualRooms && (
             <Select
-              label="Salle virtuelle"
+              label="Lien favori"
               options={[
-                { value: '', label: 'Lien personnalisé' },
+                { value: '', label: 'Saisie libre' },
                 ...virtualRooms.map(r => ({ value: r.value, label: r.label })),
               ]}
               value={virtualRoomId}
@@ -322,10 +375,16 @@ export function CreateBookingModal({
             <Video size={16} className={`absolute right-3 top-9 ${isUrlFromRoom ? 'text-primary-400' : 'text-neutral-400'}`} />
           </div>
         )}
-        {isOnlineOrHybrid && isVisioAutoCreate && !meetingUrl && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">
-            <Video size={14} />
-            Un lien {visioProviderName || 'visio'} sera créé automatiquement
+        {isOnlineOrHybrid && isVisioAutoCreate && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs bg-blue-50 dark:bg-blue-900/20">
+            <Video size={14} className="text-blue-500 shrink-0 mt-0.5" />
+            <div className="text-blue-600 dark:text-blue-400">
+              {meetingUrl ? (
+                <>Le lien saisi sera utilisé. La création automatique {visioProviderName || 'visio'} est désactivée pour cette séance.</>
+              ) : (
+                <>Un lien <strong>{visioProviderName || 'visio'}</strong> unique sera créé automatiquement pour cette séance.</>
+              )}
+            </div>
           </div>
         )}
 
@@ -342,8 +401,8 @@ export function CreateBookingModal({
             type="time"
             value={startTime}
             onChange={e => handleStartTimeChange(e.target.value)}
-            min="08:00"
-            max="19:00"
+            min={openingTime}
+            max={closingTime}
             error={errors.startTime}
           />
           <Input
@@ -352,7 +411,7 @@ export function CreateBookingModal({
             value={endTime}
             onChange={e => handleEndTimeChange(e.target.value)}
             min={startTime}
-            max="20:00"
+            max={closingTime}
             error={errors.endTime}
           />
         </div>

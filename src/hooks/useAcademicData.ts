@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { Program, Diploma, Class, Subject, User } from '@/types'
+import type { Program, Diploma, Class, Subject, User, AcademicYear } from '@/types'
 import { supabase, isDemoMode, isolatedClient } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { transformUser, transformProgram } from '@/utils/transforms'
@@ -23,6 +23,8 @@ interface ClassSubjectLink {
   subject_id: string
   trainer_id?: string
   hours_planned?: number
+  whatsapp_link?: string
+  formation_link?: string
 }
 
 interface TeacherSubjectLink {
@@ -55,17 +57,21 @@ export interface CoursEntity {
   diploma?: { id: string; title: string }
   program?: { id: string; name: string }
   academicYear: string
+  academicYearId?: string
   scheduleType: string
   attendanceDays: number[]
   code: string
   description?: string
   hoursPlanned?: number
+  whatsappLink?: string
+  formationLink?: string
   createdAt: string
 }
 
 export function useAcademicData() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [diplomas, setDiplomas] = useState<Diploma[]>([])
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [teachers, setTeachers] = useState<User[]>([])
@@ -85,7 +91,7 @@ export function useAcademicData() {
     try {
       setIsLoading(true)
 
-      const [programsRes, diplomasRes, classesRes, subjectsRes, teachersRes] = await Promise.all([
+      const [programsRes, diplomasRes, classesRes, subjectsRes, teachersRes, academicYearsRes] = await Promise.all([
         supabase
           .from('programs')
           .select('*, diploma:diplomas(id, title)')
@@ -113,6 +119,11 @@ export function useAcademicData() {
           .in('role', ['teacher', 'staff'])
           .eq('is_active', true)
           .order('full_name'),
+        supabase
+          .from('academic_years')
+          .select('*, diploma:diplomas(id, title)')
+          .eq('center_id', user.establishmentId)
+          .order('start_date', { ascending: false }),
       ])
 
       // Afficher les erreurs RLS/query individuellement
@@ -121,6 +132,7 @@ export function useAcademicData() {
       if (classesRes.error) toast.error('Erreur classes: ' + classesRes.error.message)
       if (subjectsRes.error) toast.error('Erreur matières: ' + subjectsRes.error.message)
       if (teachersRes.error) toast.error('Erreur professeurs: ' + teachersRes.error.message)
+      if (academicYearsRes.error) toast.error('Erreur années académiques: ' + academicYearsRes.error.message)
 
       setPrograms((programsRes.data || []).map(transformProgram))
 
@@ -134,12 +146,26 @@ export function useAcademicData() {
         createdAt: d.created_at,
       }))
 
+      const transformedAcademicYears: AcademicYear[] = (academicYearsRes.data || []).map((a: any) => ({
+        id: a.id,
+        centerId: a.center_id,
+        diplomaId: a.diploma_id,
+        name: a.name,
+        startDate: a.start_date,
+        endDate: a.end_date,
+        isCurrent: a.is_current ?? false,
+        createdAt: a.created_at,
+        updatedAt: a.updated_at,
+        diploma: a.diploma || undefined,
+      }))
+
       const transformedClasses: Class[] = (classesRes.data || []).map((c: any) => ({
         id: c.id,
         name: c.name,
         diplomaId: c.diploma_id,
         centerId: c.center_id,
         academicYear: c.academic_year || '',
+        academicYearId: c.academic_year_id || undefined,
         startDate: c.start_date || undefined,
         endDate: c.end_date || undefined,
         scheduleType: c.schedule_type || 'initial',
@@ -161,12 +187,16 @@ export function useAcademicData() {
         color: s.color ?? undefined,
         programId: s.program_id || undefined,
         program: s.program || undefined,
+        whatsappLink: s.whatsapp_link ?? undefined,
+        webLink: s.web_link ?? undefined,
+        slideLink: s.slide_link ?? undefined,
         isActive: s.is_active ?? true,
         centerId: s.center_id,
         createdAt: s.created_at,
       }))
 
       setDiplomas(transformedDiplomas)
+      setAcademicYears(transformedAcademicYears)
       setClasses(transformedClasses)
       setSubjects(transformedSubjects)
       setTeachers((teachersRes.data || []).map(transformUser))
@@ -176,7 +206,7 @@ export function useAcademicData() {
       if (classIds.length > 0) {
         const { data: csData, error: csError } = await supabase
           .from('class_subjects')
-          .select('class_id, subject_id, trainer_id, hours_planned')
+          .select('class_id, subject_id, trainer_id, hours_planned, whatsapp_link, formation_link')
           .in('class_id', classIds)
 
         if (!csError && csData) {
@@ -348,7 +378,7 @@ export function useAcademicData() {
 
   // ==================== CRUD Classes ====================
 
-  const createClass = useCallback(async (data: { name: string; diplomaId: string; academicYear?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string }; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] }; examPeriods?: { name: string; startDate: string; endDate: string }[] }) => {
+  const createClass = useCallback(async (data: { name: string; diplomaId: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string }; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] }; examPeriods?: { name: string; startDate: string; endDate: string }[] }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('classes')
@@ -356,6 +386,7 @@ export function useAcademicData() {
         name: data.name,
         diploma_id: data.diplomaId,
         academic_year: data.academicYear || null,
+        academic_year_id: data.academicYearId || null,
         start_date: data.startDate || null,
         end_date: data.endDate || null,
         schedule_type: data.scheduleType || 'initial',
@@ -371,6 +402,7 @@ export function useAcademicData() {
     const newClass: Class = {
       id: row.id, name: row.name, diplomaId: row.diploma_id,
       centerId: row.center_id, academicYear: row.academic_year || '',
+      academicYearId: row.academic_year_id || undefined,
       startDate: row.start_date || undefined, endDate: row.end_date || undefined,
       scheduleType: row.schedule_type || 'initial',
       attendanceDays: row.attendance_days || [1, 2, 3, 4, 5],
@@ -386,11 +418,12 @@ export function useAcademicData() {
     return newClass
   }, [user?.establishmentId])
 
-  const updateClass = useCallback(async (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string } | null; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] } | null; examPeriods?: { name: string; startDate: string; endDate: string }[] | null }) => {
+  const updateClass = useCallback(async (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string } | null; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] } | null; examPeriods?: { name: string; startDate: string; endDate: string }[] | null }) => {
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId
     if (data.academicYear !== undefined) payload.academic_year = data.academicYear || null
+    if (data.academicYearId !== undefined) payload.academic_year_id = data.academicYearId || null
     if (data.startDate !== undefined) payload.start_date = data.startDate || null
     if (data.endDate !== undefined) payload.end_date = data.endDate || null
     if (data.scheduleType !== undefined) payload.schedule_type = data.scheduleType
@@ -404,6 +437,7 @@ export function useAcademicData() {
     const updated: Class = {
       id: row.id, name: row.name, diplomaId: row.diploma_id,
       centerId: row.center_id, academicYear: row.academic_year || '',
+      academicYearId: row.academic_year_id || undefined,
       startDate: row.start_date || undefined, endDate: row.end_date || undefined,
       scheduleType: row.schedule_type || 'initial',
       attendanceDays: row.attendance_days || [1, 2, 3, 4, 5],
@@ -430,7 +464,7 @@ export function useAcademicData() {
 
   // ==================== CRUD Subjects ====================
 
-  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => {
+  const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; programId?: string; color?: string; whatsappLink?: string; webLink?: string; slideLink?: string }) => {
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('subjects')
@@ -441,6 +475,9 @@ export function useAcademicData() {
         category: data.category || null,
         color: data.color || null,
         program_id: data.programId || null,
+        whatsapp_link: data.whatsappLink || null,
+        web_link: data.webLink || null,
+        slide_link: data.slideLink || null,
         center_id: user.establishmentId,
       })
       .select('*, program:programs(id, name)')
@@ -450,7 +487,9 @@ export function useAcademicData() {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
       category: row.category ?? undefined, color: row.color ?? undefined,
       programId: row.program_id || undefined,
-      program: row.program || undefined, isActive: row.is_active ?? true,
+      program: row.program || undefined,
+      whatsappLink: row.whatsapp_link ?? undefined, webLink: row.web_link ?? undefined, slideLink: row.slide_link ?? undefined,
+      isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
     setSubjects(prev => [...prev, newSubject].sort((a, b) => a.name.localeCompare(b.name)))
@@ -459,7 +498,7 @@ export function useAcademicData() {
     return newSubject
   }, [user?.establishmentId])
 
-  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string; color?: string }) => {
+  const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string; color?: string; whatsappLink?: string; webLink?: string; slideLink?: string }) => {
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.code !== undefined) payload.code = data.code || null
@@ -467,6 +506,9 @@ export function useAcademicData() {
     if (data.category !== undefined) payload.category = data.category || null
     if (data.color !== undefined) payload.color = data.color || null
     if (data.programId !== undefined) payload.program_id = data.programId || null
+    if (data.whatsappLink !== undefined) payload.whatsapp_link = data.whatsappLink || null
+    if (data.webLink !== undefined) payload.web_link = data.webLink || null
+    if (data.slideLink !== undefined) payload.slide_link = data.slideLink || null
     const { data: row, error } = await supabase.from('subjects').update(payload).eq('id', id)
       .select('*, program:programs(id, name)').single()
     if (error) { toast.error('Erreur modification matière: ' + error.message); throw error }
@@ -474,7 +516,9 @@ export function useAcademicData() {
       id: row.id, name: row.name, code: row.code || '', description: row.description ?? undefined,
       category: row.category ?? undefined, color: row.color ?? undefined,
       programId: row.program_id || undefined,
-      program: row.program || undefined, isActive: row.is_active ?? true,
+      program: row.program || undefined,
+      whatsappLink: row.whatsapp_link ?? undefined, webLink: row.web_link ?? undefined, slideLink: row.slide_link ?? undefined,
+      isActive: row.is_active ?? true,
       centerId: row.center_id, createdAt: row.created_at,
     }
     setSubjects(prev => prev.map(s => s.id === id ? updated : s))
@@ -972,11 +1016,14 @@ export function useAcademicData() {
         diploma: cls.diploma,
         program: subject.program,
         academicYear: cls.academicYear,
+        academicYearId: cls.academicYearId,
         scheduleType: cls.scheduleType || 'initial',
         attendanceDays: cls.attendanceDays || [1, 2, 3, 4, 5],
         code: subject.code || '',
         description: subject.description,
         hoursPlanned: links[0].hours_planned,
+        whatsappLink: links[0].whatsapp_link || undefined,
+        formationLink: links[0].formation_link || undefined,
         createdAt: cls.createdAt,
       } as CoursEntity
     }).filter(Boolean) as CoursEntity[]
@@ -987,16 +1034,20 @@ export function useAcademicData() {
     diplomaId: string
     programId?: string
     academicYear?: string
+    academicYearId?: string
     scheduleType?: string
     attendanceDays?: number[]
     code?: string
     description?: string
+    whatsappLink?: string
+    formationLink?: string
   }) => {
     // 1. Create class
     const newClass = await createClass({
       name: data.name,
       diplomaId: data.diplomaId,
       academicYear: data.academicYear,
+      academicYearId: data.academicYearId,
       scheduleType: data.scheduleType,
       attendanceDays: data.attendanceDays,
     })
@@ -1009,6 +1060,18 @@ export function useAcademicData() {
     })
     // 3. Link them
     await linkSubjectToClass(newClass.id, newSubject.id)
+    // 4. Update links if whatsapp/formation provided
+    if (data.whatsappLink || data.formationLink) {
+      await supabase.from('class_subjects').update({
+        whatsapp_link: data.whatsappLink || null,
+        formation_link: data.formationLink || null,
+      }).eq('class_id', newClass.id).eq('subject_id', newSubject.id)
+      setClassSubjects(prev => prev.map(cs =>
+        cs.class_id === newClass.id && cs.subject_id === newSubject.id
+          ? { ...cs, whatsapp_link: data.whatsappLink || undefined, formation_link: data.formationLink || undefined }
+          : cs
+      ))
+    }
     return { classId: newClass.id, subjectId: newSubject.id }
   }, [createClass, createSubject, linkSubjectToClass])
 
@@ -1017,10 +1080,13 @@ export function useAcademicData() {
     diplomaId?: string
     programId?: string
     academicYear?: string
+    academicYearId?: string
     scheduleType?: string
     attendanceDays?: number[]
     code?: string
     description?: string
+    whatsappLink?: string
+    formationLink?: string
   }) => {
     // Sync name on both class and subject
     const classPayload: any = {}
@@ -1028,6 +1094,7 @@ export function useAcademicData() {
     if (data.name !== undefined) { classPayload.name = data.name; subjectPayload.name = data.name }
     if (data.diplomaId !== undefined) classPayload.diplomaId = data.diplomaId
     if (data.academicYear !== undefined) classPayload.academicYear = data.academicYear
+    if (data.academicYearId !== undefined) classPayload.academicYearId = data.academicYearId
     if (data.scheduleType !== undefined) classPayload.scheduleType = data.scheduleType
     if (data.attendanceDays !== undefined) classPayload.attendanceDays = data.attendanceDays
     if (data.programId !== undefined) subjectPayload.programId = data.programId
@@ -1036,6 +1103,20 @@ export function useAcademicData() {
 
     if (Object.keys(classPayload).length > 0) await updateClass(classId, classPayload)
     if (Object.keys(subjectPayload).length > 0) await updateSubject(subjectId, subjectPayload)
+
+    // Update links on class_subjects
+    if (data.whatsappLink !== undefined || data.formationLink !== undefined) {
+      const linkPayload: any = {}
+      if (data.whatsappLink !== undefined) linkPayload.whatsapp_link = data.whatsappLink || null
+      if (data.formationLink !== undefined) linkPayload.formation_link = data.formationLink || null
+      await supabase.from('class_subjects').update(linkPayload)
+        .eq('class_id', classId).eq('subject_id', subjectId)
+      setClassSubjects(prev => prev.map(cs =>
+        cs.class_id === classId && cs.subject_id === subjectId
+          ? { ...cs, ...linkPayload }
+          : cs
+      ))
+    }
   }, [updateClass, updateSubject])
 
   const deleteCours = useCallback(async (classId: string, subjectId: string) => {
@@ -1043,6 +1124,153 @@ export function useAcademicData() {
     await deleteClass(classId)
     await deleteSubject(subjectId)
   }, [unlinkSubjectFromClass, deleteClass, deleteSubject])
+
+  const duplicateCours = useCallback(async (cours: CoursEntity, targetAcademicYearId?: string) => {
+    // Find the target academic year name
+    const targetYear = targetAcademicYearId
+      ? academicYears.find(y => y.id === targetAcademicYearId)
+      : undefined
+    const yearName = targetYear?.name || cours.academicYear
+
+    // 1. Create class (copy)
+    const newClass = await createClass({
+      name: cours.name,
+      diplomaId: cours.diplomaId,
+      academicYear: yearName,
+      academicYearId: targetAcademicYearId,
+      scheduleType: cours.scheduleType,
+      attendanceDays: cours.attendanceDays,
+    })
+    // 2. Create subject (copy)
+    const newSubject = await createSubject({
+      name: cours.name,
+      code: cours.code ? `${cours.code}-copy` : undefined,
+      description: cours.description,
+      programId: cours.programId,
+    })
+    // 3. Link them
+    await linkSubjectToClass(newClass.id, newSubject.id)
+    // 4. Copy teacher assignments
+    const teacherLinks = teacherSubjects.filter(ts => ts.subject_id === cours.subjectId)
+    for (const link of teacherLinks) {
+      await supabase.from('teacher_subjects').insert({
+        teacher_id: link.teacher_id,
+        subject_id: newSubject.id,
+      })
+    }
+    if (teacherLinks.length > 0) {
+      setTeacherSubjects(prev => [
+        ...prev,
+        ...teacherLinks.map(tl => ({ teacher_id: tl.teacher_id, subject_id: newSubject.id })),
+      ])
+    }
+    toast.success(`Cours "${cours.name}" dupliqué pour ${yearName}`)
+    return { classId: newClass.id, subjectId: newSubject.id }
+  }, [academicYears, createClass, createSubject, linkSubjectToClass, teacherSubjects])
+
+  // ==================== CRUD Academic Years ====================
+
+  const createAcademicYear = useCallback(async (data: { name: string; diplomaId: string; startDate: string; endDate: string; isCurrent?: boolean }) => {
+    if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
+    const { data: row, error } = await supabase
+      .from('academic_years')
+      .insert({
+        name: data.name,
+        diploma_id: data.diplomaId,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        is_current: data.isCurrent ?? false,
+        center_id: user.establishmentId,
+      })
+      .select('*, diploma:diplomas(id, title)')
+      .single()
+    if (error) { toast.error('Erreur création année: ' + error.message); throw error }
+    const newYear: AcademicYear = {
+      id: row.id, centerId: row.center_id, diplomaId: row.diploma_id, name: row.name,
+      startDate: row.start_date, endDate: row.end_date,
+      isCurrent: row.is_current ?? false,
+      createdAt: row.created_at, updatedAt: row.updated_at,
+      diploma: row.diploma || undefined,
+    }
+    // If is_current, unset others for same diploma locally
+    if (newYear.isCurrent) {
+      setAcademicYears(prev => [...prev.map(y => y.diplomaId === data.diplomaId ? { ...y, isCurrent: false } : y), newYear])
+    } else {
+      setAcademicYears(prev => [...prev, newYear])
+    }
+    toast.success(`Année "${newYear.name}" créée`)
+    return newYear
+  }, [user?.establishmentId])
+
+  const updateAcademicYear = useCallback(async (id: string, data: { name?: string; diplomaId?: string; startDate?: string; endDate?: string; isCurrent?: boolean }) => {
+    const payload: any = {}
+    if (data.name !== undefined) payload.name = data.name
+    if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId
+    if (data.startDate !== undefined) payload.start_date = data.startDate
+    if (data.endDate !== undefined) payload.end_date = data.endDate
+    if (data.isCurrent !== undefined) payload.is_current = data.isCurrent
+    const { data: row, error } = await supabase.from('academic_years').update(payload).eq('id', id).select('*, diploma:diplomas(id, title)').single()
+    if (error) { toast.error('Erreur modification année: ' + error.message); throw error }
+    const updated: AcademicYear = {
+      id: row.id, centerId: row.center_id, diplomaId: row.diploma_id, name: row.name,
+      startDate: row.start_date, endDate: row.end_date,
+      isCurrent: row.is_current ?? false,
+      createdAt: row.created_at, updatedAt: row.updated_at,
+      diploma: row.diploma || undefined,
+    }
+    if (updated.isCurrent) {
+      // Unset others for same diploma only
+      setAcademicYears(prev => prev.map(y => y.id === id ? updated : (y.diplomaId === updated.diplomaId ? { ...y, isCurrent: false } : y)))
+    } else {
+      setAcademicYears(prev => prev.map(y => y.id === id ? updated : y))
+    }
+    toast.success(`Année "${updated.name}" modifiée`)
+    return updated
+  }, [])
+
+  const deleteAcademicYear = useCallback(async (id: string) => {
+    const { error } = await supabase.from('academic_years').delete().eq('id', id)
+    if (error) { toast.error('Erreur suppression année: ' + error.message); throw error }
+    setAcademicYears(prev => prev.filter(y => y.id !== id))
+    toast.success('Année supprimée')
+  }, [])
+
+  const deleteAcademicYearSessions = useCallback(async (yearId: string) => {
+    // Find all classes linked to this academic year
+    const classIds = classes.filter(c => c.academicYearId === yearId).map(c => c.id)
+    if (classIds.length === 0) {
+      toast.success('Aucune séance à supprimer')
+      return 0
+    }
+    // Delete training_sessions for those classes (via class_id on training_sessions)
+    const { data: deleted, error } = await supabase
+      .from('training_sessions')
+      .delete()
+      .in('class_id', classIds)
+      .select('id')
+    if (error) { toast.error('Erreur suppression séances: ' + error.message); throw error }
+    const count = deleted?.length || 0
+    toast.success(`${count} séance${count > 1 ? 's' : ''} supprimée${count > 1 ? 's' : ''}`)
+    return count
+  }, [classes])
+
+  const academicYearOptions = useMemo(
+    () => academicYears.map(y => ({
+      value: y.id,
+      label: `${y.name}${y.diploma?.title ? ' — ' + y.diploma.title : ''}${y.isCurrent ? ' (en cours)' : ''}`,
+    })),
+    [academicYears],
+  )
+
+  const currentAcademicYear = useMemo(
+    () => academicYears.find(y => y.isCurrent) || null,
+    [academicYears],
+  )
+
+  const currentAcademicYears = useMemo(
+    () => academicYears.filter(y => y.isCurrent),
+    [academicYears],
+  )
 
   return {
     programs,
@@ -1117,6 +1345,16 @@ export function useAcademicData() {
     createCours,
     updateCours,
     deleteCours,
+    duplicateCours,
+    // Academic Years
+    academicYears,
+    academicYearOptions,
+    currentAcademicYear,
+    currentAcademicYears,
+    createAcademicYear,
+    updateAcademicYear,
+    deleteAcademicYear,
+    deleteAcademicYearSessions,
     // Refresh
     refreshAll: fetchAll,
   }

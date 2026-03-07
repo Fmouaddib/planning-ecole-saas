@@ -77,15 +77,17 @@ export class BookingService {
    */
   static async createBooking(data: CreateBookingData, userId: string, establishmentId: string): Promise<Booking> {
     try {
-      // Vérifier les conflits
-      const hasConflict = await this.checkConflict(
-        data.roomId,
-        data.startDateTime,
-        data.endDateTime
-      )
+      // Vérifier les conflits (seulement si une salle est sélectionnée)
+      if (data.roomId) {
+        const hasConflict = await this.checkConflict(
+          data.roomId,
+          data.startDateTime,
+          data.endDateTime
+        )
 
-      if (hasConflict) {
-        throw new Error('Cette salle est déjà occupée pour cette période')
+        if (hasConflict) {
+          throw new Error('Cette salle est déjà occupée pour cette période')
+        }
       }
 
       const bookingData = {

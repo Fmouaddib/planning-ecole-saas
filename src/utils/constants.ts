@@ -197,6 +197,7 @@ export const PREDEFINED_EQUIPMENT: { name: string; category: string }[] = [
 export const VISIO_PLATFORMS = {
   teams: { label: 'Teams', color: '#6264A7', bgColor: '#6264A715' },
   zoom: { label: 'Zoom', color: '#2D8CFF', bgColor: '#2D8CFF15' },
+  meet: { label: 'Google Meet', color: '#00897B', bgColor: '#00897B15' },
   other: { label: 'Autre', color: '#6b7280', bgColor: '#6b728015' },
 } as const
 

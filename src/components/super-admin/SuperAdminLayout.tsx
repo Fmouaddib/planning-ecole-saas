@@ -54,6 +54,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
 
   const monitoringItems = [
     { id: 'sa-audit', label: "Journal d'audit", icon: '📝' },
+    { id: 'sa-settings', label: 'Paramètres', icon: '⚙️' },
   ];
 
   const NavItem = ({ id, label, icon }: { id: string; label: string; icon: string }) => (

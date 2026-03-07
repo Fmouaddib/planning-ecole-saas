@@ -172,6 +172,8 @@ export function useUsers(): UseUsersReturn {
       }
       if (updateData.email) userData.email = updateData.email
       if (updateData.profilePicture) userData.avatar_url = updateData.profilePicture
+      if (updateData.phone !== undefined) userData.phone = updateData.phone || null
+      if (updateData.linkedin !== undefined) userData.linkedin = updateData.linkedin || null
 
       if (isAdmin) {
         if (updateData.role) userData.role = updateData.role

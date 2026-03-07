@@ -8,9 +8,10 @@ import { Button, Input, Modal, ModalFooter, HelpBanner } from '@/components/ui'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType } from '@/types'
 import { priceTTC, formatPrice } from '@/utils/pricing'
-import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell } from 'lucide-react'
+import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell, MailCheck, Linkedin, ExternalLink } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import { SAAddonsService } from '@/services/super-admin/addons'
+import { useEmailPreferences, type EmailPreferences } from '@/hooks/useEmailPreferences'
 import { navigateTo } from '@/utils/navigation'
 import toast from 'react-hot-toast'
 
@@ -75,6 +76,8 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
+    phone: user?.phone || '',
+    linkedin: user?.linkedin || '',
   })
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -95,6 +98,8 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
         firstName: editForm.firstName,
         lastName: editForm.lastName,
         email: editForm.email,
+        phone: editForm.phone,
+        linkedin: editForm.linkedin,
       })
       setEditModalOpen(false)
     } catch {
@@ -204,8 +209,18 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
             </p>
           </div>
           <div>
-            <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Établissement</label>
-            <p className="text-neutral-900 dark:text-neutral-100 mt-1">{user?.establishmentId || '-'}</p>
+            <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Téléphone</label>
+            <p className="text-neutral-900 dark:text-neutral-100 mt-1">{user?.phone || '-'}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">LinkedIn</label>
+            <p className="mt-1">
+              {user?.linkedin ? (
+                <a href={user.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                  <Linkedin size={14} /> Voir le profil <ExternalLink size={12} />
+                </a>
+              ) : '-'}
+            </p>
           </div>
         </div>
       </div>
@@ -346,6 +361,9 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
       {/* Section Notifications push */}
       <PushNotificationSection />
 
+      {/* Section Préférences email */}
+      <EmailPreferencesSection />
+
       {/* Actions du compte */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -393,6 +411,21 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
             value={editForm.email}
             onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Téléphone"
+              type="tel"
+              placeholder="06 12 34 56 78"
+              value={editForm.phone}
+              onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+            />
+            <Input
+              label="LinkedIn"
+              placeholder="https://linkedin.com/in/..."
+              value={editForm.linkedin}
+              onChange={e => setEditForm(f => ({ ...f, linkedin: e.target.value }))}
+            />
+          </div>
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setEditModalOpen(false)}>Annuler</Button>
@@ -507,6 +540,72 @@ function PushNotificationSection() {
           }`} />
         </button>
       </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════
+// Section Préférences email
+// ═══════════════════════════════════════════════════════════
+
+const EMAIL_TYPE_LABELS: Record<keyof EmailPreferences, string> = {
+  email_session_created: 'Création de séance',
+  email_session_updated: 'Modification de séance',
+  email_session_cancelled: 'Annulation de séance',
+  email_reminders: 'Rappels de séance',
+  email_recap_weekly: 'Récapitulatif hebdomadaire',
+  email_recap_monthly: 'Récapitulatif mensuel',
+  email_recap_quarterly: 'Récapitulatif trimestriel',
+  email_recap_semester: 'Récapitulatif semestriel',
+}
+
+function EmailPreferencesSection() {
+  const { preferences, isLoading, updatePreferences, ALL_KEYS } = useEmailPreferences()
+
+  return (
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-blue-100 rounded-lg shrink-0">
+          <MailCheck size={20} className="text-blue-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Mes emails</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+            Choisissez les emails que vous souhaitez recevoir
+          </p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <p className="text-neutral-500 text-center py-4">Chargement...</p>
+      ) : (
+        <div className="space-y-2">
+          {ALL_KEYS.map(key => {
+            const enabled = preferences[key] !== false
+            return (
+              <label
+                key={key}
+                className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors"
+              >
+                <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                  {EMAIL_TYPE_LABELS[key]}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => updatePreferences({ [key]: !enabled })}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    enabled ? 'bg-primary-600' : 'bg-neutral-300 dark:bg-neutral-600'
+                  }`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                    enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                  }`} />
+                </button>
+              </label>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

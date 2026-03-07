@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import {
+  format,
   isSameDay,
   parseISO,
   getHours,
@@ -18,12 +19,18 @@ import {
   type DragState,
 } from './calendar-helpers'
 
+import type { CalendarLabel } from './WeekView'
+const DEFAULT_LABELS: CalendarLabel[] = ['title', 'room', 'teacher']
+
 interface DayViewProps {
   currentDate: Date
   events: CalendarEvent[]
   onEventClick: (e: CalendarEvent) => void
   onSlotClick: (date: Date, hour: number) => void
   onEventUpdate: (eventId: string, newStart: string, newEnd: string) => void
+  hourStart?: number
+  hourEnd?: number
+  calendarLabels?: CalendarLabel[]
 }
 
 export default function DayView({
@@ -32,8 +39,11 @@ export default function DayView({
   onEventClick,
   onSlotClick,
   onEventUpdate,
+  hourStart = HOUR_START,
+  hourEnd = HOUR_END,
+  calendarLabels = DEFAULT_LABELS,
 }: DayViewProps) {
-  const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
+  const hours = Array.from({ length: hourEnd - hourStart }, (_, i) => hourStart + i)
 
   const dayEvents = events.filter(e => {
     const eventDate = typeof e.start === 'string' ? parseISO(e.start) : e.start
@@ -52,7 +62,7 @@ export default function DayView({
     const end = typeof event.end === 'string' ? parseISO(event.end) : event.end
     const startH = getHours(start) + getMinutes(start) / 60
     const duration = differenceInMinutes(end, start) / 60
-    const top = (startH - HOUR_START) * HOUR_HEIGHT
+    const top = (startH - hourStart) * HOUR_HEIGHT
     const height = Math.max(duration * HOUR_HEIGHT, 20)
     return { top, height }
   }
@@ -63,10 +73,10 @@ export default function DayView({
   }
 
   const pxToTime = (px: number) => {
-    const totalMinutes = (px / HOUR_HEIGHT) * 60 + HOUR_START * 60
+    const totalMinutes = (px / HOUR_HEIGHT) * 60 + hourStart * 60
     const h = Math.floor(totalMinutes / 60)
     const m = Math.round(totalMinutes % 60)
-    return { h: Math.max(HOUR_START, Math.min(h, HOUR_END)), m: Math.min(m, 59) }
+    return { h: Math.max(hourStart, Math.min(h, hourEnd)), m: Math.min(m, 59) }
   }
 
   const handlePointerDown = useCallback(
@@ -112,7 +122,7 @@ export default function DayView({
           return {
             ...prev,
             active: true,
-            currentTop: Math.max(0, Math.min(newTop, (HOUR_END - HOUR_START) * HOUR_HEIGHT - prev.originHeight)),
+            currentTop: Math.max(0, Math.min(newTop, (hourEnd - hourStart) * HOUR_HEIGHT - prev.originHeight)),
           }
         } else {
           const newHeight = snapToGrid(Math.max(HOUR_HEIGHT / 4, prev.originHeight + dy))
@@ -222,12 +232,21 @@ export default function DayView({
                         : `${event.title} - ${event.roomName}`
                   }
                 >
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium truncate">{event.title}</span>
-                    {event.recurrence && <Repeat size={12} className="flex-shrink-0 opacity-80" />}
-                    {isConflict && <AlertTriangle size={12} className="flex-shrink-0 text-yellow-200" />}
-                  </div>
-                  <div className="opacity-80 truncate">{event.roomName}</div>
+                  {calendarLabels.includes('title') && (
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium truncate">{event.title}</span>
+                      {event.recurrence && <Repeat size={12} className="flex-shrink-0 opacity-80" />}
+                      {isConflict && <AlertTriangle size={12} className="flex-shrink-0 text-yellow-200" />}
+                    </div>
+                  )}
+                  {calendarLabels.includes('room') && event.roomName && <div className="opacity-80 truncate">{event.roomName}</div>}
+                  {calendarLabels.includes('teacher') && (event.teacher || event.userName) && <div className="opacity-70 truncate text-[10px]">{event.teacher || event.userName}</div>}
+                  {calendarLabels.includes('matiere') && event.matiere && <div className="opacity-70 truncate text-[10px]">{event.matiere}</div>}
+                  {calendarLabels.includes('time') && (
+                    <div className="opacity-70 truncate text-[10px]">
+                      {format(parseISO(typeof event.start === 'string' ? event.start : event.start.toISOString()), 'HH:mm')} - {format(parseISO(typeof event.end === 'string' ? event.end : event.end.toISOString()), 'HH:mm')}
+                    </div>
+                  )}
                   {/* Resize handle — masqué pour les séances passées */}
                   {!isPast && (
                     <div

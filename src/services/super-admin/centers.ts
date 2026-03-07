@@ -53,6 +53,7 @@ export class SACentersService {
     const payload = defined({
       name: data.name,
       acronym: data.acronym || null,
+      slug: data.slug || (data.acronym ? data.acronym.toLowerCase().replace(/[^a-z0-9-]/g, '') : data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')),
       address: data.address || null,
       address_line_2: data.address_line_2 || null,
       postal_code: data.postal_code || null,

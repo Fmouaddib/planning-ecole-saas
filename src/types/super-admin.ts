@@ -15,6 +15,7 @@ export interface SubscriptionPlan {
   max_students: number;
   features: string[];
   has_chat: boolean;
+  has_subject_links: boolean;
   stripe_price_id_monthly?: string;
   stripe_price_id_yearly?: string;
   stripe_product_id?: string;
@@ -134,6 +135,7 @@ export interface SuperAdminCenter {
   website?: string;
   logo_url?: string;
   enrollment_code?: string;
+  slug?: string;
   settings: Record<string, unknown>;
   stripe_customer_id?: string;
   owner_id?: string;
@@ -170,11 +172,13 @@ export interface CreatePlanData {
   max_students: number;
   features: string[];
   has_chat?: boolean;
+  has_subject_links?: boolean;
 }
 
 export interface CreateCenterData {
   name: string;
   acronym?: string;
+  slug?: string;
   address?: string;
   address_line_2?: string;
   postal_code?: string;

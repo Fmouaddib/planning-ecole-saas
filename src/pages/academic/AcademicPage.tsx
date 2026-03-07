@@ -1,19 +1,21 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
+import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { Button, LoadingSpinner, HelpBanner } from '@/components/ui'
-import { GraduationCap, BookOpen, Layers, RefreshCw, UserCheck, FolderOpen, Upload } from 'lucide-react'
+import { GraduationCap, BookOpen, Layers, RefreshCw, UserCheck, FolderOpen, Upload, Calendar } from 'lucide-react'
 import { ProgramsTab } from './tabs/ProgramsTab'
 import { DiplomasTab } from './tabs/DiplomasTab'
 import { ClassesTab } from './tabs/ClassesTab'
 import { SubjectsTab } from './tabs/SubjectsTab'
 import { TeachersTab } from './tabs/TeachersTab'
 import { CoursTab } from './tabs/CoursTab'
+import { AcademicYearsTab } from './tabs/AcademicYearsTab'
 import { ImportModal } from '@/components/import/ImportModal'
 import { navigateTo } from '@/utils/navigation'
 import type { ImportType } from '@/utils/import-validators'
 
-type Tab = 'programs' | 'diplomas' | 'classes' | 'subjects' | 'teachers' | 'cours'
+type Tab = 'programs' | 'diplomas' | 'classes' | 'subjects' | 'teachers' | 'cours' | 'academic-years'
 
 const normalTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { key: 'diplomas', label: 'Diplômes', icon: GraduationCap },
@@ -21,6 +23,7 @@ const normalTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] 
   { key: 'classes', label: 'Classes', icon: Layers },
   { key: 'subjects', label: 'Matières', icon: BookOpen },
   { key: 'teachers', label: 'Professeurs', icon: UserCheck },
+  { key: 'academic-years', label: 'Années', icon: Calendar },
 ]
 
 const mergedTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
@@ -28,6 +31,7 @@ const mergedTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] 
   { key: 'programs', label: 'Programmes', icon: FolderOpen },
   { key: 'cours', label: 'Cours', icon: BookOpen },
   { key: 'teachers', label: 'Professeurs', icon: UserCheck },
+  { key: 'academic-years', label: 'Années', icon: Calendar },
 ]
 
 const TAB_IMPORT_TYPE: Partial<Record<Tab, ImportType>> = {
@@ -40,7 +44,9 @@ function AcademicPage() {
   const [activeTab, setActiveTab] = useState<Tab>('diplomas')
   const [showImport, setShowImport] = useState(false)
   const { settings } = useCenterSettings()
+  const { plan } = useSubscriptionInfo()
   const isMergedMode = !!settings.merge_class_subject
+  const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
   const {
     programs, diplomas, classes, subjects, teachers, isLoading,
     programOptions, diplomaOptions,
@@ -58,7 +64,9 @@ function AcademicPage() {
     classStudents,
     toggleDispensation,
     getStudentSubjectsForClass,
-    coursList, createCours, updateCours, deleteCours,
+    coursList, createCours, updateCours, deleteCours, duplicateCours,
+    academicYears, academicYearOptions, currentAcademicYear,
+    createAcademicYear, updateAcademicYear, deleteAcademicYear, deleteAcademicYearSessions,
     refreshAll,
   } = useAcademicData()
 
@@ -199,6 +207,7 @@ function AcademicPage() {
           createSubject={createSubject}
           updateSubject={updateSubject}
           deleteSubject={deleteSubject}
+          hasSubjectLinks={!!plan?.hasSubjectLinks}
         />
       )}
       {activeTab === 'cours' && (
@@ -208,9 +217,25 @@ function AcademicPage() {
           programs={programs}
           diplomaOptions={diplomaOptions}
           programOptionsByDiploma={programOptionsByDiploma}
+          academicYears={academicYears}
+          academicYearOptions={academicYearOptions}
+          currentAcademicYear={currentAcademicYear}
           createCours={createCours}
           updateCours={updateCours}
           deleteCours={deleteCours}
+          duplicateCours={duplicateCours}
+          isOnlineSchool={isOnlineSchool}
+        />
+      )}
+      {activeTab === 'academic-years' && (
+        <AcademicYearsTab
+          academicYears={academicYears}
+          diplomas={diplomas}
+          diplomaOptions={diplomaOptions}
+          createAcademicYear={createAcademicYear}
+          updateAcademicYear={updateAcademicYear}
+          deleteAcademicYear={deleteAcademicYear}
+          deleteAcademicYearSessions={deleteAcademicYearSessions}
         />
       )}
       {activeTab === 'teachers' && (

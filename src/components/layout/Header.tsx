@@ -198,13 +198,15 @@ export const Header: React.FC<HeaderProps> = ({
                     <User size={16} className="text-neutral-400" />
                     Mon profil
                   </button>
-                  <button
-                    onClick={() => navigate('/settings')}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <Settings size={16} className="text-neutral-400" />
-                    Paramètres
-                  </button>
+                  {user?.role && ['admin', 'staff', 'super_admin'].includes(user.role) && (
+                    <button
+                      onClick={() => navigate('/settings')}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <Settings size={16} className="text-neutral-400" />
+                      Paramètres
+                    </button>
+                  )}
                   <button
                     onClick={() => navigate('/help')}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"

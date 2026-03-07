@@ -11,7 +11,24 @@ export interface CenterSettings {
   hide_classmates?: boolean
   hide_subjects?: boolean
   merge_class_subject?: boolean  // Mode e-learning : fusion classes/matières en "Cours"
-  // Politique email
+  // Politique email — par type et par destinataire
+  email_session_created_students?: boolean
+  email_session_created_teachers?: boolean
+  email_session_updated_students?: boolean
+  email_session_updated_teachers?: boolean
+  email_session_cancelled_students?: boolean
+  email_session_cancelled_teachers?: boolean
+  email_reminders_students?: boolean
+  email_reminders_teachers?: boolean
+  email_recap_weekly_students?: boolean
+  email_recap_weekly_teachers?: boolean
+  email_recap_monthly_students?: boolean
+  email_recap_monthly_teachers?: boolean
+  email_recap_quarterly_students?: boolean
+  email_recap_quarterly_teachers?: boolean
+  email_recap_semester_students?: boolean
+  email_recap_semester_teachers?: boolean
+  // Legacy (kept for backward compat)
   email_session_created?: boolean
   email_session_updated?: boolean
   email_session_cancelled?: boolean
@@ -27,6 +44,12 @@ export interface CenterSettings {
   odoo_sync_enabled?: boolean
   odoo_sync_interval?: number   // minutes (60 par défaut)
   odoo_last_sync?: string       // ISO timestamp
+  // Types de séance personnalisés (vide = valeurs par défaut)
+  custom_session_types?: { value: string; label: string }[]
+  // Horaires et jours d'ouverture du centre
+  opening_time?: string   // HH:mm (default "08:00")
+  closing_time?: string   // HH:mm (default "20:00")
+  working_days?: number[] // 0=dim, 1=lun..6=sam (default [1,2,3,4,5])
   // Visio unifiée (Zoom / Teams / Google Meet)
   visio_provider?: 'zoom' | 'teams' | 'meet'
   visio_auto_create?: boolean
@@ -44,6 +67,11 @@ export interface CenterSettings {
   meet_client_email?: string
   meet_private_key?: string
   meet_user_email?: string
+  // Étiquettes affichées sur les blocs du calendrier
+  calendar_labels?: ('title' | 'room' | 'teacher' | 'matiere' | 'time')[]
+  // Gestion des salles
+  room_optional?: boolean       // Salle non obligatoire pour créer une séance
+  allow_multi_room?: boolean    // Permettre plusieurs salles par séance
 }
 
 export const EMAIL_POLICY_DEFAULTS: Required<Pick<CenterSettings,

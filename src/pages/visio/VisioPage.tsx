@@ -1,11 +1,16 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useVisio, detectPlatform } from '@/hooks/useVisio'
+import { useBookings } from '@/hooks/useBookings'
+import { useRooms } from '@/hooks/useRooms'
+import { useAcademicData } from '@/hooks/useAcademicData'
+import { useCenterSettings } from '@/hooks/useCenterSettings'
+import { useAuth } from '@/hooks/useAuth'
 import { usePagination } from '@/hooks/usePagination'
-import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, HelpBanner } from '@/components/ui'
+import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, HelpBanner, MultiSelect } from '@/components/ui'
 import { VISIO_PLATFORMS } from '@/utils/constants'
 import { navigateTo } from '@/utils/navigation'
 import { filterBySearch } from '@/utils/helpers'
-import type { VirtualRoom, CreateVirtualRoomData, VirtualRoomPlatform, Booking } from '@/types'
+import type { VirtualRoom, CreateVirtualRoomData, VirtualRoomPlatform, Booking, BookingType } from '@/types'
 import {
   Video,
   Plus,
@@ -14,12 +19,18 @@ import {
   Trash2,
   Copy,
   ExternalLink,
-  Monitor,
   BarChart3,
   Calendar,
   Star,
   RefreshCw,
+  XCircle,
+  Link2,
+  Filter,
+  ChevronDown,
+  X,
 } from 'lucide-react'
+
+const CreateBookingModal = lazy(() => import('@/pages/calendar/CreateBookingModal').then(m => ({ default: m.CreateBookingModal })))
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -29,6 +40,7 @@ type Tab = 'upcoming' | 'rooms' | 'stats'
 const platformOptions = [
   { value: 'teams', label: 'Microsoft Teams' },
   { value: 'zoom', label: 'Zoom' },
+  { value: 'meet', label: 'Google Meet' },
   { value: 'other', label: 'Autre' },
 ]
 
@@ -70,14 +82,75 @@ function VisioPage() {
     inProgressSessions,
     stats,
   } = useVisio()
+  const { createBooking, cancelBooking } = useBookings()
+  const { rooms } = useRooms()
+  const {
+    diplomaOptions,
+    classOptionsByDiploma,
+    subjectOptionsByClass,
+    getClassById,
+  } = useAcademicData()
+  const { settings: centerSettings } = useCenterSettings()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'staff'
+
+  const roomOptions = useMemo(() => rooms.map(r => ({ value: r.id, label: r.name })), [rooms])
+  const virtualRoomOptions = useMemo(
+    () => virtualRooms.map(r => ({
+      value: r.id,
+      label: `${r.name} (${r.platform === 'teams' ? 'Teams' : r.platform === 'zoom' ? 'Zoom' : r.platform === 'meet' ? 'Meet' : 'Autre'})`,
+      url: r.meetingUrl,
+    })),
+    [virtualRooms],
+  )
 
   const [tab, setTab] = useState<Tab>('upcoming')
   const [search, setSearch] = useState('')
   const [platformFilter, setPlatformFilter] = useState('')
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([])
+  const [selectedMatieres, setSelectedMatieres] = useState<string[]>([])
+  const [selectedDiplomes, setSelectedDiplomes] = useState<string[]>([])
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [showCreateSession, setShowCreateSession] = useState(false)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'cancel-session' | null>(null)
   const [selectedRoom, setSelectedRoom] = useState<VirtualRoom | null>(null)
+  const [selectedSession, setSelectedSession] = useState<Booking | null>(null)
   const [form, setForm] = useState<CreateVirtualRoomData>(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+
+  // ==================== Filter options ====================
+
+  const teacherOptions = useMemo(() => {
+    const teachers = new Set<string>()
+    upcomingSessions.forEach(s => {
+      const t = s.user ? `${s.user.firstName} ${s.user.lastName}` : null
+      if (t) teachers.add(t)
+    })
+    return Array.from(teachers).sort().map(t => ({ value: t, label: t }))
+  }, [upcomingSessions])
+
+  const matiereOptions = useMemo(() => {
+    const matieres = new Set<string>()
+    upcomingSessions.forEach(s => { if (s.matiere) matieres.add(s.matiere) })
+    return Array.from(matieres).sort().map(m => ({ value: m, label: m }))
+  }, [upcomingSessions])
+
+  const diplomeOptions = useMemo(() => {
+    const diplomes = new Set<string>()
+    upcomingSessions.forEach(s => { if (s.diplome) diplomes.add(s.diplome) })
+    return Array.from(diplomes).sort().map(d => ({ value: d, label: d }))
+  }, [upcomingSessions])
+
+  const advancedFilterCount =
+    (selectedTeachers.length > 0 ? 1 : 0) +
+    (selectedMatieres.length > 0 ? 1 : 0) +
+    (selectedDiplomes.length > 0 ? 1 : 0)
+
+  const resetAdvancedFilters = () => {
+    setSelectedTeachers([])
+    setSelectedMatieres([])
+    setSelectedDiplomes([])
+  }
 
   // ==================== TAB: Prochaines visios ====================
 
@@ -89,8 +162,20 @@ function VisioPage() {
     if (search.trim()) {
       sessions = filterBySearch(sessions, search, ['title'] as (keyof Booking)[])
     }
+    if (selectedTeachers.length) {
+      sessions = sessions.filter(s => {
+        const t = s.user ? `${s.user.firstName} ${s.user.lastName}` : null
+        return t && selectedTeachers.includes(t)
+      })
+    }
+    if (selectedMatieres.length) {
+      sessions = sessions.filter(s => s.matiere && selectedMatieres.includes(s.matiere))
+    }
+    if (selectedDiplomes.length) {
+      sessions = sessions.filter(s => s.diplome && selectedDiplomes.includes(s.diplome))
+    }
     return sessions
-  }, [upcomingSessions, platformFilter, search])
+  }, [upcomingSessions, platformFilter, search, selectedTeachers, selectedMatieres, selectedDiplomes])
 
   const sessionsPagination = usePagination(filteredSessions, { initialPageSize: 10 })
 
@@ -136,7 +221,26 @@ function VisioPage() {
   const closeModal = () => {
     setModalMode(null)
     setSelectedRoom(null)
+    setSelectedSession(null)
     setForm(emptyForm)
+  }
+
+  const openCancelSession = useCallback((session: Booking) => {
+    setSelectedSession(session)
+    setModalMode('cancel-session')
+  }, [])
+
+  const handleCancelSession = async () => {
+    if (!selectedSession) return
+    setSubmitting(true)
+    try {
+      await cancelBooking(selectedSession.id)
+      closeModal()
+    } catch {
+      // handled in hook
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -173,6 +277,37 @@ function VisioPage() {
     }
   }
 
+  const handleCreateSession = async (data: {
+    title: string
+    roomId: string
+    type: BookingType
+    startDateTime: string
+    endDateTime: string
+    description: string
+    subjectId?: string
+    classId?: string
+    sessionType?: 'in_person' | 'online' | 'hybrid'
+    meetingUrl?: string
+  }) => {
+    try {
+      await createBooking({
+        title: data.title,
+        roomId: data.roomId,
+        bookingType: data.type,
+        startDateTime: data.startDateTime,
+        endDateTime: data.endDateTime,
+        description: data.description,
+        subjectId: data.subjectId,
+        classId: data.classId,
+        sessionType: data.sessionType,
+        meetingUrl: data.meetingUrl,
+      })
+      setShowCreateSession(false)
+    } catch {
+      // Error handled by hook toast
+    }
+  }
+
   // ==================== RENDER ====================
 
   if (isLoading) {
@@ -185,7 +320,7 @@ function VisioPage() {
 
   const tabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
     { key: 'upcoming', label: 'Prochaines visios', icon: Calendar },
-    { key: 'rooms', label: 'Salles virtuelles', icon: Monitor },
+    { key: 'rooms', label: 'Liens favoris', icon: Link2 },
     { key: 'stats', label: 'Statistiques', icon: BarChart3 },
   ]
 
@@ -214,10 +349,16 @@ function VisioPage() {
               {stats.upcoming} à venir
             </Badge>
           )}
-          {tab === 'rooms' && (
-            <Button onClick={openCreateModal} size="sm">
+          {isAdmin && (
+            <Button onClick={() => setShowCreateSession(true)} size="sm">
               <Plus size={16} className="mr-1" />
-              Nouvelle salle virtuelle
+              Nouvelle séance
+            </Button>
+          )}
+          {tab === 'rooms' && (
+            <Button onClick={openCreateModal} size="sm" variant="secondary">
+              <Plus size={16} className="mr-1" />
+              Nouveau lien favori
             </Button>
           )}
           <button
@@ -231,7 +372,7 @@ function VisioPage() {
       </div>
 
       <HelpBanner storageKey="admin-visio">
-        Gérez vos salles virtuelles (Teams, Zoom, Meet) et suivez les sessions en ligne à venir. Configurez la création automatique de liens visio dans Paramètres.
+        Suivez les sessions en ligne à venir et gérez vos liens favoris (Teams, Zoom, Meet). Si la création automatique est activée dans Paramètres, un lien unique est généré pour chaque séance. Les liens favoris servent de raccourcis réutilisables.
         <span className="flex gap-2 mt-2">
           <button onClick={() => navigateTo('/settings')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Configurer la visio →</button>
         </span>
@@ -246,7 +387,7 @@ function VisioPage() {
             return (
               <button
                 key={t.key}
-                onClick={() => { setTab(t.key); setSearch(''); setPlatformFilter('') }}
+                onClick={() => { setTab(t.key); setSearch(''); setPlatformFilter(''); resetAdvancedFilters(); setShowAdvancedFilters(false) }}
                 className={`flex items-center gap-2 px-1 pb-3 text-sm font-medium border-b-2 transition-colors ${
                   isActive
                     ? 'border-primary-600 text-primary-600'
@@ -263,27 +404,90 @@ function VisioPage() {
 
       {/* Filters (for upcoming & rooms tabs) */}
       {tab !== 'stats' && (
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              placeholder={tab === 'upcoming' ? 'Rechercher une session...' : 'Rechercher une salle...'}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                placeholder={tab === 'upcoming' ? 'Rechercher une session...' : 'Rechercher une salle...'}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <select
+              value={platformFilter}
+              onChange={e => setPlatformFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm"
+            >
+              <option value="">Toutes les plateformes</option>
+              <option value="teams">Teams</option>
+              <option value="zoom">Zoom</option>
+              <option value="meet">Google Meet</option>
+              <option value="other">Autre</option>
+            </select>
+            {tab === 'upcoming' && (
+              <button
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                  showAdvancedFilters || advancedFilterCount > 0
+                    ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                    : 'bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'
+                }`}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              >
+                <Filter size={16} />
+                Filtres
+                {advancedFilterCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-primary-600 rounded-full">
+                    {advancedFilterCount}
+                  </span>
+                )}
+                <ChevronDown size={14} className={`transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              </button>
+            )}
           </div>
-          <select
-            value={platformFilter}
-            onChange={e => setPlatformFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm"
-          >
-            <option value="">Toutes les plateformes</option>
-            <option value="teams">Teams</option>
-            <option value="zoom">Zoom</option>
-            <option value="other">Autre</option>
-          </select>
+
+          {/* Advanced Filters Panel */}
+          {tab === 'upcoming' && showAdvancedFilters && (
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Filtres avancés</h3>
+                {advancedFilterCount > 0 && (
+                  <button
+                    className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                    onClick={resetAdvancedFilters}
+                  >
+                    <X size={12} />
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <MultiSelect
+                  label="Professeur"
+                  options={teacherOptions}
+                  value={selectedTeachers}
+                  onChange={setSelectedTeachers}
+                  placeholder="Tous les professeurs"
+                />
+                <MultiSelect
+                  label="Matière"
+                  options={matiereOptions}
+                  value={selectedMatieres}
+                  onChange={setSelectedMatieres}
+                  placeholder="Toutes les matières"
+                />
+                <MultiSelect
+                  label="Diplôme"
+                  options={diplomeOptions}
+                  value={selectedDiplomes}
+                  onChange={setSelectedDiplomes}
+                  placeholder="Tous les diplômes"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -293,6 +497,8 @@ function VisioPage() {
           sessions={sessionsPagination.paginatedData}
           pagination={sessionsPagination}
           totalFiltered={filteredSessions.length}
+          isAdmin={isAdmin}
+          onCancelSession={openCancelSession}
         />
       )}
 
@@ -316,10 +522,23 @@ function VisioPage() {
         <Modal
           isOpen
           onClose={closeModal}
-          title={modalMode === 'create' ? 'Nouvelle salle virtuelle' : 'Modifier la salle virtuelle'}
+          title={modalMode === 'create' ? 'Nouveau lien favori' : 'Modifier le lien favori'}
           size="md"
         >
           <div className="space-y-4 p-4">
+            {/* Guide explicatif */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-blue-700 dark:text-blue-300 space-y-1.5">
+              <p className="font-medium">Qu'est-ce qu'un lien favori ?</p>
+              <p>
+                Un lien favori est un <strong>lien de visioconférence permanent et réutilisable</strong> (ex : une salle Teams récurrente, un lien Zoom personnel).
+                Il permet de sélectionner rapidement un lien existant lors de la création d'une séance en ligne.
+              </p>
+              <p className="text-blue-600 dark:text-blue-400">
+                Si la <strong>création automatique</strong> est activée dans Paramètres &gt; Visioconférence,
+                un lien unique est généré pour chaque séance. Les liens favoris sont alors optionnels et servent de raccourcis ou de liens alternatifs.
+              </p>
+            </div>
+
             <Input
               label="Nom"
               value={form.name}
@@ -336,8 +555,16 @@ function VisioPage() {
               label="URL de la réunion"
               value={form.meetingUrl}
               onChange={e => setForm(f => ({ ...f, meetingUrl: e.target.value }))}
-              placeholder="https://teams.microsoft.com/..."
+              placeholder={
+                form.platform === 'teams' ? 'https://teams.microsoft.com/l/meetup-join/...' :
+                form.platform === 'zoom' ? 'https://us02web.zoom.us/j/...' :
+                form.platform === 'meet' ? 'https://meet.google.com/xxx-xxxx-xxx' :
+                'https://...'
+              }
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 -mt-2">
+              Collez ici le lien permanent de votre salle de réunion. Ce lien sera proposé lors de la création de séances en ligne ou hybrides.
+            </p>
             <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
               <input
                 type="checkbox"
@@ -357,18 +584,63 @@ function VisioPage() {
         </Modal>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Virtual Room Confirmation Modal */}
       {modalMode === 'delete' && selectedRoom && (
-        <Modal isOpen onClose={closeModal} title="Supprimer la salle virtuelle" size="sm">
+        <Modal isOpen onClose={closeModal} title="Supprimer le lien favori" size="sm">
           <div className="p-4">
             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              Supprimer la salle virtuelle <strong>"{selectedRoom.name}"</strong> ? Cette action est irréversible.
+              Supprimer le lien favori <strong>"{selectedRoom.name}"</strong> ? Cette action est irréversible.
             </p>
           </div>
           <ModalFooter>
             <Button variant="secondary" onClick={closeModal}>Annuler</Button>
             <Button variant="danger" onClick={handleDelete} disabled={submitting}>
               {submitting ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {/* Create Session Modal */}
+      {showCreateSession && (
+        <Suspense fallback={null}>
+          <CreateBookingModal
+            isOpen={showCreateSession}
+            onClose={() => setShowCreateSession(false)}
+            onSubmit={handleCreateSession}
+            prefilledDate={new Date()}
+            prefilledHour={null}
+            rooms={roomOptions}
+            virtualRooms={virtualRoomOptions}
+            diplomaOptions={diplomaOptions}
+            classOptionsByDiploma={classOptionsByDiploma}
+            subjectOptionsByClass={subjectOptionsByClass}
+            getClassById={getClassById}
+            isVisioAutoCreate={!!centerSettings.visio_provider && !!centerSettings.visio_auto_create}
+            visioProviderName={centerSettings.visio_provider === 'zoom' ? 'Zoom' : centerSettings.visio_provider === 'teams' ? 'Teams' : centerSettings.visio_provider === 'meet' ? 'Google Meet' : undefined}
+            openingTime={centerSettings.opening_time || '08:00'}
+            closingTime={centerSettings.closing_time || '20:00'}
+          />
+        </Suspense>
+      )}
+
+      {/* Cancel Session Confirmation Modal */}
+      {modalMode === 'cancel-session' && selectedSession && (
+        <Modal isOpen onClose={closeModal} title="Annuler la séance" size="sm">
+          <div className="p-4 space-y-3">
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              Annuler la séance <strong>"{selectedSession.title}"</strong> ?
+            </p>
+            {selectedSession.visioMeetingId && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+                Le lien visio associé sera également supprimé.
+              </p>
+            )}
+          </div>
+          <ModalFooter>
+            <Button variant="secondary" onClick={closeModal}>Fermer</Button>
+            <Button variant="danger" onClick={handleCancelSession} disabled={submitting}>
+              {submitting ? 'Annulation...' : 'Annuler la séance'}
             </Button>
           </ModalFooter>
         </Modal>
@@ -383,10 +655,14 @@ function UpcomingTab({
   sessions,
   pagination,
   totalFiltered,
+  isAdmin,
+  onCancelSession,
 }: {
   sessions: Booking[]
   pagination: ReturnType<typeof usePagination<Booking>>
   totalFiltered: number
+  isAdmin: boolean
+  onCancelSession: (session: Booking) => void
 }) {
   if (totalFiltered === 0) {
     return (
@@ -435,7 +711,7 @@ function UpcomingTab({
                     <PlatformBadge platform={platform} />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => copyToClipboard(session.meetingUrl || '')}
                         className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
@@ -452,6 +728,15 @@ function UpcomingTab({
                       >
                         <ExternalLink size={14} />
                       </a>
+                      {isAdmin && (
+                        <button
+                          onClick={() => onCancelSession(session)}
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                          title="Annuler la séance"
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -487,10 +772,10 @@ function RoomsTab({
   if (totalFiltered === 0) {
     return (
       <EmptyState
-        icon={Monitor}
-        title="Aucune salle virtuelle"
-        description="Créez des salles virtuelles pour stocker vos liens Teams/Zoom réutilisables."
-        action={{ label: 'Créer une salle', onClick: onCreate, icon: Plus }}
+        icon={Link2}
+        title="Aucun lien favori"
+        description="Enregistrez des liens de visioconférence permanents (Teams, Zoom, Meet) pour les réutiliser facilement lors de la création de séances."
+        action={{ label: 'Ajouter un lien', onClick: onCreate, icon: Plus }}
       />
     )
   }
@@ -590,7 +875,7 @@ function StatsTab({
           <p className="text-sm text-neutral-500">Aucune session enregistrée.</p>
         ) : (
           <div className="space-y-3">
-            {(['teams', 'zoom', 'other'] as VirtualRoomPlatform[]).map(platform => {
+            {(['teams', 'zoom', 'meet', 'other'] as VirtualRoomPlatform[]).map(platform => {
               const count = stats.byPlatform[platform]
               const pct = Math.round((count / total) * 100)
               const config = VISIO_PLATFORMS[platform]

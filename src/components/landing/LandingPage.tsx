@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Calendar, ShieldCheck, Video, Mail, Check, ArrowRight, ArrowDown,
   FileBarChart, Building2, GraduationCap, Smartphone,
@@ -9,13 +9,38 @@ import {
 import { priceTTC, formatPrice } from '@/utils/pricing'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { supabase } from '@/lib/supabase'
 import LandingLayout from './LandingLayout'
+
+interface DBPlan {
+  slug: string
+  name: string
+  price_monthly: number
+  price_yearly: number
+  features: string[]
+  is_active: boolean
+  sort_order: number
+}
+
+const POPULAR_SLUG = 'ecole-en-ligne'
 
 export default function LandingPage() {
   const { t } = useLang()
   const { reveal } = useScrollReveal()
   const [annualBilling, setAnnualBilling] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [dbPlans, setDbPlans] = useState<DBPlan[]>([])
+
+  useEffect(() => {
+    supabase
+      .from('subscription_plans')
+      .select('slug, name, price_monthly, price_yearly, features, is_active, sort_order')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        if (data && data.length > 0) setDbPlans(data as DBPlan[])
+      })
+  }, [])
 
   const features = [
     { icon: Calendar, color: 'coral', titleKey: 'features.calendar.title', descKey: 'features.calendar.desc' },
@@ -33,44 +58,15 @@ export default function LandingPage() {
     { icon: MessageCircle, color: 'sky', titleKey: 'features.chat.title', descKey: 'features.chat.desc' },
   ]
 
-  const plans = [
-    {
-      nameKey: 'plan.free',
-      price: 0,
-      priceAnnual: 0,
-      features: ['plan.free.f1', 'plan.free.f2', 'plan.free.f3', 'plan.free.f4'],
-      ctaKey: 'pricing.cta.free',
-      popular: false,
-      btnStyle: 'outline' as const,
-    },
-    {
-      nameKey: 'plan.ecole',
-      price: 59,
-      priceAnnual: 47,
-      features: ['plan.ecole.f1', 'plan.ecole.f2', 'plan.ecole.f3', 'plan.ecole.f4', 'plan.ecole.f5', 'plan.ecole.f6'],
-      ctaKey: 'pricing.cta.ecole',
-      popular: true,
-      btnStyle: 'filled' as const,
-    },
-    {
-      nameKey: 'plan.pro',
-      price: 99,
-      priceAnnual: 79,
-      features: ['plan.pro.f1', 'plan.pro.f2', 'plan.pro.f3', 'plan.pro.f4', 'plan.pro.f5', 'plan.pro.f6'],
-      ctaKey: 'pricing.cta.pro',
-      popular: false,
-      btnStyle: 'outline' as const,
-    },
-    {
-      nameKey: 'plan.enterprise',
-      price: 149,
-      priceAnnual: 119,
-      features: ['plan.enterprise.f1', 'plan.enterprise.f2', 'plan.enterprise.f3', 'plan.enterprise.f4', 'plan.enterprise.f5', 'plan.enterprise.f6'],
-      ctaKey: 'pricing.cta.enterprise',
-      popular: false,
-      btnStyle: 'outline' as const,
-    },
-  ]
+  const plans = dbPlans.map(p => ({
+    name: p.name,
+    slug: p.slug,
+    price: Number(p.price_monthly),
+    priceAnnual: p.price_yearly > 0 ? Math.round(Number(p.price_yearly) / 12) : 0,
+    features: (p.features || []) as string[],
+    popular: p.slug === POPULAR_SLUG,
+    btnStyle: (p.slug === POPULAR_SLUG ? 'filled' : 'outline') as 'filled' | 'outline',
+  }))
 
   const faqItems = [
     { qKey: 'faq.1.q', aKey: 'faq.1.a' },
@@ -608,7 +604,7 @@ export default function LandingPage() {
               const price = annualBilling ? plan.priceAnnual : plan.price
               return (
                 <div
-                  key={plan.nameKey}
+                  key={plan.slug}
                   className={`landing-pricing-card ${plan.popular ? 'landing-pricing-popular' : ''}`}
                   ref={reveal}
                   data-reveal-delay={i + 2}
@@ -616,7 +612,7 @@ export default function LandingPage() {
                   {plan.popular && (
                     <div className="landing-pricing-badge">{t('pricing.popular')}</div>
                   )}
-                  <div className="landing-pricing-card-name">{t(plan.nameKey)}</div>
+                  <div className="landing-pricing-card-name">{plan.name}</div>
                   <div className="landing-pricing-card-price">
                     <span className="currency">&euro;</span>
                     <span className="amount">{price}</span>
@@ -628,10 +624,10 @@ export default function LandingPage() {
                     </div>
                   )}
                   <ul className="landing-pricing-features">
-                    {plan.features.map((fKey) => (
-                      <li key={fKey}>
+                    {plan.features.map((feat, fi) => (
+                      <li key={fi}>
                         <Check size={18} />
-                        {t(fKey)}
+                        {feat}
                       </li>
                     ))}
                   </ul>
@@ -639,7 +635,7 @@ export default function LandingPage() {
                     href="#/signup"
                     className={`landing-pricing-card-btn ${plan.btnStyle}`}
                   >
-                    {t(plan.ctaKey)}
+                    {plan.slug === 'free' ? t('pricing.cta.free') : t('pricing.cta.pro')}
                   </a>
                 </div>
               )

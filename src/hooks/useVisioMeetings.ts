@@ -21,7 +21,24 @@ export function useVisioMeetings() {
       const { data, error } = await supabase.functions.invoke('visio-meetings', {
         body: { action: 'test', provider },
       })
-      if (error) return { success: false, message: error.message }
+      if (error) {
+        // Try to extract actual error from response context
+        let msg = error.message
+        if (msg === 'Edge Function returned a non-2xx status code') {
+          try {
+            const ctx = (error as any).context
+            if (ctx instanceof Response) {
+              const body = await ctx.json()
+              msg = body?.error || msg
+            }
+          } catch { /* ignore parse errors */ }
+          // If still generic, check if it's likely a 401
+          if (msg === 'Edge Function returned a non-2xx status code') {
+            msg = 'Erreur d\'authentification — essayez de vous reconnecter ou rechargez la page.'
+          }
+        }
+        return { success: false, message: msg }
+      }
       if (data?.success) return { success: true, message: data.message }
       return { success: false, message: data?.error || 'Erreur inconnue' }
     } catch (e) {

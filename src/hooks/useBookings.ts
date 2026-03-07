@@ -166,15 +166,17 @@ export function useBookings(): UseBookingsReturn {
         throw new Error(message)
       }
 
-      // Vérifier les conflits de réservation
-      const hasConflict = await checkBookingConflict(
-        data.roomId,
-        data.startDateTime,
-        data.endDateTime
-      )
+      // Vérifier les conflits de réservation (seulement si une salle est sélectionnée)
+      if (data.roomId) {
+        const hasConflict = await checkBookingConflict(
+          data.roomId,
+          data.startDateTime,
+          data.endDateTime
+        )
 
-      if (hasConflict) {
-        throw new Error('Cette salle est déjà occupée pour cette période')
+        if (hasConflict) {
+          throw new Error('Cette salle est déjà occupée pour cette période')
+        }
       }
 
       const sessionData = {
@@ -182,7 +184,8 @@ export function useBookings(): UseBookingsReturn {
         description: data.description,
         start_time: data.startDateTime,
         end_time: data.endDateTime,
-        room_id: data.roomId,
+        room_id: data.roomId || null,
+        additional_room_ids: data.additionalRoomIds?.length ? data.additionalRoomIds : [],
         trainer_id: user.id,
         center_id: user.establishmentId,
         session_type: data.sessionType || 'in_person',
@@ -275,8 +278,9 @@ export function useBookings(): UseBookingsReturn {
     try {
       setError(null)
 
-      // Vérifier les conflits si les dates ou la salle changent
-      if (data.roomId || data.startDateTime || data.endDateTime) {
+      // Vérifier les conflits si les dates ou la salle changent (seulement si une salle est définie)
+      const effectiveRoomId = data.roomId ?? bookings.find(b => b.id === data.id)?.roomId
+      if (effectiveRoomId && (data.roomId || data.startDateTime || data.endDateTime)) {
         const booking = bookings.find(b => b.id === data.id)
         if (!booking) throw new Error('Séance introuvable')
 
@@ -292,7 +296,7 @@ export function useBookings(): UseBookingsReturn {
         }
       }
 
-      const updateData = {
+      const updateData: Record<string, any> = {
         title: data.title,
         description: data.description,
         start_time: data.startDateTime,
@@ -302,6 +306,9 @@ export function useBookings(): UseBookingsReturn {
         class_id: data.classId,
         meeting_url: data.meetingUrl,
         session_type: data.sessionType,
+      }
+      if (data.additionalRoomIds !== undefined) {
+        updateData.additional_room_ids = data.additionalRoomIds
       }
 
       // Supprimer les propriétés undefined
@@ -498,6 +505,36 @@ export function useBookings(): UseBookingsReturn {
     }
   }, [user?.id, bookings, handleError, notifySession, deleteMeeting])
 
+  const reactivateBooking = useCallback(async (id: UUID): Promise<Booking> => {
+    try {
+      setError(null)
+
+      const { data: reactivated, error: reactivateError } = await supabase
+        .from('training_sessions')
+        .update({ status: 'scheduled' })
+        .eq('id', id)
+        .select(`
+          *,
+          room:rooms(id, name, room_type, capacity),
+          trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
+          subject:subjects(id, name, color),
+          class_:classes(id, name, diploma:diplomas(id, title))
+        `)
+        .single()
+
+      if (reactivateError) throw reactivateError
+
+      const transformed = transformBooking(reactivated)
+      setBookings(prev => prev.map(b => b.id === id ? transformed : b))
+      toast.success('Séance réactivée avec succès')
+      return transformed
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors de la réactivation')
+      toast.error(message)
+      throw error
+    }
+  }, [handleError])
+
   const createBatchBookings = useCallback(async (sessions: BatchCreateSessionInput[]): Promise<BatchCreateResult> => {
     if (!user?.establishmentId) {
       throw new Error('Utilisateur non connecté')
@@ -628,6 +665,7 @@ export function useBookings(): UseBookingsReturn {
       end: booking.endDateTime,
       roomId: booking.roomId,
       roomName: booking.room?.name || 'Salle inconnue',
+      additionalRoomIds: booking.additionalRoomIds || [],
       userId: booking.userId,
       userName: booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : 'Utilisateur inconnu',
       teacher: booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : undefined,
@@ -758,6 +796,7 @@ export function useBookings(): UseBookingsReturn {
     updateBooking,
     deleteBooking,
     cancelBooking,
+    reactivateBooking,
     createBatchBookings,
     checkBookingConflict,
     checkTrainerConflict,
