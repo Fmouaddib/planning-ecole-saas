@@ -3,11 +3,13 @@
  * Responsive : 1 colonne mobile, 2 tablet, 3 desktop
  */
 import { useState, useEffect } from 'react'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Lock } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useChatMessages } from '@/hooks/useChatMessages'
 import { useChatMembers } from '@/hooks/useChatMembers'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
+import { isDemoMode } from '@/lib/supabase'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { navigateTo } from '@/utils/navigation'
 import { HelpBanner } from '@/components/ui'
@@ -20,6 +22,7 @@ type MobileView = 'channels' | 'messages' | 'info'
 
 function ChatPage() {
   const { user } = useAuthContext()
+  const { plan } = useSubscriptionInfo()
   const isTeacher = isTeacherRole(user?.role)
   const isStudent = isStudentRole(user?.role)
   const chat = useChat()
@@ -28,6 +31,8 @@ function ChatPage() {
   const [showInfo, setShowInfo] = useState(true)
   const [showNewDM, setShowNewDM] = useState(false)
   const [mobileView, setMobileView] = useState<MobileView>('channels')
+
+  const chatEnabled = plan?.hasChat || isDemoMode
 
   // Auto-open DM if navigated via navigateToDM()
   useEffect(() => {
@@ -51,6 +56,29 @@ function ChatPage() {
     if (!channelId) throw new Error('DM creation failed')
     setShowNewDM(false)
     setMobileView('messages')
+  }
+
+  // Gate: plan must include chat
+  if (!chatEnabled) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-5rem)] text-center px-4">
+        <div className="w-16 h-16 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-4">
+          <Lock size={32} className="text-neutral-400" />
+        </div>
+        <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-200 mb-2">
+          Messagerie non disponible
+        </h2>
+        <p className="text-neutral-500 dark:text-neutral-400 max-w-md mb-6">
+          La messagerie temps réel n'est pas incluse dans votre plan actuel. Passez à un plan supérieur pour accéder à cette fonctionnalité.
+        </p>
+        <button
+          onClick={() => navigateTo('/billing')}
+          className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+        >
+          Voir les plans
+        </button>
+      </div>
+    )
   }
 
   return (

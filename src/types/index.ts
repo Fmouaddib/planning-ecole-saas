@@ -622,6 +622,7 @@ export interface SubscriptionPlan {
   priceMonthly: number
   priceYearly: number
   features: string[]
+  hasChat?: boolean
 }
 
 export interface EstablishmentSubscription {

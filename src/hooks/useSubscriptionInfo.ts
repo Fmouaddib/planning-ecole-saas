@@ -73,6 +73,7 @@ export function useSubscriptionInfo(): SubscriptionInfo & { refresh: () => Promi
             priceMonthly: subData.plan.price_monthly,
             priceYearly: subData.plan.price_yearly || subData.plan.price_monthly * 12,
             features: subData.plan.features || [],
+            hasChat: subData.plan.has_chat ?? false,
           })
         }
       }

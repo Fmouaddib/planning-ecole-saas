@@ -24,6 +24,7 @@ import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { SidebarCalendar } from './SidebarCalendar'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useChatUnread } from '@/hooks/useChat'
+import { isDemoMode } from '@/lib/supabase'
 
 interface NavigationItem {
   icon: React.ComponentType<any>
@@ -92,13 +93,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       active: currentPath === '/my-class',
       roles: ['student'] as UserRole[],
     },
-    {
+    ...((plan?.hasChat || isDemoMode) ? [{
       icon: MessageCircle,
       label: 'Messages',
       href: '/chat',
       active: currentPath === '/chat',
       badge: chatUnread > 0 ? String(chatUnread) : undefined,
-    },
+    }] : []),
     // --- Enseignement ---
     ...(isOnlineSchool
       ? [{

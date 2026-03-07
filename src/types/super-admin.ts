@@ -14,6 +14,7 @@ export interface SubscriptionPlan {
   max_programs: number;
   max_students: number;
   features: string[];
+  has_chat: boolean;
   stripe_price_id_monthly?: string;
   stripe_price_id_yearly?: string;
   stripe_product_id?: string;
@@ -168,6 +169,7 @@ export interface CreatePlanData {
   max_programs: number;
   max_students: number;
   features: string[];
+  has_chat?: boolean;
 }
 
 export interface CreateCenterData {

@@ -48,9 +48,9 @@ function seedUsers(): SuperAdminUserProfile[] {
 
 function seedPlans(): SubscriptionPlan[] {
   return [
-    { id: 'p1', name: 'Free', slug: 'free', description: 'Pour decouvrir AntiPlanning', price_monthly: 0, price_yearly: 0, currency: 'EUR', max_users: 3, max_sessions: 20, max_rooms: 2, max_programs: 3, max_students: 0, features: ['Tableau de bord', 'Gestion sessions', 'Export CSV'], is_active: true, sort_order: 1, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
-    { id: 'p2', name: 'Pro', slug: 'pro', description: 'Pour les centres en croissance', price_monthly: 99, price_yearly: 990, currency: 'EUR', max_users: 15, max_sessions: 200, max_rooms: 10, max_programs: 25, max_students: 0, features: ['Tout Free', 'Integration Zoom', 'Emails automatiques', 'Paiements Stripe', 'Support prioritaire'], is_active: true, sort_order: 2, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
-    { id: 'p3', name: 'Enterprise', slug: 'enterprise', description: 'Pour les grands centres', price_monthly: 149, price_yearly: 1490, currency: 'EUR', max_users: -1, max_sessions: -1, max_rooms: -1, max_programs: -1, max_students: 100, features: ['Tout Pro', 'Utilisateurs illimites', 'Sessions illimitees', 'Comptes etudiants', 'API access', 'SSO', 'Support dedie'], is_active: true, sort_order: 3, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
+    { id: 'p1', name: 'Free', slug: 'free', description: 'Pour decouvrir AntiPlanning', price_monthly: 0, price_yearly: 0, currency: 'EUR', max_users: 3, max_sessions: 20, max_rooms: 2, max_programs: 3, max_students: 0, features: ['Tableau de bord', 'Gestion sessions', 'Export CSV'], has_chat: false, is_active: true, sort_order: 1, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
+    { id: 'p2', name: 'Pro', slug: 'pro', description: 'Pour les centres en croissance', price_monthly: 99, price_yearly: 990, currency: 'EUR', max_users: 15, max_sessions: 200, max_rooms: 10, max_programs: 25, max_students: 0, features: ['Tout Free', 'Integration Zoom', 'Emails automatiques', 'Paiements Stripe', 'Support prioritaire'], has_chat: true, is_active: true, sort_order: 2, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
+    { id: 'p3', name: 'Enterprise', slug: 'enterprise', description: 'Pour les grands centres', price_monthly: 149, price_yearly: 1490, currency: 'EUR', max_users: -1, max_sessions: -1, max_rooms: -1, max_programs: -1, max_students: 100, features: ['Tout Pro', 'Utilisateurs illimites', 'Sessions illimitees', 'Comptes etudiants', 'API access', 'SSO', 'Support dedie'], has_chat: true, is_active: true, sort_order: 3, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
   ];
 }
 
@@ -236,6 +236,7 @@ export const MockStore = {
       max_users: data.max_users || 5, max_sessions: data.max_sessions || 50,
       max_rooms: data.max_rooms || 5, max_programs: data.max_programs || 10,
       max_students: data.max_students || 0, features: data.features || [],
+      has_chat: data.has_chat ?? false,
       is_active: true, sort_order: plans.length + 1, created_at: now, updated_at: now,
     };
     plans.push(p);

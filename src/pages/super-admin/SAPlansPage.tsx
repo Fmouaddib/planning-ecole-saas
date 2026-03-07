@@ -48,6 +48,7 @@ export const SAPlansPage = () => {
       max_programs: parseInt(form.get('max_programs') as string) || 10,
       max_students: parseInt(form.get('max_students') as string) || 0,
       features: (form.get('features') as string || '').split('\n').filter(f => f.trim()),
+      has_chat: !!form.get('has_chat'),
     };
 
     if (editingPlan) {
@@ -139,6 +140,10 @@ export const SAPlansPage = () => {
                 <div className="sa-plan-limit">
                   <span>Etudiants</span>
                   <strong>{plan.max_students > 0 ? plan.max_students : 'Non inclus'}</strong>
+                </div>
+                <div className="sa-plan-limit">
+                  <span>Messagerie</span>
+                  <strong>{plan.has_chat ? 'Incluse' : 'Non incluse'}</strong>
                 </div>
               </div>
 
@@ -236,6 +241,12 @@ export const SAPlansPage = () => {
               <div className="sa-form-group">
                 <label className="sa-form-label">Features (une par ligne)</label>
                 <textarea name="features" className="sa-form-textarea" rows={4} defaultValue={editingPlan?.features?.join('\n') || ''} />
+              </div>
+              <div className="sa-form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input type="checkbox" name="has_chat" defaultChecked={editingPlan?.has_chat ?? false} />
+                  <span className="sa-form-label" style={{ margin: 0 }}>Messagerie temps réel incluse</span>
+                </label>
               </div>
               <div className="sa-modal-actions" style={{ marginTop: '24px' }}>
                 <button type="button" className="sa-btn sa-btn-secondary" onClick={() => setShowModal(false)}>Annuler</button>
