@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, Input, Select } from '@/components/ui'
-import { Video, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react'
+import { Video, CheckCircle, XCircle, Eye, EyeOff, ChevronDown, ExternalLink, Info } from 'lucide-react'
 import { CenterSettings } from '@/hooks/useCenterSettings'
 import { useVisioMeetings } from '@/hooks/useVisioMeetings'
 
@@ -46,25 +46,252 @@ function Toggle({ checked, onChange, label, description }: { checked: boolean; o
   )
 }
 
+function GuideSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  return (
+    <div className="border border-blue-200 dark:border-blue-800 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Info size={16} className="text-blue-500" />
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{title}</span>
+        </div>
+        <ChevronDown size={16} className={`text-blue-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="px-4 py-3 bg-blue-50/50 dark:bg-blue-900/10 text-sm text-neutral-700 dark:text-neutral-300 space-y-3">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StepItem({ number, children }: { number: number; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300 flex items-center justify-center text-xs font-bold">
+        {number}
+      </div>
+      <div className="flex-1 pt-0.5">{children}</div>
+    </div>
+  )
+}
+
+function ExtLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-600 underline">
+      {children}
+      <ExternalLink size={12} />
+    </a>
+  )
+}
+
+function ZoomGuide() {
+  return (
+    <GuideSection title="Guide de configuration Zoom (Server-to-Server OAuth)">
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        Ce guide vous explique comment créer une application Zoom Server-to-Server pour générer automatiquement des liens de réunion.
+      </p>
+
+      <StepItem number={1}>
+        <p>Rendez-vous sur <ExtLink href="https://marketplace.zoom.us">marketplace.zoom.us</ExtLink> et connectez-vous avec votre compte Zoom administrateur.</p>
+      </StepItem>
+
+      <StepItem number={2}>
+        <p>Cliquez sur <strong>Develop → Build App</strong> dans le menu en haut à droite.</p>
+      </StepItem>
+
+      <StepItem number={3}>
+        <p>Choisissez le type <strong>Server-to-Server OAuth</strong> et cliquez sur <strong>Create</strong>.</p>
+        <p className="text-xs text-neutral-400 mt-1">Ce type d'app ne nécessite pas d'interaction utilisateur, idéal pour la création automatique de réunions.</p>
+      </StepItem>
+
+      <StepItem number={4}>
+        <p>Donnez un nom à votre app (ex : <code className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">AntiPlanning Integration</code>).</p>
+      </StepItem>
+
+      <StepItem number={5}>
+        <p>Dans l'onglet <strong>App Credentials</strong>, copiez :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li><strong>Account ID</strong> → collez dans le champ « Account ID » ci-dessous</li>
+          <li><strong>Client ID</strong> → collez dans le champ « Client ID »</li>
+          <li><strong>Client Secret</strong> → collez dans le champ « Client Secret »</li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={6}>
+        <p>Dans l'onglet <strong>Scopes</strong>, ajoutez les permissions suivantes :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li><code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">meeting:write:admin</code> — Créer des réunions</li>
+          <li><code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">meeting:read:admin</code> — Lire les réunions</li>
+          <li><code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">user:read:admin</code> — Lire les utilisateurs</li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={7}>
+        <p>Cliquez sur <strong>Activate</strong> pour activer l'application.</p>
+      </StepItem>
+
+      <StepItem number={8}>
+        <p>Saisissez l'<strong>email de l'utilisateur Zoom</strong> qui sera l'organisateur des réunions (généralement votre email admin Zoom).</p>
+      </StepItem>
+
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
+        <strong>Important :</strong> L'utilisateur Zoom doit avoir une licence Pro ou supérieure pour créer des réunions.
+      </div>
+    </GuideSection>
+  )
+}
+
+function TeamsGuide() {
+  return (
+    <GuideSection title="Guide de configuration Microsoft Teams (Azure AD)">
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        Ce guide vous explique comment enregistrer une application Azure AD pour créer des réunions Teams automatiquement.
+      </p>
+
+      <StepItem number={1}>
+        <p>Rendez-vous sur <ExtLink href="https://portal.azure.com">portal.azure.com</ExtLink> et connectez-vous avec votre compte administrateur Microsoft 365.</p>
+      </StepItem>
+
+      <StepItem number={2}>
+        <p>Allez dans <strong>Azure Active Directory → Inscriptions d'applications → Nouvelle inscription</strong>.</p>
+      </StepItem>
+
+      <StepItem number={3}>
+        <p>Remplissez les informations :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li><strong>Nom</strong> : <code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">AntiPlanning Teams</code></li>
+          <li><strong>Types de comptes pris en charge</strong> : Comptes dans cet annuaire uniquement</li>
+        </ul>
+        <p className="text-xs mt-1">Cliquez sur <strong>Inscrire</strong>.</p>
+      </StepItem>
+
+      <StepItem number={4}>
+        <p>Sur la page de l'application, notez :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li><strong>ID d'application (client)</strong> → collez dans « Client ID »</li>
+          <li><strong>ID de l'annuaire (locataire)</strong> → collez dans « Tenant ID »</li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={5}>
+        <p>Allez dans <strong>Certificats & secrets → Nouveau secret client</strong>.</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li>Ajoutez une description (ex : <code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">AntiPlanning</code>)</li>
+          <li>Choisissez une durée (24 mois recommandé)</li>
+          <li>Copiez immédiatement la <strong>Valeur</strong> du secret → collez dans « Client Secret »</li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={6}>
+        <p>Allez dans <strong>Autorisations de l'API → Ajouter une autorisation → Microsoft Graph → Autorisations d'application</strong>.</p>
+        <p className="text-xs mt-1">Ajoutez :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li><code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">OnlineMeetings.ReadWrite.All</code></li>
+        </ul>
+        <p className="text-xs mt-1">Puis cliquez sur <strong>Accorder le consentement de l'administrateur</strong>.</p>
+      </StepItem>
+
+      <StepItem number={7}>
+        <p>Récupérez l'<strong>ID utilisateur Azure AD</strong> de l'organisateur des réunions :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li>Allez dans <strong>Azure AD → Utilisateurs</strong></li>
+          <li>Cliquez sur l'utilisateur souhaité</li>
+          <li>Copiez l'<strong>ID d'objet</strong> → collez dans « User ID »</li>
+        </ul>
+      </StepItem>
+
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
+        <strong>Important :</strong> L'utilisateur organisateur doit avoir une licence Microsoft Teams (incluse dans Microsoft 365 Business Basic ou supérieur).
+      </div>
+    </GuideSection>
+  )
+}
+
+function MeetGuide() {
+  return (
+    <GuideSection title="Guide de configuration Google Meet (Service Account)">
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        Ce guide vous explique comment créer un Service Account Google pour générer des réunions Meet via Google Calendar.
+      </p>
+
+      <StepItem number={1}>
+        <p>Rendez-vous sur <ExtLink href="https://console.cloud.google.com">console.cloud.google.com</ExtLink> et connectez-vous avec votre compte Google Workspace admin.</p>
+      </StepItem>
+
+      <StepItem number={2}>
+        <p>Créez un nouveau projet ou sélectionnez un projet existant.</p>
+      </StepItem>
+
+      <StepItem number={3}>
+        <p>Activez l'API :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li>Allez dans <strong>APIs & Services → Bibliothèque</strong></li>
+          <li>Recherchez et activez <strong>Google Calendar API</strong></li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={4}>
+        <p>Créez un Service Account :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li>Allez dans <strong>APIs & Services → Identifiants → Créer des identifiants → Compte de service</strong></li>
+          <li>Donnez un nom (ex : <code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">antiplanning-meet</code>)</li>
+          <li>Notez l'<strong>email du compte de service</strong> (ex : <code className="text-xs">xxx@project.iam.gserviceaccount.com</code>)</li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={5}>
+        <p>Créez une clé privée :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li>Cliquez sur le compte de service → onglet <strong>Clés</strong></li>
+          <li>Cliquez sur <strong>Ajouter une clé → Créer une clé → JSON</strong></li>
+          <li>Ouvrez le fichier JSON téléchargé et copiez le contenu du champ <code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">"private_key"</code></li>
+          <li>Collez-le dans le champ « Clé privée (PEM) » ci-dessous</li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={6}>
+        <p>Configurez la <strong>délégation domain-wide</strong> :</p>
+        <ul className="list-disc list-inside text-xs mt-1 space-y-1">
+          <li>Allez dans <ExtLink href="https://admin.google.com">admin.google.com</ExtLink></li>
+          <li>Allez dans <strong>Sécurité → Contrôle des accès et des données → Contrôles d'API → Gérer la délégation à l'échelle du domaine</strong></li>
+          <li>Cliquez sur <strong>Ajouter</strong></li>
+          <li><strong>ID client</strong> : l'ID unique du Service Account (trouvable dans la console GCP)</li>
+          <li><strong>Portées OAuth</strong> : <code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-700 rounded text-xs">https://www.googleapis.com/auth/calendar</code></li>
+        </ul>
+      </StepItem>
+
+      <StepItem number={7}>
+        <p>Saisissez l'<strong>email à impersoner</strong> : l'adresse email Google Workspace de l'utilisateur dont le calendrier sera utilisé pour créer les réunions Meet.</p>
+      </StepItem>
+
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
+        <strong>Important :</strong> Google Meet nécessite un compte Google Workspace (les comptes Gmail personnels ne supportent pas la délégation domain-wide). L'utilisateur impersoné doit avoir une licence Google Workspace avec Meet.
+      </div>
+    </GuideSection>
+  )
+}
+
 export default function VisioSettingsSection({ settings, onUpdateSettings }: VisioSettingsSectionProps) {
   const { testConnection, isTesting } = useVisioMeetings()
 
   const [showSecret, setShowSecret] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
-  // Zoom local state
   const [zoomAccountId, setZoomAccountId] = useState(settings.zoom_account_id || '')
   const [zoomClientId, setZoomClientId] = useState(settings.zoom_client_id || '')
   const [zoomClientSecret, setZoomClientSecret] = useState(settings.zoom_client_secret || '')
   const [zoomUserEmail, setZoomUserEmail] = useState(settings.zoom_user_email || '')
 
-  // Teams local state
   const [teamsTenantId, setTeamsTenantId] = useState(settings.teams_tenant_id || '')
   const [teamsClientId, setTeamsClientId] = useState(settings.teams_client_id || '')
   const [teamsClientSecret, setTeamsClientSecret] = useState(settings.teams_client_secret || '')
   const [teamsUserId, setTeamsUserId] = useState(settings.teams_user_id || '')
 
-  // Meet local state
   const [meetClientEmail, setMeetClientEmail] = useState(settings.meet_client_email || '')
   const [meetPrivateKey, setMeetPrivateKey] = useState(settings.meet_private_key || '')
   const [meetUserEmail, setMeetUserEmail] = useState(settings.meet_user_email || '')
@@ -113,7 +340,7 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mt-6">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
           <Video size={20} className="text-blue-600 dark:text-blue-400" />
@@ -138,53 +365,38 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
         />
       </div>
 
+      {/* Setup guide */}
+      {provider === 'zoom' && (
+        <div className="mb-6">
+          <ZoomGuide />
+        </div>
+      )}
+      {provider === 'teams' && (
+        <div className="mb-6">
+          <TeamsGuide />
+        </div>
+      )}
+      {provider === 'meet' && (
+        <div className="mb-6">
+          <MeetGuide />
+        </div>
+      )}
+
       {/* Zoom form */}
       {provider === 'zoom' && (
         <div className="space-y-4 max-w-lg mb-6">
           <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-            Connexion Zoom (Server-to-Server OAuth)
+            Identifiants Zoom
           </h4>
-          <p className="text-xs text-neutral-400 dark:text-neutral-500">
-            Créez une app Server-to-Server sur{' '}
-            <a href="https://marketplace.zoom.us" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-              marketplace.zoom.us
-            </a>
-            {' '}et copiez les identifiants ci-dessous.
-          </p>
-          <Input
-            label="Account ID"
-            placeholder="Votre Account ID Zoom"
-            value={zoomAccountId}
-            onChange={e => setZoomAccountId(e.target.value)}
-          />
-          <Input
-            label="Client ID"
-            placeholder="Client ID de l'app S2S"
-            value={zoomClientId}
-            onChange={e => setZoomClientId(e.target.value)}
-          />
+          <Input label="Account ID" placeholder="Votre Account ID Zoom" value={zoomAccountId} onChange={e => setZoomAccountId(e.target.value)} />
+          <Input label="Client ID" placeholder="Client ID de l'app S2S" value={zoomClientId} onChange={e => setZoomClientId(e.target.value)} />
           <div className="relative">
-            <Input
-              label="Client Secret"
-              type={showSecret ? 'text' : 'password'}
-              placeholder="Client Secret de l'app S2S"
-              value={zoomClientSecret}
-              onChange={e => setZoomClientSecret(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={() => setShowSecret(!showSecret)}
-              className="absolute right-3 top-[34px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-            >
+            <Input label="Client Secret" type={showSecret ? 'text' : 'password'} placeholder="Client Secret de l'app S2S" value={zoomClientSecret} onChange={e => setZoomClientSecret(e.target.value)} />
+            <button type="button" onClick={() => setShowSecret(!showSecret)} className="absolute right-3 top-[34px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
               {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <Input
-            label="Email utilisateur Zoom"
-            placeholder="admin@votre-domaine.com"
-            value={zoomUserEmail}
-            onChange={e => setZoomUserEmail(e.target.value)}
-          />
+          <Input label="Email utilisateur Zoom" placeholder="admin@votre-domaine.com" value={zoomUserEmail} onChange={e => setZoomUserEmail(e.target.value)} />
         </div>
       )}
 
@@ -192,49 +404,17 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
       {provider === 'teams' && (
         <div className="space-y-4 max-w-lg mb-6">
           <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-            Connexion Microsoft Teams (Azure AD)
+            Identifiants Azure AD
           </h4>
-          <p className="text-xs text-neutral-400 dark:text-neutral-500">
-            Enregistrez une application dans{' '}
-            <a href="https://portal.azure.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-              portal.azure.com
-            </a>
-            {' '}avec les permissions OnlineMeetings.ReadWrite.All (application).
-          </p>
-          <Input
-            label="Tenant ID"
-            placeholder="ID du tenant Azure AD"
-            value={teamsTenantId}
-            onChange={e => setTeamsTenantId(e.target.value)}
-          />
-          <Input
-            label="Client ID"
-            placeholder="ID de l'application Azure"
-            value={teamsClientId}
-            onChange={e => setTeamsClientId(e.target.value)}
-          />
+          <Input label="Tenant ID" placeholder="ID du tenant Azure AD" value={teamsTenantId} onChange={e => setTeamsTenantId(e.target.value)} />
+          <Input label="Client ID" placeholder="ID de l'application Azure" value={teamsClientId} onChange={e => setTeamsClientId(e.target.value)} />
           <div className="relative">
-            <Input
-              label="Client Secret"
-              type={showSecret ? 'text' : 'password'}
-              placeholder="Secret de l'application Azure"
-              value={teamsClientSecret}
-              onChange={e => setTeamsClientSecret(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={() => setShowSecret(!showSecret)}
-              className="absolute right-3 top-[34px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-            >
+            <Input label="Client Secret" type={showSecret ? 'text' : 'password'} placeholder="Secret de l'application Azure" value={teamsClientSecret} onChange={e => setTeamsClientSecret(e.target.value)} />
+            <button type="button" onClick={() => setShowSecret(!showSecret)} className="absolute right-3 top-[34px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
               {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <Input
-            label="User ID (Azure AD)"
-            placeholder="ID de l'utilisateur organisateur"
-            value={teamsUserId}
-            onChange={e => setTeamsUserId(e.target.value)}
-          />
+          <Input label="User ID (Azure AD)" placeholder="ID de l'utilisateur organisateur" value={teamsUserId} onChange={e => setTeamsUserId(e.target.value)} />
         </div>
       )}
 
@@ -242,21 +422,9 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
       {provider === 'meet' && (
         <div className="space-y-4 max-w-lg mb-6">
           <h4 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-            Connexion Google Meet (Service Account)
+            Identifiants Google Service Account
           </h4>
-          <p className="text-xs text-neutral-400 dark:text-neutral-500">
-            Créez un Service Account dans{' '}
-            <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-              console.cloud.google.com
-            </a>
-            {' '}avec délégation domain-wide et le scope Calendar.
-          </p>
-          <Input
-            label="Email du Service Account"
-            placeholder="xxx@project.iam.gserviceaccount.com"
-            value={meetClientEmail}
-            onChange={e => setMeetClientEmail(e.target.value)}
-          />
+          <Input label="Email du Service Account" placeholder="xxx@project.iam.gserviceaccount.com" value={meetClientEmail} onChange={e => setMeetClientEmail(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
               Clé privée (PEM)
@@ -269,12 +437,7 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
               onChange={e => setMeetPrivateKey(e.target.value)}
             />
           </div>
-          <Input
-            label="Email à impersoner"
-            placeholder="admin@votre-domaine.com"
-            value={meetUserEmail}
-            onChange={e => setMeetUserEmail(e.target.value)}
-          />
+          <Input label="Email à impersoner" placeholder="admin@votre-domaine.com" value={meetUserEmail} onChange={e => setMeetUserEmail(e.target.value)} />
         </div>
       )}
 
@@ -282,12 +445,7 @@ export default function VisioSettingsSection({ settings, onUpdateSettings }: Vis
       {provider && (
         <div className="space-y-4 max-w-lg mb-6">
           <div className="flex items-center gap-3">
-            <Button
-              onClick={handleTest}
-              disabled={!canTest || isTesting}
-              variant="secondary"
-              size="sm"
-            >
+            <Button onClick={handleTest} disabled={!canTest || isTesting} variant="secondary" size="sm">
               {isTesting ? 'Test en cours...' : 'Tester la connexion'}
             </Button>
             <Button onClick={handleSave} variant="ghost" size="sm">
