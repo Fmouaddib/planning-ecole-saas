@@ -20,6 +20,7 @@ import {
   CheckCircle,
   FileBarChart,
   ClipboardCheck,
+  CalendarPlus,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useBookings } from '@/hooks/useBookings'
@@ -34,6 +35,7 @@ import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { navigateTo } from '@/utils/navigation'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingState, HelpBanner } from '@/components/ui'
+import { CalendarIntegrationModal } from '@/components/calendar/CalendarIntegrationModal'
 import type { UsageSummary, Evaluation } from '@/types'
 
 // ==================== CONSTANTES DÉMO ====================
@@ -135,6 +137,9 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { computeBulletin, getEvaluationsForClass } = useGrades()
   const { getAttendanceForStudent, computeAttendanceStats } = useAttendance()
   const { notifications } = useNotifications()
+
+  // Calendar integration modal
+  const [showCalendarModal, setShowCalendarModal] = useState(false)
 
   // Student enriched data
   const [studentAttendanceRate, setStudentAttendanceRate] = useState<number | null>(null)
@@ -654,6 +659,14 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaines séances</h2>
+              <button
+                onClick={() => setShowCalendarModal(true)}
+                className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium px-2.5 py-1.5 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors"
+                title="Intégrer dans mon calendrier"
+              >
+                <CalendarPlus size={14} />
+                Intégrer
+              </button>
             </div>
             <div className="space-y-3">
               {studentData.upcoming.length === 0 ? (
@@ -940,12 +953,22 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaines séances</h2>
-              <button
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
-                onClick={() => onNavigate?.('/bookings')}
-              >
-                Voir tout <ChevronRight size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCalendarModal(true)}
+                  className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium px-2.5 py-1.5 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors"
+                  title="Intégrer dans mon calendrier"
+                >
+                  <CalendarPlus size={14} />
+                  Intégrer
+                </button>
+                <button
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                  onClick={() => onNavigate?.('/bookings')}
+                >
+                  Voir tout <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
             <div className="space-y-3">
               {teacherData.upcoming.length === 0 ? (
@@ -1199,12 +1222,22 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaines séances</h2>
-            <button
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
-              onClick={() => onNavigate?.('/bookings')}
-            >
-              Voir tout <ChevronRight size={14} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCalendarModal(true)}
+                className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium px-2.5 py-1.5 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors"
+                title="Intégrer dans mon calendrier"
+              >
+                <CalendarPlus size={14} />
+                Intégrer
+              </button>
+              <button
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                onClick={() => onNavigate?.('/bookings')}
+              >
+                Voir tout <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
           <div className="space-y-3">
             {displayBookings.length === 0 ? (
@@ -1282,6 +1315,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
           ))}
         </div>
       </div>
+      <CalendarIntegrationModal
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+      />
     </div>
   )
 }
