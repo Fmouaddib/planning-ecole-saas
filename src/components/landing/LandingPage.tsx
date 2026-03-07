@@ -6,6 +6,7 @@ import {
   Star, Quote, ClipboardCheck, BarChart3, UserCog, Upload,
   Shield, Lock, Globe, Zap, TrendingUp, MessageCircle,
 } from 'lucide-react'
+import { priceTTC, formatPrice } from '@/utils/pricing'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import LandingLayout from './LandingLayout'
@@ -619,8 +620,13 @@ export default function LandingPage() {
                   <div className="landing-pricing-card-price">
                     <span className="currency">&euro;</span>
                     <span className="amount">{price}</span>
-                    {price > 0 && <span className="period">{t('pricing.mo')}</span>}
+                    {price > 0 && <span className="period">HT{t('pricing.mo')}</span>}
                   </div>
+                  {price > 0 && (
+                    <div className="text-xs text-neutral-400 -mt-1 mb-1">
+                      soit {formatPrice(priceTTC(price))}€ TTC/mois
+                    </div>
+                  )}
                   <ul className="landing-pricing-features">
                     {plan.features.map((fKey) => (
                       <li key={fKey}>

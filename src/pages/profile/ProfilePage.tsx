@@ -7,6 +7,7 @@ import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { Button, Input, Modal, ModalFooter, HelpBanner } from '@/components/ui'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType } from '@/types'
+import { priceTTC, formatPrice } from '@/utils/pricing'
 import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import { SAAddonsService } from '@/services/super-admin/addons'
@@ -309,7 +310,8 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
                           </div>
                           <div className="mb-2">
                             <span className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{price}€</span>
-                            <span className="text-xs text-neutral-500">/mois</span>
+                            <span className="text-xs text-neutral-500"> HT/mois</span>
+                            <div className="text-[10px] text-neutral-400">{formatPrice(priceTTC(price))}€ TTC</div>
                           </div>
                           <ul className="space-y-1 mb-3 flex-1">
                             {p.features.map((f, i) => (
@@ -631,7 +633,7 @@ function AddonsSection() {
                             <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${colors.bg} ${colors.text}`}>
                               {ADDON_TYPE_LABELS[addon.addonType]}
                             </span>
-                            <span className="ml-2">{addon.priceMonthly}{'\u20AC'}/mois</span>
+                            <span className="ml-2">{addon.priceMonthly}€ HT/mois</span>
                           </div>
                         </div>
                       </div>

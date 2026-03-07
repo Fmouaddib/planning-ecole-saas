@@ -4,6 +4,7 @@ import {
   ArrowRight, ArrowLeft, User, CheckCircle, Copy, Check, Crown, Zap, Rocket
 } from 'lucide-react'
 import { Button, Input, Card, CardContent } from '@/components/ui'
+import { priceTTC, formatPrice } from '@/utils/pricing'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
@@ -405,7 +406,12 @@ export default function OnboardingPage() {
                           <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
                             {price === 0 ? 'Gratuit' : `${price}€`}
                           </span>
-                          {price > 0 && <span className="text-sm text-neutral-500">/mois</span>}
+                          {price > 0 && <span className="text-sm text-neutral-500"> HT/mois</span>}
+                          {price > 0 && (
+                            <div className="text-xs text-neutral-400 mt-0.5">
+                              soit {formatPrice(priceTTC(price))}€ TTC
+                            </div>
+                          )}
                         </div>
                         <ul className="space-y-1">
                           {plan.features.map((f, i) => (

@@ -147,7 +147,7 @@ export const SASubscriptionsPage = () => {
       { header: 'Date', accessor: (e) => formatDate(e.created_at) },
       { header: 'Centre', accessor: (e) => centerDisplayName(e.center) || e.center_id || '' },
       { header: 'Type', accessor: (e) => e.event_type },
-      { header: 'Montant', accessor: (e) => e.amount != null ? `${e.amount}\u20AC` : '' },
+      { header: 'Montant HT', accessor: (e) => e.amount != null ? `${e.amount}€ HT` : '' },
       { header: 'Description', accessor: (e) => e.description || '' },
     ], 'facturation');
   };
@@ -239,7 +239,7 @@ export const SASubscriptionsPage = () => {
                           <td>
                             <strong>{sub.plan?.name || sub.plan_id}</strong>
                             {sub.plan?.price_monthly != null && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.plan.price_monthly}{'\u20AC'}/mois</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-secondary)' }}>{sub.plan.price_monthly}€ HT/mois</div>
                             )}
                           </td>
                           <td>
@@ -350,7 +350,7 @@ export const SASubscriptionsPage = () => {
                       <td style={{ fontSize: '0.8rem' }}>{formatDate(event.created_at)}</td>
                       <td>{centerDisplayName(event.center) || event.center_id || '-'}</td>
                       <td><span className="sa-status active">{event.event_type}</span></td>
-                      <td style={{ fontWeight: 600 }}>{event.amount != null ? `${event.amount}\u20AC` : '-'}</td>
+                      <td style={{ fontWeight: 600 }}>{event.amount != null ? `${event.amount}€ HT` : '-'}</td>
                       <td style={{ fontSize: '0.85rem', color: 'var(--sa-text-secondary)' }}>{event.description || '-'}</td>
                     </tr>
                   ))}
@@ -409,7 +409,7 @@ export const SASubscriptionsPage = () => {
               <label className="sa-form-label">Plan</label>
               <select className="sa-form-select" value={editPlanId} onChange={(e) => setEditPlanId(e.target.value)}>
                 {(plans || []).map(p => (
-                  <option key={p.id} value={p.id}>{p.name} — {p.price_monthly}{'\u20AC'}/mois</option>
+                  <option key={p.id} value={p.id}>{p.name} — {p.price_monthly}€ HT/mois</option>
                 ))}
               </select>
             </div>
@@ -450,7 +450,7 @@ export const SASubscriptionsPage = () => {
                 <select name="plan_id" className="sa-form-select" required value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)}>
                   <option value="">Selectionner un plan...</option>
                   {(plans || []).map(p => (
-                    <option key={p.id} value={p.id}>{p.name} {'\u2014'} {p.price_monthly}{'\u20AC'}/mois</option>
+                    <option key={p.id} value={p.id}>{p.name} — {p.price_monthly}€ HT/mois</option>
                   ))}
                 </select>
               </div>
@@ -467,11 +467,11 @@ export const SASubscriptionsPage = () => {
                     onChange={(e) => setMaxStudentsInput(parseInt(e.target.value) || 0)}
                   />
                   <div style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)', marginTop: '4px' }}>
-                    100 etud. = 149{'\u20AC'} | 500 etud. = 199{'\u20AC'} | +29{'\u20AC'}/250 au-dela
+                    100 étud. = 149€ HT | 500 étud. = 199€ HT | +29€ HT/250 au-delà
                   </div>
                   {computedPrice != null && (
                     <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--sa-text-accent)', marginTop: '8px' }}>
-                      Prix calcule : {computedPrice}{'\u20AC'}/mois
+                      Prix calculé : {computedPrice}€ HT/mois
                     </div>
                   )}
                 </div>

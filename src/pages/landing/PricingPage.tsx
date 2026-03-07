@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Check, X, ChevronDown, ShieldCheck, Loader2, Mail, UserCog, GraduationCap, ClipboardCheck } from 'lucide-react'
+import { priceTTC, formatPrice } from '@/utils/pricing'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { useAuthContext } from '@/contexts/AuthContext'
@@ -265,8 +266,13 @@ export default function PricingPage() {
                   <div className="landing-pricing-card-price">
                     <span className="currency">&euro;</span>
                     <span className="amount">{price}</span>
-                    {price > 0 && <span className="period">{t('pricing.mo')}</span>}
+                    {price > 0 && <span className="period">HT{t('pricing.mo')}</span>}
                   </div>
+                  {price > 0 && (
+                    <div className="text-xs text-neutral-400 -mt-1 mb-1">
+                      soit {formatPrice(priceTTC(price))}€ TTC/mois
+                    </div>
+                  )}
                   <ul className="landing-pricing-features">
                     {plan.features.map((fKey) => (
                       <li key={fKey}>
@@ -375,7 +381,7 @@ export default function PricingPage() {
                   {card.options.map((opt) => (
                     <div key={opt.name} className="landing-addon-option" style={{ background: card.bgTint, border: `1px solid ${card.borderTint}` }}>
                       <span className="landing-addon-option-name">{opt.name}</span>
-                      <span className="landing-addon-option-price">{opt.price}{'\u20AC'}{t('pricingPage.addon.perMonth')}</span>
+                      <span className="landing-addon-option-price">{opt.price}€ HT{t('pricingPage.addon.perMonth')}</span>
                     </div>
                   ))}
                 </div>

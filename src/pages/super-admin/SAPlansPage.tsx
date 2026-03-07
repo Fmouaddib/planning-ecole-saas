@@ -112,11 +112,11 @@ export const SAPlansPage = () => {
               <div className="sa-plan-name">{plan.name}</div>
               <p style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)', marginBottom: '16px' }}>{plan.description}</p>
               <div className="sa-plan-price">
-                {plan.price_monthly}{'\u20AC'}<span>/mois</span>
+                {plan.price_monthly}€<span> HT/mois</span>
               </div>
               {plan.price_yearly != null && plan.price_yearly > 0 && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--sa-text-secondary)', marginTop: '4px' }}>
-                  ou {plan.price_yearly}{'\u20AC'}/an
+                  ou {plan.price_yearly}€ HT/an
                 </div>
               )}
 
@@ -208,11 +208,11 @@ export const SAPlansPage = () => {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="sa-form-group">
-                  <label className="sa-form-label">Prix mensuel (EUR)</label>
+                  <label className="sa-form-label">Prix mensuel HT (EUR)</label>
                   <input name="price_monthly" type="number" step="0.01" className="sa-form-input" defaultValue={editingPlan?.price_monthly || 0} />
                 </div>
                 <div className="sa-form-group">
-                  <label className="sa-form-label">Prix annuel (EUR)</label>
+                  <label className="sa-form-label">Prix annuel HT (EUR)</label>
                   <input name="price_yearly" type="number" step="0.01" className="sa-form-input" defaultValue={editingPlan?.price_yearly || ''} />
                 </div>
               </div>

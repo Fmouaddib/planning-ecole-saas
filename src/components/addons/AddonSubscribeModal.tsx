@@ -11,6 +11,7 @@ import { useAuthContext } from '@/contexts/AuthContext'
 import { SAAddonsService } from '@/services/super-admin/addons'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
+import { priceTTC, formatPrice } from '@/utils/pricing'
 import toast from 'react-hot-toast'
 import type { AddonPlanInfo, AddonType } from '@/types'
 
@@ -182,10 +183,10 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
                 >
                   <div className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">{plan.name}</div>
                   <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                    {price}{'\u20AC'}
-                    <span className="text-sm font-normal text-neutral-500">
-                      /{billingCycle === 'yearly' ? 'an' : 'mois'}
-                    </span>
+                    {price}€ <span className="text-sm font-normal text-neutral-500">HT/{billingCycle === 'yearly' ? 'an' : 'mois'}</span>
+                  </div>
+                  <div className="text-xs text-neutral-400 mt-0.5">
+                    {formatPrice(priceTTC(price))}€ TTC
                   </div>
                   <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
                     {getPlanDescription(plan)}
@@ -241,7 +242,7 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
                   {selectedPlan.name}{!isModuleType(selectedPlan.addonType) && ` x${quantity}`}
                 </span>
                 <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                  {totalPrice.toFixed(2)}{'\u20AC'}/{billingCycle === 'yearly' ? 'an' : 'mois'}
+                  {totalPrice.toFixed(2)}€ HT/{billingCycle === 'yearly' ? 'an' : 'mois'}
                 </span>
               </div>
               {!isModuleType(selectedPlan.addonType) && (
@@ -256,10 +257,22 @@ export function AddonSubscribeModal({ isOpen, onClose, initialType }: AddonSubsc
                   </span>
                 </div>
               )}
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-500">dont TVA (20%)</span>
+                <span className="text-neutral-700 dark:text-neutral-300">
+                  {formatPrice(priceTTC(totalPrice) - totalPrice)}€
+                </span>
+              </div>
+              <div className="flex justify-between text-sm font-semibold">
+                <span className="text-neutral-600 dark:text-neutral-400">Total TTC</span>
+                <span className="text-neutral-900 dark:text-neutral-100">
+                  {formatPrice(priceTTC(totalPrice))}€/{billingCycle === 'yearly' ? 'an' : 'mois'}
+                </span>
+              </div>
               {proRataAmount != null && proRataAmount > 0 && (
                 <div className="flex justify-between text-sm pt-2 border-t border-neutral-200 dark:border-neutral-700">
                   <span className="text-neutral-500">Premier mois au prorata</span>
-                  <span className="text-neutral-700 dark:text-neutral-300">{proRataAmount.toFixed(2)}{'\u20AC'}</span>
+                  <span className="text-neutral-700 dark:text-neutral-300">{proRataAmount.toFixed(2)}€ HT ({formatPrice(priceTTC(proRataAmount))}€ TTC)</span>
                 </div>
               )}
             </div>

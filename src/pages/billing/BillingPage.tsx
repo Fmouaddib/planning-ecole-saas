@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { CreditCard, Package, FileText, ExternalLink, Loader2 } from 'lucide-react'
+import { priceTTC, formatPrice } from '@/utils/pricing'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
 import { useAddonInfo } from '@/hooks/useAddonInfo'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
@@ -109,8 +110,11 @@ function BillingPage() {
             <div>
               <p className="text-sm text-neutral-500 dark:text-neutral-400">Montant</p>
               <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                {plan?.priceMonthly ? `${plan.priceMonthly}\u20AC/mois` : 'Gratuit'}
+                {plan?.priceMonthly ? `${plan.priceMonthly}€ HT/mois` : 'Gratuit'}
               </p>
+              {plan?.priceMonthly ? (
+                <p className="text-xs text-neutral-400">{formatPrice(priceTTC(plan.priceMonthly))}€ TTC</p>
+              ) : null}
             </div>
           </div>
 
@@ -213,7 +217,7 @@ function BillingPage() {
                       </td>
                       <td className="px-4 py-3 text-neutral-500">{ev.description || '-'}</td>
                       <td className="px-4 py-3 text-right font-medium text-neutral-900 dark:text-neutral-100">
-                        {ev.amount != null ? `${ev.amount}\u20AC` : '-'}
+                        {ev.amount != null ? `${ev.amount}€ HT` : '-'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant={badge.variant} size="sm">{badge.label}</Badge>
