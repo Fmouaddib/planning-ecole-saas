@@ -2,7 +2,7 @@
  * Super Admin — Blog Engine
  * Génération automatique d'articles SEO avec IA
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { SABlogService, type BlogSettings, type BlogPost, type BlogTopic, type BlogLog, type TopicSuggestion, type SeoAudit } from '@/services/super-admin/blog'
 import { MarkdownWithMermaid } from '@/components/ui/MermaidRenderer'
 import toast from 'react-hot-toast'
@@ -381,25 +381,24 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
   }
 
   // Unsplash API key cached for the session
-  const unsplashKeyRef = { current: '' }
+  const unsplashKeyRef = useRef('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchUnsplashImages = async (query: string) => {
+    if (!query.trim()) return
     setFetchingImage(true)
     try {
       if (!unsplashKeyRef.current) {
-        const settings = await SABlogService.getSettings()
-        if (!settings.unsplash_api_key) {
+        const s = await SABlogService.getSettings()
+        if (!s.unsplash_api_key) {
           toast.error('Clé API Unsplash non configurée — allez dans Paramètres > Blog IA')
           return
         }
-        unsplashKeyRef.current = settings.unsplash_api_key.trim().replace(/[^\x20-\x7E]/g, '')
+        unsplashKeyRef.current = s.unsplash_api_key.trim().replace(/[^\x20-\x7E]/g, '')
       }
-      if (!unsplashKeyRef.current) {
-        toast.error('Clé API Unsplash invalide')
-        return
-      }
+      if (!unsplashKeyRef.current) { toast.error('Clé API Unsplash invalide'); return }
       const res = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=12&orientation=landscape`,
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=18&orientation=landscape`,
         { headers: { Authorization: `Client-ID ${unsplashKeyRef.current}` } }
       )
       if (!res.ok) throw new Error('Erreur Unsplash')
@@ -410,12 +409,7 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
         author: p.user?.name || 'Unsplash',
         downloadLocation: p.links?.download_location || '',
       }))
-      if (photos.length === 0) {
-        toast.error('Aucune image trouvée pour cette recherche')
-        return
-      }
       setImageChoices(photos)
-      setShowImagePicker(true)
     } catch (err: any) {
       toast.error(err.message || 'Erreur Unsplash')
     } finally {
@@ -423,36 +417,60 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     }
   }
 
-  const handleFetchImage = async () => {
-    if (!selectedPost) return
-    // Build a smart query: title keywords + category for better relevance
-    const titleWords = selectedPost.title
-      .replace(/[^a-zA-ZÀ-ÿ\s]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 3)
-      .slice(0, 3)
-      .join(' ')
-    const kwPart = (selectedPost.keywords || []).slice(0, 2).join(' ')
-    const query = `${titleWords} ${kwPart}`.trim() || selectedPost.category || 'education'
-    setImageQuery(query)
-    await fetchUnsplashImages(query)
+  // Debounced live search
+  const handleImageQueryChange = (value: string) => {
+    setImageQuery(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (value.trim().length >= 2) {
+      debounceRef.current = setTimeout(() => fetchUnsplashImages(value.trim()), 600)
+    }
+  }
+
+  const handleOpenImagePicker = () => {
+    if (showImagePicker) {
+      setShowImagePicker(false)
+      return
+    }
+    setShowImagePicker(true)
+    // Pre-fill search with smart query from article
+    if (selectedPost && !imageQuery) {
+      const titleWords = selectedPost.title
+        .replace(/[^a-zA-ZÀ-ÿ\s]/g, '')
+        .split(/\s+/)
+        .filter(w => w.length > 3)
+        .slice(0, 3)
+        .join(' ')
+      const kwPart = (selectedPost.keywords || []).slice(0, 2).join(' ')
+      const q = `${titleWords} ${kwPart}`.trim() || selectedPost.category || 'education'
+      setImageQuery(q)
+      fetchUnsplashImages(q)
+    }
   }
 
   const handleSelectImage = async (choice: { url: string; downloadLocation: string }) => {
     if (!selectedPost) return
     try {
-      // Trigger Unsplash download tracking (API requirement)
       if (choice.downloadLocation && unsplashKeyRef.current) {
         fetch(`${choice.downloadLocation}?client_id=${unsplashKeyRef.current}`).catch(() => {})
       }
       await SABlogService.updatePost(selectedPost.id, { featured_image_url: choice.url } as any)
       setSelectedPost({ ...selectedPost, featured_image_url: choice.url } as any)
-      setShowImagePicker(false)
-      setImageChoices([])
       toast.success('Image de couverture mise à jour')
       onRefresh()
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la mise à jour')
+    }
+  }
+
+  const handleRemoveImage = async () => {
+    if (!selectedPost) return
+    try {
+      await SABlogService.updatePost(selectedPost.id, { featured_image_url: null } as any)
+      setSelectedPost({ ...selectedPost, featured_image_url: null } as any)
+      toast.success('Image retirée')
+      onRefresh()
+    } catch (err: any) {
+      toast.error(err.message)
     }
   }
 
@@ -494,8 +512,8 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
                 🌐 Voir en ligne
               </a>
             )}
-            <button className="sa-btn sa-btn-secondary" onClick={handleFetchImage} disabled={fetchingImage}>
-              {fetchingImage ? '⏳' : '🖼️'} Image
+            <button className={`sa-btn ${showImagePicker ? 'sa-btn-primary' : 'sa-btn-secondary'}`} onClick={handleOpenImagePicker}>
+              🖼️ Image
             </button>
             <button className="sa-btn sa-btn-secondary" onClick={() => { setShowLinkPanel(!showLinkPanel); setLinkSearch('') }}>
               🔗 Lien interne
@@ -517,65 +535,156 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
         </div>
 
         {/* Featured image preview */}
-        {(selectedPost as any)?.featured_image_url && (
-          <div style={{ borderRadius: 12, overflow: 'hidden', maxHeight: 200 }}>
+        {(selectedPost as any)?.featured_image_url && !showImagePicker && (
+          <div style={{ borderRadius: 12, overflow: 'hidden', maxHeight: 200, position: 'relative' }}>
             <img
               src={(selectedPost as any).featured_image_url}
               alt={selectedPost.title}
               style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 12 }}
             />
+            <button
+              onClick={handleRemoveImage}
+              style={{
+                position: 'absolute', top: 8, right: 8,
+                background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none',
+                borderRadius: 8, padding: '4px 10px', fontSize: 11, cursor: 'pointer',
+              }}
+            >
+              ✕ Retirer
+            </button>
           </div>
         )}
 
-        {/* Image picker */}
-        {showImagePicker && imageChoices.length > 0 && (
+        {/* Unsplash Image Search Panel */}
+        {showImagePicker && (
           <div className="sa-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--sa-text-primary)' }}>Choisir une image de couverture ({imageChoices.length})</span>
-              <button className="sa-btn sa-btn-secondary" onClick={() => { setShowImagePicker(false); setImageChoices([]) }} style={{ fontSize: 12 }}>Fermer</button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--sa-text-primary)' }}>🖼️ Recherche d'images — Unsplash</span>
+              <button className="sa-btn sa-btn-secondary" onClick={() => setShowImagePicker(false)} style={{ fontSize: 12, padding: '4px 10px' }}>✕ Fermer</button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <input
-                type="text"
-                value={imageQuery}
-                onChange={e => setImageQuery(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && imageQuery.trim()) fetchUnsplashImages(imageQuery.trim()) }}
-                placeholder="Modifier la recherche..."
-                style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--sa-border)', fontSize: 13, background: 'var(--sa-bg-secondary)', color: 'var(--sa-text-primary)' }}
-              />
+
+            {/* Current image */}
+            {(selectedPost as any)?.featured_image_url && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, padding: 10, borderRadius: 8, background: 'var(--sa-bg-subtle)' }}>
+                <img src={(selectedPost as any).featured_image_url} alt="" style={{ width: 80, height: 50, objectFit: 'cover', borderRadius: 6 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, color: 'var(--sa-text-secondary)' }}>Image actuelle</span>
+                </div>
+                <button className="sa-btn sa-btn-secondary" onClick={handleRemoveImage} style={{ fontSize: 11, padding: '4px 10px' }}>Retirer</button>
+              </div>
+            )}
+
+            {/* Search bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  type="text"
+                  value={imageQuery}
+                  onChange={e => handleImageQueryChange(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && imageQuery.trim()) fetchUnsplashImages(imageQuery.trim()) }}
+                  placeholder="Tapez pour rechercher des images... (ex: formation, bureau, étudiant...)"
+                  style={{
+                    width: '100%', padding: '10px 14px', paddingRight: fetchingImage ? 40 : 14,
+                    borderRadius: 10, border: '2px solid var(--sa-border-medium)', fontSize: 14,
+                    background: 'var(--sa-bg-secondary)', color: 'var(--sa-text-primary)',
+                    outline: 'none', transition: 'border-color 0.2s',
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#8b5cf6'}
+                  onBlur={e => e.target.style.borderColor = 'var(--sa-border-medium)'}
+                  autoFocus
+                />
+                {fetchingImage && (
+                  <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8b5cf6]" />
+                  </div>
+                )}
+              </div>
               <button
                 className="sa-btn sa-btn-primary"
                 onClick={() => imageQuery.trim() && fetchUnsplashImages(imageQuery.trim())}
-                disabled={fetchingImage}
-                style={{ fontSize: 12, whiteSpace: 'nowrap' }}
+                disabled={fetchingImage || !imageQuery.trim()}
+                style={{ fontSize: 13, whiteSpace: 'nowrap', padding: '10px 18px', borderRadius: 10 }}
               >
-                {fetchingImage ? '...' : 'Rechercher'}
+                Rechercher
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
-              {imageChoices.map((img, i) => (
-                <div
-                  key={i}
-                  onClick={() => handleSelectImage(img)}
-                  style={{
-                    cursor: 'pointer',
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    border: (selectedPost as any)?.featured_image_url === img.url ? '3px solid #8b5cf6' : '2px solid transparent',
-                    transition: 'all 0.15s',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.03)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}
-                >
-                  <img src={img.thumb} alt={`Option ${i + 1}`} style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} loading="lazy" />
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.6))', padding: '12px 6px 4px', fontSize: 10, color: '#fff' }}>
-                    {img.author}
-                  </div>
+
+            {/* Suggestions rapides */}
+            {imageChoices.length === 0 && !fetchingImage && (
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ fontSize: 12, color: 'var(--sa-text-tertiary)', marginRight: 8 }}>Suggestions :</span>
+                {['formation professionnelle', 'bureau travail', 'étudiant cours', 'planning calendrier', 'technologie éducation', 'réunion équipe'].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => { setImageQuery(s); fetchUnsplashImages(s) }}
+                    style={{
+                      display: 'inline-block', margin: '2px 4px', padding: '4px 10px',
+                      borderRadius: 20, fontSize: 11, border: '1px solid var(--sa-border)',
+                      background: 'var(--sa-bg-subtle)', color: 'var(--sa-text-secondary)',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#8b5cf620'; e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.color = '#8b5cf6' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--sa-bg-subtle)'; e.currentTarget.style.borderColor = 'var(--sa-border)'; e.currentTarget.style.color = 'var(--sa-text-secondary)' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Results grid */}
+            {imageChoices.length > 0 && (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--sa-text-tertiary)', marginBottom: 8 }}>
+                  {imageChoices.length} résultat{imageChoices.length > 1 ? 's' : ''} — Cliquez pour sélectionner
                 </div>
-              ))}
-            </div>
-            <p style={{ fontSize: 10, color: 'var(--sa-text-tertiary)', marginTop: 8 }}>Photos via Unsplash. Cliquez pour sélectionner.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, maxHeight: 420, overflowY: 'auto', padding: 2 }}>
+                  {imageChoices.map((img, i) => {
+                    const isSelected = (selectedPost as any)?.featured_image_url === img.url
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => handleSelectImage(img)}
+                        style={{
+                          cursor: 'pointer',
+                          borderRadius: 10,
+                          overflow: 'hidden',
+                          border: isSelected ? '3px solid #8b5cf6' : '2px solid transparent',
+                          transition: 'all 0.15s',
+                          position: 'relative',
+                          boxShadow: isSelected ? '0 0 0 2px rgba(139,92,246,0.3)' : undefined,
+                        }}
+                        onMouseEnter={e => { if (!isSelected) { (e.currentTarget as HTMLElement).style.transform = 'scale(1.02)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)' } }}
+                        onMouseLeave={e => { if (!isSelected) { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' } }}
+                      >
+                        <img src={img.thumb} alt={`Unsplash ${i + 1}`} style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }} loading="lazy" />
+                        <div style={{
+                          position: 'absolute', bottom: 0, left: 0, right: 0,
+                          background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                          padding: '16px 8px 6px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        }}>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)' }}>{img.author}</span>
+                          {isSelected && <span style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', background: 'rgba(0,0,0,0.4)', padding: '1px 6px', borderRadius: 4 }}>✓ Active</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* Empty state */}
+            {imageChoices.length === 0 && !fetchingImage && imageQuery.length >= 2 && (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--sa-text-tertiary)' }}>
+                <p style={{ fontSize: 14 }}>Aucune image trouvée pour « {imageQuery} »</p>
+                <p style={{ fontSize: 12, marginTop: 4 }}>Essayez des mots-clés différents ou en anglais pour plus de résultats</p>
+              </div>
+            )}
+
+            <p style={{ fontSize: 10, color: 'var(--sa-text-tertiary)', marginTop: 10 }}>
+              Photos via <strong>Unsplash</strong> — Recherche en direct, la saisie lance automatiquement la recherche
+            </p>
           </div>
         )}
 

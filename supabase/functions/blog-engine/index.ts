@@ -1,551 +1,23 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import type { BlogSettings, TopicSuggestion } from "./providers.ts";
+import { callAI, searchUnsplashImage } from "./providers.ts";
+import {
+  safeJsonParse,
+  slugify,
+  countWords,
+  computeSeoScore,
+  estimateCost,
+  buildArticleSystemPrompt,
+  buildTopicSystemPrompt,
+  doResearch,
+} from "./helpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-// ── Types ────────────────────────────────────────────────────────
-interface BlogSettings {
-  provider: string;
-  model: string;
-  language: string;
-  tone: string;
-  target_audience: string;
-  site_name: string;
-  site_url: string;
-  blog_base_url: string;
-  categories: string[];
-  seed_keywords: string[];
-  internal_links: { title: string; url: string }[];
-  cta_text: string;
-  cta_url: string;
-  anthropic_api_key: string | null;
-  gemini_api_key: string | null;
-  groq_api_key: string | null;
-  tavily_api_key: string | null;
-  unsplash_api_key: string | null;
-  research_enabled: boolean;
-  custom_prompt: string | null;
-}
-
-interface TopicSuggestion {
-  topic: string;
-  description: string;
-  keywords: string[];
-  category: string;
-  priority: number;
-}
-
-interface AIResponse {
-  text: string;
-  inputTokens: number;
-  outputTokens: number;
-  model: string;
-  provider: string;
-}
-
-interface SearchResult {
-  title: string;
-  description: string;
-  url: string;
-}
-
-// ── Provider abstraction ─────────────────────────────────────────
-async function callAI(
-  settings: BlogSettings,
-  systemPrompt: string,
-  userPrompt: string,
-  maxTokens = 4096,
-): Promise<AIResponse> {
-  const provider = settings.provider || "gemini";
-
-  switch (provider) {
-    case "gemini":
-      return callGemini(settings, systemPrompt, userPrompt, maxTokens);
-    case "groq":
-      return callGroq(settings, systemPrompt, userPrompt, maxTokens);
-    case "claude":
-      return callClaude(settings, systemPrompt, userPrompt, maxTokens);
-    default:
-      // Try in order: Gemini (free) → Groq (free) → Claude (paid)
-      if (settings.gemini_api_key) {
-        return callGemini(settings, systemPrompt, userPrompt, maxTokens);
-      }
-      if (settings.groq_api_key) {
-        return callGroq(settings, systemPrompt, userPrompt, maxTokens);
-      }
-      if (settings.anthropic_api_key) {
-        return callClaude(settings, systemPrompt, userPrompt, maxTokens);
-      }
-      throw new Error("Aucune clé API configurée. Ajoutez au moins une clé (Gemini gratuit recommandé).");
-  }
-}
-
-// ── Google Gemini (FREE: 1500 req/day, 1M tokens/day) ───────────
-async function callGemini(
-  settings: BlogSettings,
-  systemPrompt: string,
-  userPrompt: string,
-  maxTokens: number,
-): Promise<AIResponse> {
-  const apiKey = settings.gemini_api_key;
-  if (!apiKey) throw new Error("Clé API Gemini non configurée");
-
-  const model = settings.model?.startsWith("gemini")
-    ? settings.model
-    : "gemini-2.0-flash";
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts: [{ text: userPrompt }] }],
-        generationConfig: {
-          maxOutputTokens: maxTokens,
-          temperature: 0.7,
-        },
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const usage = data.usageMetadata || {};
-
-  return {
-    text,
-    inputTokens: usage.promptTokenCount || 0,
-    outputTokens: usage.candidatesTokenCount || 0,
-    model,
-    provider: "gemini",
-  };
-}
-
-// ── Groq (FREE: Llama 3.3 70B, 30 RPM) ─────────────────────────
-async function callGroq(
-  settings: BlogSettings,
-  systemPrompt: string,
-  userPrompt: string,
-  maxTokens: number,
-): Promise<AIResponse> {
-  const apiKey = settings.groq_api_key;
-  if (!apiKey) throw new Error("Clé API Groq non configurée");
-
-  const model = settings.model?.startsWith("llama") || settings.model?.startsWith("mixtral")
-    ? settings.model
-    : "llama-3.3-70b-versatile";
-
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Groq API ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return {
-    text: data.choices?.[0]?.message?.content || "",
-    inputTokens: data.usage?.prompt_tokens || 0,
-    outputTokens: data.usage?.completion_tokens || 0,
-    model,
-    provider: "groq",
-  };
-}
-
-// ── Claude (PAID) ────────────────────────────────────────────────
-async function callClaude(
-  settings: BlogSettings,
-  systemPrompt: string,
-  userPrompt: string,
-  maxTokens: number,
-): Promise<AIResponse> {
-  const apiKey = settings.anthropic_api_key;
-  if (!apiKey) throw new Error("Clé API Anthropic non configurée");
-
-  const model = settings.model?.startsWith("claude")
-    ? settings.model
-    : "claude-haiku-4-5-20251001";
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Claude API ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return {
-    text: data.content[0]?.text || "",
-    inputTokens: data.usage?.input_tokens || 0,
-    outputTokens: data.usage?.output_tokens || 0,
-    model,
-    provider: "claude",
-  };
-}
-
-// ── Tavily Search (FREE: 1000 req/month) ─────────────────────────
-async function searchWeb(
-  apiKey: string,
-  query: string,
-  count = 5,
-): Promise<SearchResult[]> {
-  const res = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: apiKey,
-      query,
-      max_results: count,
-      search_depth: "basic",
-      include_answer: false,
-    }),
-  });
-
-  if (!res.ok) {
-    console.error(`Tavily Search ${res.status}: ${await res.text()}`);
-    return [];
-  }
-
-  const data = await res.json();
-  return (data.results || []).map((r: any) => ({
-    title: r.title || "",
-    description: r.content || "",
-    url: r.url || "",
-  }));
-}
-
-// ── Unsplash Image Search ────────────────────────────────────────
-async function searchUnsplashImage(
-  apiKey: string,
-  query: string,
-): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
-      {
-        headers: { Authorization: `Client-ID ${apiKey}` },
-      },
-    );
-    if (!res.ok) {
-      console.error(`Unsplash API ${res.status}: ${await res.text()}`);
-      return null;
-    }
-    const data = await res.json();
-    const photo = data.results?.[0];
-    if (!photo) return null;
-    // Use regular size (1080px wide) and trigger download event per Unsplash guidelines
-    const imageUrl = photo.urls?.regular || photo.urls?.small || null;
-    // Trigger download endpoint (Unsplash API requirement)
-    if (photo.links?.download_location) {
-      fetch(`${photo.links.download_location}?client_id=${apiKey}`).catch(() => {});
-    }
-    return imageUrl;
-  } catch (err) {
-    console.error("Unsplash search error:", err);
-    return null;
-  }
-}
-
-// ── Helpers ──────────────────────────────────────────────────────
-
-/** Sanitize AI-generated JSON: only escape control characters INSIDE string values,
- *  preserving structural whitespace (newlines/tabs between JSON tokens). */
-function sanitizeJsonString(raw: string): string {
-  let s = raw.trim();
-  // Remove markdown code fences if present
-  if (s.startsWith("```")) {
-    s = s.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-  }
-  // State-machine: track whether we're inside a JSON string value
-  let result = "";
-  let inString = false;
-  let escaped = false;
-
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-    const code = s.charCodeAt(i);
-
-    if (escaped) {
-      result += ch;
-      escaped = false;
-      continue;
-    }
-
-    if (ch === "\\" && inString) {
-      result += ch;
-      escaped = true;
-      continue;
-    }
-
-    if (ch === '"') {
-      inString = !inString;
-      result += ch;
-      continue;
-    }
-
-    // Only escape control chars when inside a string value
-    if (inString && code >= 0 && code <= 0x1f) {
-      switch (ch) {
-        case "\n": result += "\\n"; break;
-        case "\r": result += "\\r"; break;
-        case "\t": result += "\\t"; break;
-        default: result += ""; break;
-      }
-    } else {
-      result += ch;
-    }
-  }
-
-  return result;
-}
-
-function safeJsonParse<T>(raw: string): T {
-  // Try direct parse first
-  try {
-    return JSON.parse(raw);
-  } catch {
-    // Sanitize and retry
-    const sanitized = sanitizeJsonString(raw);
-    try {
-      return JSON.parse(sanitized);
-    } catch {
-      // Try to extract JSON object or array
-      const objMatch = sanitized.match(/\{[\s\S]*\}/);
-      if (objMatch) return JSON.parse(objMatch[0]);
-      const arrMatch = sanitized.match(/\[[\s\S]*\]/);
-      if (arrMatch) return JSON.parse(arrMatch[0]);
-      throw new Error("Could not parse AI response as JSON: " + raw.slice(0, 300));
-    }
-  }
-}
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
-
-function countWords(text: string): number {
-  return text
-    .replace(/[#*_\[\]()>|`]/g, "")
-    .split(/\s+/)
-    .filter(Boolean).length;
-}
-
-function computeSeoScore(post: {
-  title: string;
-  meta_description: string;
-  content: string;
-  keywords: string[];
-}): number {
-  let score = 0;
-  const content = post.content.toLowerCase();
-  if (post.title.length >= 30 && post.title.length <= 65) score += 15;
-  else if (post.title.length > 0) score += 5;
-  if (post.meta_description.length >= 120 && post.meta_description.length <= 160) score += 15;
-  else if (post.meta_description.length > 0) score += 5;
-  if ((content.match(/^## /gm) || []).length >= 3) score += 15;
-  if (post.keywords.some((kw) => post.title.toLowerCase().includes(kw.toLowerCase()))) score += 15;
-  const kwHits = post.keywords.filter((kw) => content.includes(kw.toLowerCase())).length;
-  score += Math.min(15, kwHits * 5);
-  const words = countWords(post.content);
-  if (words >= 1500) score += 15;
-  else if (words >= 1000) score += 10;
-  else if (words >= 500) score += 5;
-  if (content.includes("anti-planning")) score += 5;
-  if (content.includes("## faq") || content.includes("## questions")) score += 5;
-  return Math.min(100, score);
-}
-
-function estimateCost(provider: string, model: string, inputTokens: number, outputTokens: number): number {
-  if (provider === "gemini" || provider === "groq") return 0; // FREE
-  const pricing: Record<string, { input: number; output: number }> = {
-    "claude-haiku-4-5-20251001": { input: 0.8, output: 4 },
-    "claude-sonnet-4-6": { input: 3, output: 15 },
-    "claude-opus-4-6": { input: 15, output: 75 },
-  };
-  const p = pricing[model] || pricing["claude-haiku-4-5-20251001"];
-  return (inputTokens * p.input + outputTokens * p.output) / 1_000_000;
-}
-
-// ── System Prompts ───────────────────────────────────────────────
-function buildArticleSystemPrompt(settings: BlogSettings, researchContext?: string, publishedArticles?: { title: string; slug: string; category: string }[]): string {
-  // Build internal links from both manual settings AND existing published articles
-  const manualLinks = settings.internal_links?.length > 0
-    ? settings.internal_links.map((l) => `- [${l.title}](${l.url})`)
-    : [];
-  const articleLinks = (publishedArticles || []).map((a) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`);
-  const allLinks = [...manualLinks, ...articleLinks];
-  const internalLinksText = allLinks.length > 0
-    ? `\nLIENS INTERNES À INTÉGRER NATURELLEMENT (insère 3-5 liens pertinents dans le corps de l'article) :\n${allLinks.join("\n")}`
-    : "";
-
-  const researchBlock = researchContext
-    ? `\n\nCONTEXTE DE RECHERCHE WEB (utilise ces données pour enrichir l'article avec des faits récents, statistiques et tendances) :\n${researchContext}\n`
-    : "";
-
-  return `Tu es un rédacteur SEO expert spécialisé dans le secteur de la formation professionnelle, de l'éducation et de la gestion de centres de formation en France.
-
-SITE: ${settings.site_name} (${settings.site_url}) — logiciel SaaS de planning intelligent pour centres de formation, écoles et organismes de formation.
-
-AUDIENCE CIBLE: ${settings.target_audience}
-
-TON: ${settings.tone === "expert" ? "Expert et autoritaire, avec des données et exemples concrets" : settings.tone === "professional" ? "Professionnel et informatif" : settings.tone === "casual" ? "Décontracté mais crédible" : "Amical et accessible"}
-
-LANGUE: ${settings.language === "fr" ? "Français" : "English"}
-${researchBlock}
-RÈGLES SEO STRICTES:
-1. Le titre (H1) doit contenir le mot-clé principal, entre 30 et 65 caractères
-2. La meta description doit faire 120-160 caractères, inclure le mot-clé et un appel à l'action
-3. Utiliser 4-6 sous-titres H2 avec des mots-clés secondaires
-4. Premier paragraphe : inclure le mot-clé principal dans les 100 premiers mots
-5. Densité de mots-clés : 1-2% naturellement
-6. Inclure une section FAQ avec 3-5 questions (balisage schema.org friendly)
-7. Article de 1500-2500 mots minimum
-8. Phrases courtes (max 20 mots en moyenne)
-9. Paragraphes courts (3-4 lignes max)
-10. Utiliser des listes à puces et des tableaux quand pertinent
-11. Ajouter un CTA vers ${settings.site_name} en conclusion
-12. Intégrer des données chiffrées et statistiques récentes quand disponibles
-13. Intégrer 2-3 SCHÉMAS MERMAID dans l'article pour illustrer visuellement les concepts clés
-${internalLinksText}
-
-RÈGLES DE RÉDACTION EN FRANÇAIS (OBLIGATOIRE) :
-- Ne PAS mettre de majuscule à chaque mot des titres et sous-titres : seule la première lettre du titre et les noms propres prennent une majuscule (ex: "Comment optimiser la gestion de votre centre" et NON "Comment Optimiser La Gestion De Votre Centre")
-- Utiliser les accents correctement (é, è, ê, à, ù, ç, etc.)
-- Respecter la typographie française : espace insécable avant ; : ! ? et guillemets « »
-- Utiliser "centre de formation" et non "Centre De Formation"
-- Les sigles restent en majuscules (CPF, OPCO, VAE, CFA, etc.)
-- Écrire les nombres en lettres jusqu'à dix, en chiffres au-delà
-- Préférer la voix active et le vouvoiement professionnel
-
-CTA PAR DÉFAUT: ${settings.cta_text} → ${settings.cta_url}
-${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALISÉES DU RÉDACTEUR EN CHEF :\n${settings.custom_prompt}\n` : ""}
-SCHÉMAS MERMAID (OBLIGATOIRE) :
-- Insère 2-3 blocs \`\`\`mermaid dans le contenu Markdown aux endroits stratégiques
-- Types possibles : flowchart (processus), graph (relations), pie (répartitions), timeline (chronologie), mindmap (concepts)
-- Les schémas doivent illustrer les concepts expliqués dans l'article
-- Garde les schémas simples (5-10 nœuds max) et lisibles
-- Utilise des labels en français
-- Exemple de bloc dans le contenu :
-\`\`\`mermaid
-flowchart LR
-    A[Étape 1] --> B[Étape 2] --> C[Résultat]
-\`\`\`
-
-FORMAT DE SORTIE (JSON strict):
-{
-  "title": "Titre SEO optimisé (H1)",
-  "meta_title": "Meta title pour Google (max 60 chars)",
-  "meta_description": "Meta description (120-160 chars)",
-  "excerpt": "Résumé accrocheur (2-3 phrases)",
-  "content": "Article complet en Markdown (H2, H3, listes, gras, liens, blocs mermaid)",
-  "keywords": ["mot-clé 1", "mot-clé 2", ...],
-  "featured_image_prompt": "Description pour générer une image de couverture (en anglais, style professionnel)"
-}
-
-IMPORTANT: Retourne UNIQUEMENT le JSON, sans backticks ni texte avant/après.`;
-}
-
-function buildTopicSystemPrompt(settings: BlogSettings, researchContext?: string): string {
-  const researchBlock = researchContext
-    ? `\n\nTENDANCES WEB ACTUELLES (base tes suggestions sur ces données récentes) :\n${researchContext}\n`
-    : "";
-
-  return `Tu es un stratège SEO expert spécialisé dans le secteur de la formation professionnelle et de l'éducation en France.
-
-SITE: ${settings.site_name} — logiciel SaaS de planning pour centres de formation.
-AUDIENCE: ${settings.target_audience}
-MOTS-CLÉS SEED: ${settings.seed_keywords.join(", ")}
-CATÉGORIES: ${settings.categories.join(", ")}
-${researchBlock}
-Ta mission : suggérer des sujets d'articles de blog qui vont :
-1. Cibler des requêtes long-tail avec un volume de recherche réaliste
-2. Répondre aux questions que se posent les directeurs de centres de formation
-3. Positionner ${settings.site_name} comme expert du secteur
-4. Couvrir les différentes étapes du parcours client (découverte → considération → décision)
-5. Traiter de l'actualité du secteur (Qualiopi, CPF, alternance, IA dans la formation)
-
-Pour chaque sujet, fournis :
-- Un titre provisoire optimisé SEO
-- Une description courte (1-2 phrases)
-- 3-5 mots-clés cibles
-- La catégorie
-- La priorité (1=basse, 10=haute)
-
-FORMAT JSON (array strict) :
-[
-  {
-    "topic": "Titre provisoire",
-    "description": "Description courte",
-    "keywords": ["kw1", "kw2", "kw3"],
-    "category": "catégorie",
-    "priority": 8
-  }
-]
-
-IMPORTANT: Retourne UNIQUEMENT le JSON array, sans backticks.`;
-}
-
-// ── Research helper ──────────────────────────────────────────────
-async function doResearch(settings: BlogSettings, query: string): Promise<string> {
-  if (!settings.research_enabled || !settings.tavily_api_key) return "";
-
-  try {
-    const results = await searchWeb(settings.tavily_api_key, query, 8);
-    if (results.length === 0) return "";
-
-    return results
-      .map((r, i) => `[${i + 1}] ${r.title}\n${r.description}\nSource: ${r.url}`)
-      .join("\n\n");
-  } catch (err) {
-    console.error("Research error:", err);
-    return "";
-  }
-}
 
 // ── Main handler ─────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
@@ -578,12 +50,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Check at least one API key is configured
     const hasKey = settings.gemini_api_key || settings.groq_api_key || settings.anthropic_api_key;
     if (!hasKey) {
       return new Response(
         JSON.stringify({
-          error: "Aucune clé API configurée. Ajoutez au moins une clé (Gemini gratuit recommandé) dans les paramètres du blog.",
+          error: "Aucune cl\u00E9 API configur\u00E9e. Ajoutez au moins une cl\u00E9 (Gemini gratuit recommand\u00E9) dans les param\u00E8tres du blog.",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -594,17 +65,16 @@ Deno.serve(async (req: Request) => {
       const count = body.count || 10;
       const existingTopics = body.existingTopics || [];
 
-      // Research trending topics
       const researchQuery = `${settings.seed_keywords.slice(0, 3).join(" ")} tendances 2025 2026 formation`;
       const researchContext = await doResearch(settings as BlogSettings, researchQuery);
 
       const systemPrompt = buildTopicSystemPrompt(settings as BlogSettings, researchContext);
-      const userPrompt = `Suggère ${count} sujets d'articles de blog uniques et pertinents.
-${existingTopics.length > 0 ? `\nSujets DÉJÀ traités (à éviter) :\n${existingTopics.map((t: string) => `- ${t}`).join("\n")}` : ""}
+      const userPrompt = `Sugg\u00E8re ${count} sujets d'articles de blog uniques et pertinents.
+${existingTopics.length > 0 ? `\nSujets D\u00C9J\u00C0 trait\u00E9s (\u00E0 \u00E9viter) :\n${existingTopics.map((t: string) => `- ${t}`).join("\n")}` : ""}
 
-Privilégie un mix entre :
+Privil\u00E9gie un mix entre :
 - Articles informatifs (guides, tutoriels, comparatifs)
-- Articles d'actualité (tendances 2025-2026, réglementations)
+- Articles d'actualit\u00E9 (tendances 2025-2026, r\u00E9glementations)
 - Articles de fond (transformation digitale, IA dans la formation)
 - Articles pratiques (checklists, templates, cas d'usage)`;
 
@@ -648,7 +118,6 @@ Privilégie un mix entre :
       await db.from("blog_topics").update({ status: "generating" }).eq("id", topicId);
 
       try {
-        // Step 1: Research the topic
         const researchQueries = [
           topic.topic,
           ...(topic.keywords || []).slice(0, 2).map((k: string) => `${k} formation France 2025`),
@@ -660,7 +129,6 @@ Privilégie un mix entre :
           if (results) researchContext += results + "\n\n";
         }
 
-        // Step 2: Fetch existing published articles for internal linking
         const { data: publishedArticles } = await db
           .from("blog_posts")
           .select("title, slug, category")
@@ -668,14 +136,13 @@ Privilégie un mix entre :
           .order("published_at", { ascending: false })
           .limit(50);
 
-        // Step 3: Generate article with research context + internal links
         const systemPrompt = buildArticleSystemPrompt(settings as BlogSettings, researchContext || undefined, publishedArticles || []);
-        const userPrompt = `Rédige un article de blog SEO complet sur le sujet suivant :
+        const userPrompt = `R\u00E9dige un article de blog SEO complet sur le sujet suivant :
 
 SUJET : ${topic.topic}
 ${topic.description ? `DESCRIPTION : ${topic.description}` : ""}
-MOTS-CLÉS CIBLES : ${(topic.keywords || []).join(", ")}
-CATÉGORIE : ${topic.category}
+MOTS-CL\u00C9S CIBLES : ${(topic.keywords || []).join(", ")}
+CAT\u00C9GORIE : ${topic.category}
 
 Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_description, excerpt, content, keywords, featured_image_prompt.`;
 
@@ -702,7 +169,6 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
         });
         const cost = estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens);
 
-        // Slug uniqueness check
         const baseSlug = slugify(article.title);
         let slug = baseSlug;
         let attempt = 0;
@@ -740,7 +206,6 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
 
         // Fetch Unsplash image if API key configured
         if (settings.unsplash_api_key && article.featured_image_prompt) {
-          // Use the AI-generated image prompt for better relevance, fallback to keywords
           const searchQuery = article.featured_image_prompt
             ? article.featured_image_prompt.slice(0, 100)
             : (article.keywords || []).slice(0, 2).join(" ") + " " + (topic.category || "education");
@@ -852,7 +317,7 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
         });
       }
 
-      const systemPrompt = `Tu es un auditeur SEO expert. Analyse l'article suivant et donne un audit détaillé avec des recommandations concrètes.
+      const systemPrompt = `Tu es un auditeur SEO expert. Analyse l'article suivant et donne un audit d\u00E9taill\u00E9 avec des recommandations concr\u00E8tes.
 
 Retourne un JSON :
 {
@@ -867,7 +332,7 @@ IMPORTANT: JSON uniquement.`;
       const result = await callAI(
         settings as BlogSettings,
         systemPrompt,
-        `Titre: ${post.title}\nMeta: ${post.meta_description}\nMots-clés: ${(post.keywords || []).join(", ")}\n\n${post.content}`,
+        `Titre: ${post.title}\nMeta: ${post.meta_description}\nMots-cl\u00E9s: ${(post.keywords || []).join(", ")}\n\n${post.content}`,
         2048,
       );
 
@@ -914,59 +379,59 @@ IMPORTANT: JSON uniquement.`;
         .limit(50);
 
       const articleLinksText = (publishedArticles || []).length > 0
-        ? `\nARTICLES PUBLIÉS DISPONIBLES POUR LE MAILLAGE INTERNE (insère 3-5 liens pertinents) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`).join("\n")}`
+        ? `\nARTICLES PUBLI\u00C9S DISPONIBLES POUR LE MAILLAGE INTERNE (ins\u00E8re 3-5 liens pertinents) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`).join("\n")}`
         : "";
 
       const issuesText = (audit.issues || [])
-        .map((i) => `- [${i.severity}] ${i.message} → Correction: ${i.fix}`)
+        .map((i) => `- [${i.severity}] ${i.message} \u2192 Correction: ${i.fix}`)
         .join("\n");
 
       const recsText = (audit.recommendations || [])
         .map((r) => `- ${r}`)
         .join("\n");
 
-      const systemPrompt = `Tu es un rédacteur SEO expert. Tu dois améliorer un article existant en appliquant les corrections issues d'un audit SEO.
+      const systemPrompt = `Tu es un r\u00E9dacteur SEO expert. Tu dois am\u00E9liorer un article existant en appliquant les corrections issues d'un audit SEO.
 
-RÈGLES:
+R\u00C8GLES:
 1. Applique TOUTES les corrections et recommandations de l'audit
-2. Conserve le style, le ton et la structure générale de l'article
-3. Ne raccourcis PAS l'article — garde au minimum le même nombre de mots
-4. Améliore les titres, paragraphes et mots-clés selon les recommandations
-5. Si l'audit mentionne la meta description ou le titre, améliore-les aussi
-6. Conserve les blocs \`\`\`mermaid existants et ajoute-en 1-2 de plus si l'article n'en contient pas (flowchart, graph, pie, timeline — en français, 5-10 nœuds max)
-7. RESPECTE les normes de rédaction française : pas de majuscule à chaque mot dans les titres (seule la première lettre + noms propres), accents corrects, voix active, vouvoiement
-8. MAILLAGE INTERNE : intègre naturellement 3-5 liens vers les articles publiés listés ci-dessous, en utilisant des ancres contextuelles pertinentes
-${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALISÉES :\n${settings.custom_prompt}` : ""}
+2. Conserve le style, le ton et la structure g\u00E9n\u00E9rale de l'article
+3. Ne raccourcis PAS l'article \u2014 garde au minimum le m\u00EAme nombre de mots
+4. Am\u00E9liore les titres, paragraphes et mots-cl\u00E9s selon les recommandations
+5. Si l'audit mentionne la meta description ou le titre, am\u00E9liore-les aussi
+6. Conserve les blocs \`\`\`mermaid existants et ajoute-en 1-2 de plus si l'article n'en contient pas (flowchart, graph, pie, timeline \u2014 en fran\u00E7ais, 5-10 n\u0153uds max)
+7. RESPECTE les normes de r\u00E9daction fran\u00E7aise : pas de majuscule \u00E0 chaque mot dans les titres (seule la premi\u00E8re lettre + noms propres), accents corrects, voix active, vouvoiement
+8. MAILLAGE INTERNE : int\u00E8gre naturellement 3-5 liens vers les articles publi\u00E9s list\u00E9s ci-dessous, en utilisant des ancres contextuelles pertinentes
+${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALIS\u00C9ES :\n${settings.custom_prompt}` : ""}
 ${articleLinksText}
 
 FORMAT DE SORTIE (JSON strict):
 {
-  "title": "Titre amélioré",
-  "meta_description": "Meta description améliorée (120-160 chars)",
-  "content": "Article complet amélioré en Markdown",
-  "keywords": ["mot-clé 1", "mot-clé 2", ...]
+  "title": "Titre am\u00E9lior\u00E9",
+  "meta_description": "Meta description am\u00E9lior\u00E9e (120-160 chars)",
+  "content": "Article complet am\u00E9lior\u00E9 en Markdown",
+  "keywords": ["mot-cl\u00E9 1", "mot-cl\u00E9 2", ...]
 }
 
-IMPORTANT: Retourne UNIQUEMENT le JSON, sans backticks ni texte avant/après.`;
+IMPORTANT: Retourne UNIQUEMENT le JSON, sans backticks ni texte avant/apr\u00E8s.`;
 
-      const userPrompt = `Voici l'article à améliorer :
+      const userPrompt = `Voici l'article \u00E0 am\u00E9liorer :
 
 TITRE ACTUEL : ${post.title}
 META DESCRIPTION : ${post.meta_description || ""}
-MOTS-CLÉS : ${(post.keywords || []).join(", ")}
+MOTS-CL\u00C9S : ${(post.keywords || []).join(", ")}
 
 CONTENU ACTUEL :
 ${post.content}
 
 ---
 
-AUDIT SEO — PROBLÈMES À CORRIGER :
-${issuesText || "Aucun problème critique."}
+AUDIT SEO \u2014 PROBL\u00C8MES \u00C0 CORRIGER :
+${issuesText || "Aucun probl\u00E8me critique."}
 
 RECOMMANDATIONS :
-${recsText || "Aucune recommandation supplémentaire."}
+${recsText || "Aucune recommandation suppl\u00E9mentaire."}
 
-Applique toutes les corrections et retourne l'article amélioré en JSON.`;
+Applique toutes les corrections et retourne l'article am\u00E9lior\u00E9 en JSON.`;
 
       const result = await callAI(settings as BlogSettings, systemPrompt, userPrompt, 8192);
 
@@ -980,8 +445,23 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
       try {
         improved = safeJsonParse(result.text);
       } catch (parseErr) {
-        console.error("Failed to parse improve-article response:", parseErr, result.text?.slice(0, 500));
-        throw new Error("L'IA a retourné une réponse invalide. Réessayez.");
+        console.error("Failed to parse improve-article response:", parseErr, "Raw (first 1000):", result.text?.slice(0, 1000));
+        // Fallback: try to extract fields individually via regex
+        const titleMatch = result.text?.match(/"title"\s*:\s*"([^"]+)"/);
+        const metaMatch = result.text?.match(/"meta_description"\s*:\s*"([^"]+)"/);
+        const kwMatch = result.text?.match(/"keywords"\s*:\s*\[([^\]]+)\]/);
+        const contentMatch = result.text?.match(/"content"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"(?:keywords|title|meta_description)"|}\s*$)/);
+        if (titleMatch || contentMatch) {
+          improved = {
+            title: titleMatch?.[1] || post.title,
+            meta_description: metaMatch?.[1] || post.meta_description || "",
+            content: contentMatch?.[1]?.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\") || post.content,
+            keywords: kwMatch ? kwMatch[1].split(",").map((k: string) => k.trim().replace(/^"|"$/g, "")) : post.keywords || [],
+          };
+          console.log("Recovered improve-article via regex fallback");
+        } else {
+          throw new Error("L'IA a retourn\u00E9 une r\u00E9ponse invalide (JSON non parsable). R\u00E9essayez.");
+        }
       }
 
       // Fallback: use original values if AI didn't return them
@@ -1015,7 +495,10 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
         .select()
         .single();
 
-      if (updateErr) throw updateErr;
+      if (updateErr) {
+        console.error("improve-article DB update failed:", updateErr);
+        throw new Error(`DB update failed: ${updateErr.message || JSON.stringify(updateErr)}`);
+      }
 
       await db.from("blog_generation_logs").insert({
         action: "improve-article",
@@ -1033,7 +516,7 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
           issuesFixed: audit.issues?.length || 0,
           provider: result.provider,
         },
-      });
+      }).then(() => {}, (e: any) => console.error("improve-article log insert failed:", e));
 
       return new Response(JSON.stringify({ post: updatedPost }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1051,7 +534,6 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
         });
       }
 
-      // Fetch all published articles except this one
       const { data: publishedArticles } = await db
         .from("blog_posts")
         .select("title, slug, category, keywords")
@@ -1061,42 +543,40 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
         .limit(50);
 
       if (!publishedArticles?.length) {
-        return new Response(JSON.stringify({ post, linksAdded: 0, message: "Aucun autre article publié pour le maillage." }), {
+        return new Response(JSON.stringify({ post, linksAdded: 0, message: "Aucun autre article publi\u00E9 pour le maillage." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Find which articles are already linked in the content
-      const alreadyLinked = (publishedArticles || []).filter((a: any) => post.content.includes(a.slug));
       const notLinked = (publishedArticles || []).filter((a: any) => !post.content.includes(a.slug));
 
       if (notLinked.length === 0) {
-        return new Response(JSON.stringify({ post, linksAdded: 0, message: "Tous les articles sont déjà liés." }), {
+        return new Response(JSON.stringify({ post, linksAdded: 0, message: "Tous les articles sont d\u00E9j\u00E0 li\u00E9s." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       const manualLinks = (settings.internal_links || []).map((l: any) => `- [${l.title}](${l.url})`);
-      const newArticleLinks = notLinked.map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug}) [catégorie: ${a.category}]`);
+      const newArticleLinks = notLinked.map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug}) [cat\u00E9gorie: ${a.category}]`);
 
-      const systemPrompt = `Tu es un rédacteur SEO expert. Tu dois mettre à jour un article existant en y intégrant NATURELLEMENT des liens internes vers de nouveaux articles du même blog.
+      const systemPrompt = `Tu es un r\u00E9dacteur SEO expert. Tu dois mettre \u00E0 jour un article existant en y int\u00E9grant NATURELLEMENT des liens internes vers de nouveaux articles du m\u00EAme blog.
 
-RÈGLES STRICTES :
-1. NE MODIFIE PAS le texte existant — garde le contenu identique à 99%
-2. Intègre 2-5 liens internes NOUVEAUX aux endroits les plus pertinents du texte
-3. Utilise des ancres contextuelles naturelles (pas de "cliquez ici" mais le sujet du lien intégré dans une phrase)
-4. Privilégie les liens vers des articles de la même catégorie ou avec des mots-clés communs
-5. Ne touche PAS aux liens déjà présents dans l'article
-6. RESPECTE les normes de rédaction française
-${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALISÉES :\n${settings.custom_prompt}` : ""}
+R\u00C8GLES STRICTES :
+1. NE MODIFIE PAS le texte existant \u2014 garde le contenu identique \u00E0 99%
+2. Int\u00E8gre 2-5 liens internes NOUVEAUX aux endroits les plus pertinents du texte
+3. Utilise des ancres contextuelles naturelles (pas de "cliquez ici" mais le sujet du lien int\u00E9gr\u00E9 dans une phrase)
+4. Privil\u00E9gie les liens vers des articles de la m\u00EAme cat\u00E9gorie ou avec des mots-cl\u00E9s communs
+5. Ne touche PAS aux liens d\u00E9j\u00E0 pr\u00E9sents dans l'article
+6. RESPECTE les normes de r\u00E9daction fran\u00E7aise
+${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALIS\u00C9ES :\n${settings.custom_prompt}` : ""}
 
-NOUVEAUX ARTICLES À LIER :
+NOUVEAUX ARTICLES \u00C0 LIER :
 ${newArticleLinks.join("\n")}
 ${manualLinks.length > 0 ? `\nLIENS MANUELS :\n${manualLinks.join("\n")}` : ""}
 
 FORMAT DE SORTIE (JSON strict) :
 {
-  "content": "Article complet avec les nouveaux liens intégrés",
+  "content": "Article complet avec les nouveaux liens int\u00E9gr\u00E9s",
   "links_added": 3
 }
 
@@ -1105,7 +585,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON.`;
       const result = await callAI(
         settings as BlogSettings,
         systemPrompt,
-        `ARTICLE ACTUEL :\n\nTITRE : ${post.title}\nCATÉGORIE : ${post.category}\nMOTS-CLÉS : ${(post.keywords || []).join(", ")}\n\nCONTENU :\n${post.content}`,
+        `ARTICLE ACTUEL :\n\nTITRE : ${post.title}\nCAT\u00C9GORIE : ${post.category}\nMOTS-CL\u00C9S : ${(post.keywords || []).join(", ")}\n\nCONTENU :\n${post.content}`,
         8192,
       );
 
@@ -1113,7 +593,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON.`;
       try {
         updated = safeJsonParse(result.text);
       } catch {
-        throw new Error("L'IA a retourné une réponse invalide pour la mise à jour des liens.");
+        throw new Error("L'IA a retourn\u00E9 une r\u00E9ponse invalide pour la mise \u00E0 jour des liens.");
       }
 
       if (!updated.content) updated.content = post.content;
