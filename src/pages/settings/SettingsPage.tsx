@@ -3,7 +3,7 @@ import { Button, Input, Select, HelpBanner } from '@/components/ui'
 import {
   Settings, Bell, Monitor, Save, LogOut, User, HelpCircle,
   GraduationCap, Mail, BookOpen, Video, Link as LinkIcon, Clock,
-  Plus, X, Tag,
+  Plus, X, Tag, Share2,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { navigateTo } from '@/utils/navigation'
@@ -639,6 +639,24 @@ function SettingsPage({ onLogout, onNavigate }: SettingsPageProps) {
                   onChange={v => updateCenterSettings({ allow_multi_room: v })}
                   label="Plusieurs salles par séance"
                   description="Permet d'attribuer plusieurs salles à une même séance (examens, événements)"
+                />
+              </div>
+            </div>
+
+            {/* Détail séance */}
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-lg">
+                  <Share2 size={20} className="text-violet-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Détail des séances</h3>
+              </div>
+              <div className="space-y-4">
+                <Toggle
+                  checked={centerSettings.show_session_sharing !== false}
+                  onChange={v => updateCenterSettings({ show_session_sharing: v })}
+                  label="Section partage dans le détail"
+                  description="Affiche les boutons de partage (Email, WhatsApp) dans la fenêtre de détail d'une séance du calendrier"
                 />
               </div>
             </div>

@@ -72,6 +72,8 @@ export interface CenterSettings {
   // Gestion des salles
   room_optional?: boolean       // Salle non obligatoire pour créer une séance
   allow_multi_room?: boolean    // Permettre plusieurs salles par séance
+  // Affichage séance (détail calendrier)
+  show_session_sharing?: boolean  // Afficher la section "Partager" dans le détail séance (default true)
 }
 
 export const EMAIL_POLICY_DEFAULTS: Required<Pick<CenterSettings,

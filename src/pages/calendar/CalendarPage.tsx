@@ -1141,7 +1141,7 @@ function CalendarPage() {
             )}
 
             {/* ─── Partage ─── */}
-            <div className="border-t border-neutral-200 dark:border-neutral-700 pt-3">
+            {(centerSettings.show_session_sharing !== false) && <div className="border-t border-neutral-200 dark:border-neutral-700 pt-3">
               <div className="flex items-center gap-2 mb-2">
                 <Share2 size={14} className="text-neutral-400" />
                 <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Partager</span>
@@ -1182,7 +1182,7 @@ function CalendarPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </div>}
 
             {/* Cancel confirmation */}
             {showCancelConfirm && (

@@ -605,10 +605,11 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         {/* Prochaine séance mise en avant */}
         {studentData.nextSession && (
-          <div className="card border-l-4 border-l-primary-600 mb-8">
+          <button onClick={() => onNavigate?.('/planning')} className="w-full text-left card border-l-4 border-l-primary-600 mb-8 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center gap-3 mb-2">
               <GraduationCap size={20} className="text-primary-600" />
               <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaine séance</h2>
+              <ChevronRight size={16} className="ml-auto text-neutral-400" />
             </div>
             <div className="flex items-center gap-6">
               <div>
@@ -626,7 +627,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 </p>
               </div>
             </div>
-          </div>
+          </button>
         )}
 
         {/* Upcoming evaluations */}
@@ -673,9 +674,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 <p className="text-sm text-neutral-400 text-center py-6">Aucune séance à venir</p>
               ) : (
                 studentData.upcoming.slice(0, 5).map((b) => (
-                  <div
+                  <button
                     key={b.id}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    onClick={() => onNavigate?.('/planning')}
+                    className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer text-left"
                   >
                     <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 w-14 shrink-0">
                       {format(new Date(b.startDateTime), 'HH:mm')}
@@ -691,7 +693,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                     }`}>
                       {STATUS_LABELS[b.status] || b.status}
                     </span>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
@@ -923,10 +925,11 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         {/* Prochaine séance mise en avant */}
         {teacherData.nextSession && (
-          <div className="card border-l-4 border-l-primary-600 mb-8">
+          <button onClick={() => onNavigate?.('/planning')} className="w-full text-left card border-l-4 border-l-primary-600 mb-8 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center gap-3 mb-2">
               <GraduationCap size={20} className="text-primary-600" />
               <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaine séance</h2>
+              <ChevronRight size={16} className="ml-auto text-neutral-400" />
             </div>
             <div className="flex items-center gap-6">
               <div>
@@ -944,7 +947,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 </p>
               </div>
             </div>
-          </div>
+          </button>
         )}
 
         {/* Two columns: upcoming + subjects/classes */}
@@ -975,9 +978,10 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 <p className="text-sm text-neutral-400 text-center py-6">Aucune séance à venir</p>
               ) : (
                 teacherData.upcoming.slice(0, 5).map((b) => (
-                  <div
+                  <button
                     key={b.id}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    onClick={() => onNavigate?.('/planning')}
+                    className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer text-left"
                   >
                     <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 w-14 shrink-0">
                       {format(new Date(b.startDateTime), 'HH:mm')}
@@ -993,7 +997,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                     }`}>
                       {STATUS_LABELS[b.status] || b.status}
                     </span>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
