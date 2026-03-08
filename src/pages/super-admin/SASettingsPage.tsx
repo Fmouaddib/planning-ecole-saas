@@ -110,27 +110,29 @@ export const SASettingsPage = () => {
     setSavingBlog(true)
     setSavedBlog(false)
     try {
-      await SABlogService.updateSettings({
-        provider: blogForm.provider,
-        auto_generate: blogForm.auto_generate,
-        generation_frequency: blogForm.generation_frequency,
-        posts_per_batch: blogForm.posts_per_batch,
-        model: blogForm.model,
-        tone: blogForm.tone,
-        target_audience: blogForm.target_audience,
-        site_name: blogForm.site_name,
-        site_url: blogForm.site_url,
-        blog_base_url: blogForm.blog_base_url,
-        cta_text: blogForm.cta_text,
-        cta_url: blogForm.cta_url,
-        seed_keywords: blogForm.seed_keywords,
-        categories: blogForm.categories,
-        anthropic_api_key: blogForm.anthropic_api_key,
-        gemini_api_key: blogForm.gemini_api_key,
-        groq_api_key: blogForm.groq_api_key,
-        tavily_api_key: blogForm.tavily_api_key,
-        research_enabled: blogForm.research_enabled,
-      } as Partial<BlogSettings>)
+      // Filter out undefined values to avoid Supabase rejecting the update
+      const patch: Record<string, any> = {
+        provider: blogForm.provider ?? 'gemini',
+        auto_generate: blogForm.auto_generate ?? false,
+        generation_frequency: blogForm.generation_frequency ?? 'weekly',
+        posts_per_batch: blogForm.posts_per_batch ?? 2,
+        model: blogForm.model ?? 'gemini-2.0-flash',
+        tone: blogForm.tone ?? 'professional',
+        target_audience: blogForm.target_audience ?? '',
+        site_name: blogForm.site_name ?? '',
+        site_url: blogForm.site_url ?? '',
+        blog_base_url: blogForm.blog_base_url ?? '',
+        cta_text: blogForm.cta_text ?? '',
+        cta_url: blogForm.cta_url ?? '',
+        seed_keywords: blogForm.seed_keywords ?? [],
+        categories: blogForm.categories ?? [],
+        anthropic_api_key: blogForm.anthropic_api_key ?? null,
+        gemini_api_key: blogForm.gemini_api_key ?? null,
+        groq_api_key: blogForm.groq_api_key ?? null,
+        tavily_api_key: blogForm.tavily_api_key ?? null,
+        research_enabled: blogForm.research_enabled ?? true,
+      }
+      await SABlogService.updateSettings(patch as Partial<BlogSettings>)
       setSavedBlog(true)
       toast.success('Paramètres blog sauvegardés')
       setTimeout(() => setSavedBlog(false), 3000)
