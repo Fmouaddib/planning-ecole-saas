@@ -257,6 +257,7 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
   const [saving, setSaving] = useState(false)
   const [auditResult, setAuditResult] = useState<SeoAudit | null>(null)
   const [auditing, setAuditing] = useState(false)
+  const [improving, setImproving] = useState(false)
 
   const filtered = filter
     ? posts.filter(p => p.status === filter)
@@ -316,6 +317,25 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     }
   }
 
+  const handleImprove = async () => {
+    if (!selectedPost || !auditResult) return
+    setImproving(true)
+    try {
+      const improved = await SABlogService.improveArticle(selectedPost.id, auditResult)
+      setSelectedPost(improved)
+      setEditTitle(improved.title)
+      setEditContent(improved.content)
+      setEditMeta(improved.meta_description || '')
+      setAuditResult(null)
+      toast.success(`Article amélioré ! Score SEO : ${improved.seo_score}`)
+      onRefresh()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setImproving(false)
+    }
+  }
+
   if (selectedPost) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -336,18 +356,38 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
         {/* SEO Audit result */}
         {auditResult && (
           <div className="sa-card" style={{ borderLeft: `4px solid ${auditResult.score >= 70 ? '#22c55e' : '#f59e0b'}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <span style={{ fontSize: '1.8rem', fontWeight: 700, color: auditResult.score >= 70 ? '#22c55e' : '#f59e0b' }}>{auditResult.score}/100</span>
-              <span style={{ fontSize: 14, color: 'var(--sa-text-secondary)' }}>Score SEO IA</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: '1.8rem', fontWeight: 700, color: auditResult.score >= 70 ? '#22c55e' : '#f59e0b' }}>{auditResult.score}/100</span>
+                <span style={{ fontSize: 14, color: 'var(--sa-text-secondary)' }}>Score SEO IA</span>
+              </div>
+              {(auditResult.issues.length > 0 || auditResult.recommendations.length > 0) && (
+                <button
+                  className="sa-btn sa-btn-primary"
+                  onClick={handleImprove}
+                  disabled={improving}
+                  style={{ fontSize: 13 }}
+                >
+                  {improving ? '⏳ Amélioration IA en cours...' : '✨ Appliquer les améliorations (IA)'}
+                </button>
+              )}
             </div>
             {auditResult.issues.length > 0 && (
               <div style={{ marginBottom: 12 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--sa-text-secondary)', marginBottom: 4 }}>Problèmes :</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--sa-text-secondary)', marginBottom: 4 }}>Problèmes ({auditResult.issues.length}) :</p>
                 {auditResult.issues.map((issue, i) => (
                   <div key={i} style={{ fontSize: 12, marginBottom: 4, color: 'var(--sa-text-primary)' }}>
                     <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6, background: issue.severity === 'critical' ? '#ef4444' : issue.severity === 'warning' ? '#f59e0b' : '#3b82f6' }} />
                     {issue.message} → <em style={{ color: 'var(--sa-text-tertiary)' }}>{issue.fix}</em>
                   </div>
+                ))}
+              </div>
+            )}
+            {auditResult.recommendations.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--sa-text-secondary)', marginBottom: 4 }}>Recommandations ({auditResult.recommendations.length}) :</p>
+                {auditResult.recommendations.map((r, i) => (
+                  <p key={i} style={{ fontSize: 12, color: '#3b82f6', marginBottom: 2 }}>💡 {r}</p>
                 ))}
               </div>
             )}

@@ -274,6 +274,14 @@ export class SABlogService {
     return data?.audit as SeoAudit
   }
 
+  static async improveArticle(postId: string, audit: SeoAudit): Promise<BlogPost> {
+    const { data, error } = await supabase.functions.invoke('blog-engine', {
+      body: { action: 'improve-article', postId, audit },
+    })
+    if (error) throw error
+    return data?.post as BlogPost
+  }
+
   // Stats
   static async getStats(): Promise<{
     totalPosts: number

@@ -252,6 +252,78 @@ async function searchWeb(
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
+
+/** Sanitize AI-generated JSON: only escape control characters INSIDE string values,
+ *  preserving structural whitespace (newlines/tabs between JSON tokens). */
+function sanitizeJsonString(raw: string): string {
+  let s = raw.trim();
+  // Remove markdown code fences if present
+  if (s.startsWith("```")) {
+    s = s.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+  }
+  // State-machine: track whether we're inside a JSON string value
+  let result = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    const code = s.charCodeAt(i);
+
+    if (escaped) {
+      result += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (ch === "\\" && inString) {
+      result += ch;
+      escaped = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+
+    // Only escape control chars when inside a string value
+    if (inString && code >= 0 && code <= 0x1f) {
+      switch (ch) {
+        case "\n": result += "\\n"; break;
+        case "\r": result += "\\r"; break;
+        case "\t": result += "\\t"; break;
+        default: result += ""; break;
+      }
+    } else {
+      result += ch;
+    }
+  }
+
+  return result;
+}
+
+function safeJsonParse<T>(raw: string): T {
+  // Try direct parse first
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // Sanitize and retry
+    const sanitized = sanitizeJsonString(raw);
+    try {
+      return JSON.parse(sanitized);
+    } catch {
+      // Try to extract JSON object or array
+      const objMatch = sanitized.match(/\{[\s\S]*\}/);
+      if (objMatch) return JSON.parse(objMatch[0]);
+      const arrMatch = sanitized.match(/\[[\s\S]*\]/);
+      if (arrMatch) return JSON.parse(arrMatch[0]);
+      throw new Error("Could not parse AI response as JSON: " + raw.slice(0, 300));
+    }
+  }
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -422,14 +494,6 @@ Deno.serve(async (req: Request) => {
   const startTime = Date.now();
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const db = createClient(supabaseUrl, serviceRoleKey, {
@@ -484,14 +548,7 @@ Privilégie un mix entre :
 
       const result = await callAI(settings as BlogSettings, systemPrompt, userPrompt, 2048);
 
-      let suggestions: TopicSuggestion[];
-      try {
-        suggestions = JSON.parse(result.text);
-      } catch {
-        const match = result.text.match(/\[[\s\S]*\]/);
-        if (match) suggestions = JSON.parse(match[0]);
-        else throw new Error("Invalid JSON from AI: " + result.text.slice(0, 200));
-      }
+      const suggestions: TopicSuggestion[] = safeJsonParse<TopicSuggestion[]>(result.text);
 
       await db.from("blog_generation_logs").insert({
         action: "suggest-topics",
@@ -564,13 +621,7 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
           featured_image_prompt: string;
         };
 
-        try {
-          article = JSON.parse(result.text);
-        } catch {
-          const match = result.text.match(/\{[\s\S]*\}/);
-          if (match) article = JSON.parse(match[0]);
-          else throw new Error("Invalid JSON article: " + result.text.slice(0, 300));
-        }
+        article = safeJsonParse(result.text);
 
         const wordCount = countWords(article.content);
         const seoScore = computeSeoScore({
@@ -680,7 +731,7 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
           const innerRes = await fetch(`${supabaseUrl}/functions/v1/blog-engine`, {
             method: "POST",
             headers: {
-              Authorization: authHeader,
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""}`,
               "Content-Type": "application/json",
               apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
             },
@@ -739,11 +790,9 @@ IMPORTANT: JSON uniquement.`;
 
       let audit;
       try {
-        audit = JSON.parse(result.text);
+        audit = safeJsonParse(result.text);
       } catch {
-        const match = result.text.match(/\{[\s\S]*\}/);
-        if (match) audit = JSON.parse(match[0]);
-        else audit = { score: 0, issues: [], strengths: [], recommendations: [] };
+        audit = { score: 0, issues: [], strengths: [], recommendations: [] };
       }
 
       if (audit.score) {
@@ -755,8 +804,131 @@ IMPORTANT: JSON uniquement.`;
       });
     }
 
+    // ── ACTION: improve-article ──────────────────────────────────
+    if (action === "improve-article") {
+      const postId = body.postId as string;
+      const audit = body.audit as {
+        issues: { severity: string; message: string; fix: string }[];
+        recommendations: string[];
+      };
+
+      const { data: post } = await db.from("blog_posts").select("*").eq("id", postId).single();
+
+      if (!post) {
+        return new Response(JSON.stringify({ error: "Post not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const issuesText = (audit.issues || [])
+        .map((i) => `- [${i.severity}] ${i.message} → Correction: ${i.fix}`)
+        .join("\n");
+
+      const recsText = (audit.recommendations || [])
+        .map((r) => `- ${r}`)
+        .join("\n");
+
+      const systemPrompt = `Tu es un rédacteur SEO expert. Tu dois améliorer un article existant en appliquant les corrections issues d'un audit SEO.
+
+RÈGLES:
+1. Applique TOUTES les corrections et recommandations de l'audit
+2. Conserve le style, le ton et la structure générale de l'article
+3. Ne raccourcis PAS l'article — garde au minimum le même nombre de mots
+4. Améliore les titres, paragraphes et mots-clés selon les recommandations
+5. Si l'audit mentionne la meta description ou le titre, améliore-les aussi
+
+FORMAT DE SORTIE (JSON strict):
+{
+  "title": "Titre amélioré",
+  "meta_description": "Meta description améliorée (120-160 chars)",
+  "content": "Article complet amélioré en Markdown",
+  "keywords": ["mot-clé 1", "mot-clé 2", ...]
+}
+
+IMPORTANT: Retourne UNIQUEMENT le JSON, sans backticks ni texte avant/après.`;
+
+      const userPrompt = `Voici l'article à améliorer :
+
+TITRE ACTUEL : ${post.title}
+META DESCRIPTION : ${post.meta_description || ""}
+MOTS-CLÉS : ${(post.keywords || []).join(", ")}
+
+CONTENU ACTUEL :
+${post.content}
+
+---
+
+AUDIT SEO — PROBLÈMES À CORRIGER :
+${issuesText || "Aucun problème critique."}
+
+RECOMMANDATIONS :
+${recsText || "Aucune recommandation supplémentaire."}
+
+Applique toutes les corrections et retourne l'article amélioré en JSON.`;
+
+      const result = await callAI(settings as BlogSettings, systemPrompt, userPrompt, 8192);
+
+      let improved: {
+        title: string;
+        meta_description: string;
+        content: string;
+        keywords: string[];
+      };
+
+      improved = safeJsonParse(result.text);
+
+      const wordCount = countWords(improved.content);
+      const seoScore = computeSeoScore({
+        title: improved.title,
+        meta_description: improved.meta_description || "",
+        content: improved.content,
+        keywords: improved.keywords || post.keywords || [],
+      });
+      const cost = estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens);
+
+      const { data: updatedPost, error: updateErr } = await db
+        .from("blog_posts")
+        .update({
+          title: improved.title,
+          meta_description: improved.meta_description,
+          content: improved.content,
+          keywords: improved.keywords || post.keywords,
+          word_count: wordCount,
+          reading_time_min: Math.max(1, Math.round(wordCount / 220)),
+          seo_score: seoScore,
+        })
+        .eq("id", postId)
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
+
+      await db.from("blog_generation_logs").insert({
+        action: "improve-article",
+        post_id: postId,
+        model: `${result.provider}/${result.model}`,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
+        cost_estimate: cost,
+        duration_ms: Date.now() - startTime,
+        status: "success",
+        metadata: {
+          wordCount,
+          seoScore,
+          previousScore: post.seo_score,
+          issuesFixed: audit.issues?.length || 0,
+          provider: result.provider,
+        },
+      });
+
+      return new Response(JSON.stringify({ post: updatedPost }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(
-      JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo` }),
+      JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo, improve-article` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
