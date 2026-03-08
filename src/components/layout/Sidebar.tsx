@@ -23,6 +23,7 @@ import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
 import { SidebarCalendar } from './SidebarCalendar'
 import { useSubscriptionInfo } from '@/hooks/useSubscriptionInfo'
+import { useFeatureGate } from '@/hooks/useFeatureGate'
 import { useChatUnread } from '@/hooks/useChat'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { getActiveContext } from '@/utils/userContext'
@@ -65,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { plan } = useSubscriptionInfo()
   const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
+  const { hasAttendance, hasGrades } = useFeatureGate()
   const chatUnread = useChatUnread()
   const { contexts, switchContext } = useAuthContext()
   const activeCtx = getActiveContext()
@@ -160,20 +162,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       group: 'gestion',
     },
     // --- Fonctionnalités (refermé par défaut) ---
-    {
+    // Présences : visible pour admin/staff toujours, pour teacher/student seulement si addon actif
+    ...((hasAttendance || isDemoMode || (!isTeacherRole(userRole) && !isStudentRole(userRole))) ? [{
       icon: ClipboardCheck,
       label: isStudentRole(userRole) ? 'Mes présences' : isTeacherRole(userRole) ? 'Appel' : 'Présences',
       href: '/attendance',
       active: currentPath === '/attendance',
       group: 'fonctionnalites',
-    },
-    {
+    }] : []),
+    // Notes : visible pour admin/staff toujours, pour teacher/student seulement si addon actif
+    ...((hasGrades || isDemoMode || (!isTeacherRole(userRole) && !isStudentRole(userRole))) ? [{
       icon: FileBarChart,
       label: isStudentRole(userRole) ? 'Mon bulletin' : isTeacherRole(userRole) ? 'Mes notes' : 'Notes',
       href: '/grades',
       active: currentPath === '/grades',
       group: 'fonctionnalites',
-    },
+    }] : []),
     {
       icon: Mail,
       label: 'Emails',
@@ -212,7 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return item.roles.includes(userRole)
   }
 
-  const visibleItems = useMemo(() => mainNavigation.filter(shouldShowItem), [currentPath, userRole, isOnlineSchool])
+  const visibleItems = useMemo(() => mainNavigation.filter(shouldShowItem), [currentPath, userRole, isOnlineSchool, hasAttendance, hasGrades])
   const showGroupHeaders = visibleItems.length > 6
 
   // Auto-expand group containing active item
