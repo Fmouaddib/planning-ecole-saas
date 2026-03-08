@@ -165,6 +165,7 @@ function CalendarPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+  const pendingSessionRef = useRef<string | null>(null)
 
   // Create booking modal state
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -372,10 +373,21 @@ function CalendarPage() {
   useEffect(() => {
     // Check if a date was set before mount (e.g. navigating from another page)
     const stored = sessionStorage.getItem('planning-target-date')
+    const targetSessionId = sessionStorage.getItem('planning-target-session')
     if (stored) {
       sessionStorage.removeItem('planning-target-date')
-      setCurrentDate(new Date(stored))
-      setView('day')
+      sessionStorage.removeItem('planning-target-session')
+      const targetDate = new Date(stored)
+      setCurrentDate(targetDate)
+      // If navigating to a specific session, stay in week view; otherwise day view
+      if (!targetSessionId) {
+        setView('day')
+      }
+    }
+    // Store the target session ID to open once events are loaded
+    if (targetSessionId) {
+      sessionStorage.removeItem('planning-target-session')
+      pendingSessionRef.current = targetSessionId
     }
 
     const handler = (e: Event) => {
@@ -386,6 +398,17 @@ function CalendarPage() {
     window.addEventListener(SIDEBAR_DATE_EVENT, handler)
     return () => window.removeEventListener(SIDEBAR_DATE_EVENT, handler)
   }, [])
+
+  // Auto-open session popup when navigated from dashboard
+  useEffect(() => {
+    if (pendingSessionRef.current && filteredEvents.length > 0) {
+      const target = filteredEvents.find(e => e.id === pendingSessionRef.current)
+      if (target) {
+        setSelectedEvent(target)
+        pendingSessionRef.current = null
+      }
+    }
+  }, [filteredEvents])
 
   // Notify sidebar when currentDate changes (for sync)
   useEffect(() => {

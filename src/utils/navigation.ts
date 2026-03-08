@@ -15,3 +15,13 @@ export function navigateToDM(userId: string) {
   sessionStorage.setItem('chat_dm_target', userId)
   navigateTo('/chat')
 }
+
+/**
+ * Navigate to the calendar, jump to the session's week, and open its detail popup.
+ */
+export function navigateToSession(sessionId: string, sessionDate: string | Date) {
+  const dateStr = typeof sessionDate === 'string' ? sessionDate : sessionDate.toISOString()
+  sessionStorage.setItem('planning-target-date', dateStr)
+  sessionStorage.setItem('planning-target-session', sessionId)
+  navigateTo('/planning')
+}

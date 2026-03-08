@@ -32,7 +32,7 @@ import { useGrades } from '@/hooks/useGrades'
 import { useAttendance } from '@/hooks/useAttendance'
 import { useNotifications } from '@/hooks/useNotifications'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
-import { navigateTo } from '@/utils/navigation'
+import { navigateTo, navigateToSession } from '@/utils/navigation'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingState, HelpBanner } from '@/components/ui'
 import { CalendarIntegrationModal } from '@/components/calendar/CalendarIntegrationModal'
@@ -605,7 +605,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         {/* Prochaine séance mise en avant */}
         {studentData.nextSession && (
-          <button onClick={() => onNavigate?.('/planning')} className="w-full text-left card border-l-4 border-l-primary-600 mb-8 hover:shadow-md transition-shadow cursor-pointer">
+          <button onClick={() => navigateToSession(studentData.nextSession!.id, studentData.nextSession!.startDateTime)} className="w-full text-left card border-l-4 border-l-primary-600 mb-8 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center gap-3 mb-2">
               <GraduationCap size={20} className="text-primary-600" />
               <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaine séance</h2>
@@ -676,7 +676,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 studentData.upcoming.slice(0, 5).map((b) => (
                   <button
                     key={b.id}
-                    onClick={() => onNavigate?.('/planning')}
+                    onClick={() => navigateToSession(b.id, b.startDateTime)}
                     className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer text-left"
                   >
                     <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 w-14 shrink-0">
@@ -925,7 +925,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
         {/* Prochaine séance mise en avant */}
         {teacherData.nextSession && (
-          <button onClick={() => onNavigate?.('/planning')} className="w-full text-left card border-l-4 border-l-primary-600 mb-8 hover:shadow-md transition-shadow cursor-pointer">
+          <button onClick={() => navigateToSession(teacherData.nextSession!.id, teacherData.nextSession!.startDateTime)} className="w-full text-left card border-l-4 border-l-primary-600 mb-8 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center gap-3 mb-2">
               <GraduationCap size={20} className="text-primary-600" />
               <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Prochaine séance</h2>
@@ -980,7 +980,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                 teacherData.upcoming.slice(0, 5).map((b) => (
                   <button
                     key={b.id}
-                    onClick={() => onNavigate?.('/planning')}
+                    onClick={() => navigateToSession(b.id, b.startDateTime)}
                     className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer text-left"
                   >
                     <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 w-14 shrink-0">
