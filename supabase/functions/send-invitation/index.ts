@@ -2,6 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+const BASE_DOMAIN = "anti-planning.com";
+const VERCEL_PROD_URL = "https://planning-ecole-saas.vercel.app";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,12 +108,30 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Resolve center slug → build production redirect URL
+    let productionUrl = redirectTo; // fallback to caller-provided URL
+    if (centerId) {
+      const { data: center } = await adminClient
+        .from("training_centers")
+        .select("slug")
+        .eq("id", centerId)
+        .single();
+
+      if (center?.slug) {
+        productionUrl = `https://${center.slug}.${BASE_DOMAIN}`;
+      } else {
+        // No slug → use Vercel production URL as fallback
+        productionUrl = VERCEL_PROD_URL;
+      }
+    }
+    console.log(`[send-invitation] redirectTo resolved: ${productionUrl} (center: ${centerId}, original: ${redirectTo})`);
+
     // Generate recovery link (does NOT send any email)
     const { data: linkData, error: linkError } =
       await adminClient.auth.admin.generateLink({
         type: "recovery",
         email,
-        options: { redirectTo },
+        options: { redirectTo: productionUrl },
       });
 
     if (linkError) {

@@ -146,7 +146,6 @@ export function useUsers(): UseUsersReturn {
         const activeCtx = getActiveContext()
         const centerName = activeCtx?.centerName || 'votre centre'
         const invCenterId = activeCtx?.centerId || centerId || ''
-        const redirectTo = window.location.origin
 
         const { error: inviteError } = await supabase.functions.invoke('send-invitation', {
           body: {
@@ -155,7 +154,7 @@ export function useUsers(): UseUsersReturn {
             centerName,
             centerId: invCenterId,
             role: data.role || 'student',
-            redirectTo,
+            redirectTo: window.location.origin, // fallback — edge function resolves production URL from centerId
           },
         })
 
