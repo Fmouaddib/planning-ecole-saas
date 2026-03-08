@@ -135,6 +135,8 @@ export const SASettingsPage = () => {
         groq_api_key: blogForm.groq_api_key || null,
         tavily_api_key: blogForm.tavily_api_key || null,
         research_enabled: blogForm.research_enabled ?? true,
+        custom_prompt: blogForm.custom_prompt || null,
+        unsplash_api_key: blogForm.unsplash_api_key || null,
       }
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Timeout \u2014 la requete a pris trop longtemps')), 15000)
@@ -404,6 +406,20 @@ export const SASettingsPage = () => {
               <input type="password" value={blogForm.tavily_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, tavily_api_key: e.target.value }))} placeholder="tvly-..." className="sa-input" style={{ fontFamily: 'monospace' }} />
             </div>
 
+            {/* Unsplash */}
+            <div style={{ padding: 16, borderRadius: 10, border: '1px solid var(--sa-border)', background: 'var(--sa-bg-hover)' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#6366f1', marginBottom: 8 }}>Images Unsplash — GRATUIT 50 req/heure</p>
+              <p className="sa-text-sm" style={{ marginBottom: 10 }}>
+                Chaque article generera automatiquement une image de couverture depuis Unsplash.
+              </p>
+              <ol className="sa-text-sm" style={{ margin: '0 0 10px 0', paddingLeft: 20, lineHeight: 2 }}>
+                <li>Allez sur <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>unsplash.com/developers</a></li>
+                <li>Creez une application (gratuit)</li>
+                <li>Copiez la cle "Access Key"</li>
+              </ol>
+              <input type="password" value={blogForm.unsplash_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, unsplash_api_key: e.target.value }))} placeholder="Votre Access Key Unsplash..." className="sa-input" style={{ fontFamily: 'monospace' }} />
+            </div>
+
             {/* Model & Generation */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
@@ -519,6 +535,23 @@ export const SASettingsPage = () => {
                 rows={6}
                 className="sa-input"
                 style={{ resize: 'vertical' }}
+              />
+            </div>
+
+            {/* Custom prompt */}
+            <div>
+              <label className="sa-label">Prompt de connaissance personnalise (instructions pour l'IA)</label>
+              <p className="sa-text-sm" style={{ marginBottom: 8 }}>
+                Ces instructions seront ajoutees au prompt systeme de l'IA pour tous les articles generes.
+                Utilisez-le pour definir le ton, les sujets a eviter, les informations specifiques a votre entreprise, etc.
+              </p>
+              <textarea
+                value={blogForm.custom_prompt || ''}
+                onChange={e => setBlogForm(f => ({ ...f, custom_prompt: e.target.value }))}
+                rows={10}
+                className="sa-input"
+                style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }}
+                placeholder={"Exemple :\n- Notre entreprise AntiPlanning est basee a Paris\n- Ne jamais mentionner les concurrents par leur nom\n- Toujours citer la norme Qualiopi quand c'est pertinent\n- Mettre en avant notre expertise de 10 ans dans la formation\n- Privilegier les exemples concrets du secteur de la formation continue"}
               />
             </div>
 

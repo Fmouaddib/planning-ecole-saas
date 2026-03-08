@@ -262,6 +262,7 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
   const [showPreview, setShowPreview] = useState(false)
   const [showLinkPanel, setShowLinkPanel] = useState(false)
   const [linkSearch, setLinkSearch] = useState('')
+  const [fetchingImage, setFetchingImage] = useState(false)
   const textareaRef = { current: null as HTMLTextAreaElement | null }
 
   // Published posts for internal linking (exclude current)
@@ -373,6 +374,42 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     }
   }
 
+  const handleFetchImage = async () => {
+    if (!selectedPost) return
+    setFetchingImage(true)
+    try {
+      const settings = await SABlogService.getSettings()
+      if (!settings.unsplash_api_key) {
+        toast.error('Clé API Unsplash non configurée — allez dans Paramètres > Blog IA')
+        return
+      }
+      const query = (selectedPost.keywords || []).slice(0, 2).join(' ') + ' ' + (selectedPost.category || 'education')
+      const res = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`,
+        { headers: { Authorization: `Client-ID ${settings.unsplash_api_key}` } }
+      )
+      if (!res.ok) throw new Error('Erreur Unsplash')
+      const data = await res.json()
+      const photos = data.results || []
+      if (photos.length === 0) {
+        toast.error('Aucune image trouvée pour ces mots-clés')
+        return
+      }
+      // Use the first result
+      const imageUrl = photos[0].urls?.regular || photos[0].urls?.small
+      if (imageUrl) {
+        await SABlogService.updatePost(selectedPost.id, { featured_image_url: imageUrl } as any)
+        setSelectedPost({ ...selectedPost, featured_image_url: imageUrl } as any)
+        toast.success('Image de couverture mise à jour')
+        onRefresh()
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la récupération d\'image')
+    } finally {
+      setFetchingImage(false)
+    }
+  }
+
   if (selectedPost) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -390,6 +427,9 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
                 🌐 Voir en ligne
               </a>
             )}
+            <button className="sa-btn sa-btn-secondary" onClick={handleFetchImage} disabled={fetchingImage}>
+              {fetchingImage ? '⏳' : '🖼️'} Image
+            </button>
             <button className="sa-btn sa-btn-secondary" onClick={() => { setShowLinkPanel(!showLinkPanel); setLinkSearch('') }}>
               🔗 Lien interne
             </button>
@@ -403,6 +443,17 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
             <button className="sa-btn sa-btn-danger" onClick={() => handleDelete(selectedPost.id)}>🗑️ Supprimer</button>
           </div>
         </div>
+
+        {/* Featured image preview */}
+        {(selectedPost as any)?.featured_image_url && (
+          <div style={{ borderRadius: 12, overflow: 'hidden', maxHeight: 200 }}>
+            <img
+              src={(selectedPost as any).featured_image_url}
+              alt={selectedPost.title}
+              style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 12 }}
+            />
+          </div>
+        )}
 
         {/* SEO Audit result */}
         {auditResult && (

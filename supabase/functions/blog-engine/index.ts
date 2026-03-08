@@ -26,7 +26,9 @@ interface BlogSettings {
   gemini_api_key: string | null;
   groq_api_key: string | null;
   tavily_api_key: string | null;
+  unsplash_api_key: string | null;
   research_enabled: boolean;
+  custom_prompt: string | null;
 }
 
 interface TopicSuggestion {
@@ -251,6 +253,38 @@ async function searchWeb(
   }));
 }
 
+// ── Unsplash Image Search ────────────────────────────────────────
+async function searchUnsplashImage(
+  apiKey: string,
+  query: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
+      {
+        headers: { Authorization: `Client-ID ${apiKey}` },
+      },
+    );
+    if (!res.ok) {
+      console.error(`Unsplash API ${res.status}: ${await res.text()}`);
+      return null;
+    }
+    const data = await res.json();
+    const photo = data.results?.[0];
+    if (!photo) return null;
+    // Use regular size (1080px wide) and trigger download event per Unsplash guidelines
+    const imageUrl = photo.urls?.regular || photo.urls?.small || null;
+    // Trigger download endpoint (Unsplash API requirement)
+    if (photo.links?.download_location) {
+      fetch(`${photo.links.download_location}?client_id=${apiKey}`).catch(() => {});
+    }
+    return imageUrl;
+  } catch (err) {
+    console.error("Unsplash search error:", err);
+    return null;
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────
 
 /** Sanitize AI-generated JSON: only escape control characters INSIDE string values,
@@ -413,9 +447,18 @@ RÈGLES SEO STRICTES:
 13. Intégrer 2-3 SCHÉMAS MERMAID dans l'article pour illustrer visuellement les concepts clés
 ${internalLinksText}
 
-CTA PAR DÉFAUT: ${settings.cta_text} → ${settings.cta_url}
+RÈGLES DE RÉDACTION EN FRANÇAIS (OBLIGATOIRE) :
+- Ne PAS mettre de majuscule à chaque mot des titres et sous-titres : seule la première lettre du titre et les noms propres prennent une majuscule (ex: "Comment optimiser la gestion de votre centre" et NON "Comment Optimiser La Gestion De Votre Centre")
+- Utiliser les accents correctement (é, è, ê, à, ù, ç, etc.)
+- Respecter la typographie française : espace insécable avant ; : ! ? et guillemets « »
+- Utiliser "centre de formation" et non "Centre De Formation"
+- Les sigles restent en majuscules (CPF, OPCO, VAE, CFA, etc.)
+- Écrire les nombres en lettres jusqu'à dix, en chiffres au-delà
+- Préférer la voix active et le vouvoiement professionnel
 
-SCHÉMAS MERMAID (OBLIGATOIRE):
+CTA PAR DÉFAUT: ${settings.cta_text} → ${settings.cta_url}
+${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALISÉES DU RÉDACTEUR EN CHEF :\n${settings.custom_prompt}\n` : ""}
+SCHÉMAS MERMAID (OBLIGATOIRE) :
 - Insère 2-3 blocs \`\`\`mermaid dans le contenu Markdown aux endroits stratégiques
 - Types possibles : flowchart (processus), graph (relations), pie (répartitions), timeline (chronologie), mindmap (concepts)
 - Les schémas doivent illustrer les concepts expliqués dans l'article
@@ -681,6 +724,16 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
 
         if (postErr) throw postErr;
 
+        // Fetch Unsplash image if API key configured
+        if (settings.unsplash_api_key && article.featured_image_prompt) {
+          const searchQuery = (article.keywords || []).slice(0, 2).join(" ") + " " + (topic.category || "education");
+          const imageUrl = await searchUnsplashImage(settings.unsplash_api_key, searchQuery);
+          if (imageUrl) {
+            await db.from("blog_posts").update({ featured_image_url: imageUrl }).eq("id", post.id);
+            post.featured_image_url = imageUrl;
+          }
+        }
+
         await db.from("blog_topics").update({ status: "generated", generated_post_id: post.id }).eq("id", topicId);
 
         await db.from("blog_settings").update({
@@ -851,6 +904,8 @@ RÈGLES:
 4. Améliore les titres, paragraphes et mots-clés selon les recommandations
 5. Si l'audit mentionne la meta description ou le titre, améliore-les aussi
 6. Conserve les blocs \`\`\`mermaid existants et ajoute-en 1-2 de plus si l'article n'en contient pas (flowchart, graph, pie, timeline — en français, 5-10 nœuds max)
+7. RESPECTE les normes de rédaction française : pas de majuscule à chaque mot dans les titres (seule la première lettre + noms propres), accents corrects, voix active, vouvoiement
+${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALISÉES :\n${settings.custom_prompt}` : ""}
 
 FORMAT DE SORTIE (JSON strict):
 {

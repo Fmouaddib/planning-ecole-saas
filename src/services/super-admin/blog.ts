@@ -29,6 +29,8 @@ export interface BlogSettings {
   groq_api_key: string | null
   tavily_api_key: string | null
   research_enabled: boolean
+  custom_prompt: string | null
+  unsplash_api_key: string | null
   updated_at: string
 }
 
@@ -61,6 +63,7 @@ export interface BlogPost {
   status: 'draft' | 'review' | 'published' | 'archived'
   author_name: string
   featured_image_prompt: string | null
+  featured_image_url: string | null
   word_count: number
   reading_time_min: number
   seo_score: number

@@ -16,6 +16,7 @@ interface PublicPost {
   reading_time_min: number
   published_at: string
   featured_image_prompt: string | null
+  featured_image_url: string | null
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -50,7 +51,7 @@ export default function BlogListPage() {
     const fetchPosts = async () => {
       const { data } = await supabase
         .from('blog_posts')
-        .select('id, title, slug, excerpt, category, keywords, reading_time_min, published_at, featured_image_prompt')
+        .select('id, title, slug, excerpt, category, keywords, reading_time_min, published_at, featured_image_prompt, featured_image_url')
         .eq('status', 'published')
         .order('published_at', { ascending: false })
       setPosts(data || [])
@@ -189,10 +190,12 @@ export default function BlogListPage() {
                   (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)'
                 }}
               >
-                {/* Gradient placeholder header */}
+                {/* Image or gradient header */}
                 <div style={{
-                  height: 140,
-                  background: `linear-gradient(135deg, ${CATEGORY_COLORS[post.category] || '#3b82f6'}20, ${CATEGORY_COLORS[post.category] || '#3b82f6'}40)`,
+                  height: 180,
+                  background: post.featured_image_url
+                    ? `url(${post.featured_image_url}) center/cover no-repeat`
+                    : `linear-gradient(135deg, ${CATEGORY_COLORS[post.category] || '#3b82f6'}20, ${CATEGORY_COLORS[post.category] || '#3b82f6'}40)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -211,7 +214,9 @@ export default function BlogListPage() {
                   }}>
                     {CATEGORY_LABELS[post.category] || post.category}
                   </span>
-                  <Tag size={40} style={{ color: CATEGORY_COLORS[post.category] || '#3b82f6', opacity: 0.3 }} />
+                  {!post.featured_image_url && (
+                    <Tag size={40} style={{ color: CATEGORY_COLORS[post.category] || '#3b82f6', opacity: 0.3 }} />
+                  )}
                 </div>
 
                 <div style={{ padding: '20px 20px 24px', flex: 1, display: 'flex', flexDirection: 'column' }}>

@@ -16,6 +16,7 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
     { href: '#/ecole-en-ligne', label: t('nav.onlineSchool') },
     { href: '#/how-it-works', label: t('nav.howItWorks') },
     { href: '#/pricing', label: t('nav.pricing') },
+    { href: '#/blog', label: 'Blog' },
     { href: '#/about', label: t('nav.about') },
   ]
 

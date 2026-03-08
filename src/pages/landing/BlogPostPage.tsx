@@ -21,6 +21,7 @@ interface FullPost {
   reading_time_min: number
   published_at: string
   seo_score: number
+  featured_image_url: string | null
 }
 
 interface RelatedPost {
@@ -215,6 +216,24 @@ export default function BlogPostPage() {
             </button>
           </div>
         </header>
+
+        {/* Featured image */}
+        {post.featured_image_url && (
+          <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 24px 32px' }}>
+            <img
+              src={post.featured_image_url}
+              alt={post.title}
+              style={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: 400,
+                objectFit: 'cover',
+                borderRadius: 16,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              }}
+            />
+          </div>
+        )}
 
         {/* Article content */}
         <div style={{
