@@ -470,6 +470,7 @@ export interface RegisterData {
   lastName: string
   establishmentId: string
   role?: UserRole
+  sendInvitation?: boolean
 }
 
 export interface UserContextInfo {

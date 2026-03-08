@@ -91,7 +91,7 @@ function ChatPage() {
               <button onClick={() => navigateTo('/grades')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mes notes →</button>
             </span></>
           : isTeacher
-            ? <>Échangez avec vos collègues et l'administration en temps réel. Les canaux de vos matières et classes sont disponibles. Cliquez sur « Nouveau message » pour démarrer une conversation privée.
+            ? <>Échangez avec vos étudiants et l'administration en temps réel. Les canaux de vos matières et classes sont disponibles. Cliquez sur « Nouveau message » pour contacter un étudiant ou un administrateur.
               <span className="flex gap-2 mt-2">
                 <button onClick={() => navigateTo('/teacher-collab')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Collaboration →</button>
                 <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Mon planning →</button>

@@ -7,7 +7,7 @@ import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSp
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole, ContactRelationship } from '@/types'
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle, Linkedin } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle, Linkedin, Send } from 'lucide-react'
 import { navigateTo, navigateToDM } from '@/utils/navigation'
 import { ImportModal } from '@/components/import/ImportModal'
 
@@ -34,6 +34,8 @@ interface DispensationState {
   [studentSubjectId: string]: { dispensed: boolean; reason: string }
 }
 
+type AuthMode = 'invitation' | 'password'
+
 interface UserFormData {
   firstName: string
   lastName: string
@@ -43,6 +45,7 @@ interface UserFormData {
   classId: string
   phone: string
   linkedin: string
+  authMode: AuthMode
 }
 
 const emptyForm: UserFormData = {
@@ -54,6 +57,7 @@ const emptyForm: UserFormData = {
   classId: '',
   phone: '',
   linkedin: '',
+  authMode: 'invitation',
 }
 
 function UsersPage() {
@@ -119,6 +123,7 @@ function UsersPage() {
       classId: cId,
       phone: user.phone || '',
       linkedin: user.linkedin || '',
+      authMode: 'invitation',
     })
     // Charger les dispensations existantes pour cet étudiant
     if (user.role === 'student') {
@@ -157,9 +162,10 @@ function UsersPage() {
           firstName: form.firstName,
           lastName: form.lastName,
           email: form.email,
-          password: form.password,
+          password: form.authMode === 'password' ? form.password : 'temp',
           role: form.role,
           establishmentId: '',  // Le hook utilise le center_id de l'admin connecté
+          sendInvitation: form.authMode === 'invitation',
         })
         // Affecter la classe si étudiant
         if (form.role === 'student' && form.classId) {
@@ -436,14 +442,49 @@ function UsersPage() {
             required
           />
           {modalMode === 'create' && (
-            <Input
-              label="Mot de passe"
-              type="password"
-              placeholder="Mot de passe initial"
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              required
-            />
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Authentification</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, authMode: 'invitation' }))}
+                  className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                    form.authMode === 'invitation'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 ring-1 ring-primary-500'
+                      : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-600'
+                  }`}
+                >
+                  <Send size={15} />
+                  Email d'invitation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, authMode: 'password' }))}
+                  className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                    form.authMode === 'password'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 ring-1 ring-primary-500'
+                      : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-600'
+                  }`}
+                >
+                  <UserPlus size={15} />
+                  Mot de passe manuel
+                </button>
+              </div>
+              {form.authMode === 'invitation' ? (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800 px-3 py-2 rounded-lg">
+                  Un email sera envoyé à l'utilisateur avec un lien pour créer son mot de passe.
+                </p>
+              ) : (
+                <Input
+                  label="Mot de passe"
+                  type="password"
+                  placeholder="Mot de passe initial"
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  required
+                />
+              )}
+            </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input

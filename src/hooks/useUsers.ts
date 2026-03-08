@@ -11,6 +11,7 @@ import { getErrorMessage } from '@/utils'
 import { transformUser } from '@/utils/transforms'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
+import { getActiveContext } from '@/utils/userContext'
 import toast from 'react-hot-toast'
 
 export function useUsers(): UseUsersReturn {
@@ -88,13 +89,18 @@ export function useUsers(): UseUsersReturn {
         throw new Error(message)
       }
 
+      // Mode invitation : mot de passe aléatoire (l'utilisateur le définira via le lien)
+      const effectivePassword = data.sendInvitation
+        ? crypto.randomUUID() + 'Aa1!'   // Satisfait les contraintes de mot de passe
+        : data.password
+
       // Sauvegarder la session admin avant de créer le compte
       const { data: { session: adminSession } } = await supabase.auth.getSession()
 
       // Créer le compte avec signUp (admin.createUser nécessite service_role key)
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
-        password: data.password,
+        password: effectivePassword,
         options: {
           data: {
             full_name: `${data.firstName} ${data.lastName}`,
@@ -135,13 +141,40 @@ export function useUsers(): UseUsersReturn {
 
       const transformed = transformUser(newUser)
 
+      // Envoyer l'email d'invitation si demandé
+      if (data.sendInvitation) {
+        const activeCtx = getActiveContext()
+        const centerName = activeCtx?.centerName || 'votre centre'
+        const redirectTo = window.location.origin
+
+        const { error: inviteError } = await supabase.functions.invoke('send-invitation', {
+          body: {
+            email: data.email,
+            userName: `${data.firstName} ${data.lastName}`.trim(),
+            centerName,
+            role: data.role || 'student',
+            redirectTo,
+          },
+        })
+
+        if (inviteError) {
+          console.error('[useUsers] send-invitation error:', inviteError)
+          toast.error('Utilisateur créé mais l\'email d\'invitation n\'a pas pu être envoyé')
+        }
+      }
+
       setUsers(prev => [...prev, transformed])
-      toast.success(`Utilisateur "${transformed.firstName} ${transformed.lastName}" créé avec succès`)
+      toast.success(
+        data.sendInvitation
+          ? `Utilisateur "${transformed.firstName} ${transformed.lastName}" créé — invitation envoyée par email`
+          : `Utilisateur "${transformed.firstName} ${transformed.lastName}" créé avec succès`
+      )
 
       // Audit logging
       AuditService.logCrud('created', 'user', transformed.id, currentUser.id, currentUser.establishmentId, {
         email: transformed.email,
         role: transformed.role,
+        sendInvitation: data.sendInvitation,
       })
 
       return transformed

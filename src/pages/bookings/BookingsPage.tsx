@@ -95,7 +95,7 @@ function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [roomFilter, setRoomFilter] = useState('')
   const [teacherFilter, setTeacherFilter] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
+  const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().slice(0, 10))
   const [dateTo, setDateTo] = useState('')
   const [filterDiplomaId, setFilterDiplomaId] = useState('')
   const [filterClassId, setFilterClassId] = useState('')

@@ -52,6 +52,10 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
     { id: 'sa-subscriptions', label: 'Abonnements', icon: '📋' },
   ];
 
+  const contentItems = [
+    { id: 'sa-blog', label: 'Blog SEO (IA)', icon: '🤖' },
+  ];
+
   const monitoringItems = [
     { id: 'sa-audit', label: "Journal d'audit", icon: '📝' },
     { id: 'sa-settings', label: 'Paramètres', icon: '⚙️' },
@@ -105,6 +109,13 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
           <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wider px-3 mb-2">Abonnements</div>
           <div className="space-y-0.5">
             {subscriptionItems.map((item) => <NavItem key={item.id} {...item} />)}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold text-neutral-500 uppercase tracking-wider px-3 mb-2">Contenu</div>
+          <div className="space-y-0.5">
+            {contentItems.map((item) => <NavItem key={item.id} {...item} />)}
           </div>
         </div>
 

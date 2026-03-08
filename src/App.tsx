@@ -11,6 +11,7 @@ import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
 import { clearImpersonation, getImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
+import { useAnalyticsScript } from '@/hooks/useAnalyticsScript'
 import { ImpersonationBanner } from '@/components/ui/ImpersonationBanner'
 import { getSubdomainContext, resolveCenterSlug, navigateToCenter, navigateToAdmin, getLandingUrl, type SubdomainContext } from '@/utils/subdomain'
 import toast, { Toaster } from 'react-hot-toast'
@@ -92,6 +93,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [hash, setHash] = useState(window.location.hash)
+
+  // Analytics tracking injection
+  useAnalyticsScript()
 
   // Subdomain context
   const [subdomainCtx] = useState<SubdomainContext>(() => getSubdomainContext())

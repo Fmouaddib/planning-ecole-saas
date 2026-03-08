@@ -6,6 +6,7 @@ import { Search, MessageCircle, Loader2, X } from 'lucide-react'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { parseFullName } from '@/utils/transforms'
+import { isTeacherRole } from '@/utils/helpers'
 
 interface NewDMModalProps {
   isOpen: boolean
@@ -72,13 +73,18 @@ export function NewDMModal({ isOpen, onClose, onSelect }: NewDMModalProps) {
   }, [isOpen, fetchUsers])
 
   const filteredUsers = useMemo(() => {
-    if (!search) return users
+    let list = users
+    // Profs : peuvent contacter étudiants, admin, staff — PAS les collègues profs
+    if (isTeacherRole(user?.role)) {
+      list = list.filter(u => !isTeacherRole(u.role))
+    }
+    if (!search) return list
     const q = search.toLowerCase()
-    return users.filter(u =>
+    return list.filter(u =>
       `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) ||
       u.email.toLowerCase().includes(q)
     )
-  }, [users, search])
+  }, [users, search, user?.role])
 
   const handleSelect = async (userId: string) => {
     if (selectingId) return // prevent double-click

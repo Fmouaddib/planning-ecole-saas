@@ -154,7 +154,11 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Mon profil</h1>
-        <p className="text-neutral-500 dark:text-neutral-400 mt-1">Gérer vos informations personnelles et votre abonnement</p>
+        <p className="text-neutral-500 dark:text-neutral-400 mt-1">
+          {(user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'staff')
+            ? 'Gérer vos informations personnelles et votre abonnement'
+            : 'Gérer vos informations personnelles'}
+        </p>
       </div>
 
       <HelpBanner storageKey="profile">
@@ -225,8 +229,8 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
         </div>
       </div>
 
-      {/* Section Abonnement */}
-      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
+      {/* Section Abonnement — admin/staff/super_admin uniquement */}
+      {(user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'staff') && <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-success-100 rounded-lg shrink-0">
             <Mail size={20} className="text-success-600" />
@@ -353,10 +357,10 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Section Mes options */}
-      <AddonsSection />
+      {/* Section Mes options — admin/staff/super_admin uniquement */}
+      {(user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'staff') && <AddonsSection />}
 
       {/* Section Notifications push */}
       <PushNotificationSection />
