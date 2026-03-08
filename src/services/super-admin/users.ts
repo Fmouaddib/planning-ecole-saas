@@ -192,7 +192,16 @@ export class SAUsersService {
 
     if (error) {
       console.error('[SAUsers] resetPassword error:', error);
-      throw new Error(error.message || 'Erreur lors du changement de mot de passe');
+      // Try to extract the real error from the response body
+      let detail = '';
+      try {
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === 'function') {
+          const body = await ctx.json();
+          detail = body?.error || '';
+        }
+      } catch { /* ignore */ }
+      throw new Error(detail || error.message || 'Erreur lors du changement de mot de passe');
     }
 
     if (data?.error) {
