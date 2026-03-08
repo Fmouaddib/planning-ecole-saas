@@ -269,6 +269,12 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
   const [showImagePicker, setShowImagePicker] = useState(false)
   const [imageQuery, setImageQuery] = useState('')
   const [updatingLinks, setUpdatingLinks] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string; hasChanges?: boolean; cost?: number }[]>([])
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
+  const chatInputRef = useRef<HTMLTextAreaElement | null>(null)
   const textareaRef = { current: null as HTMLTextAreaElement | null }
 
   // Published posts for internal linking (exclude current)
@@ -308,6 +314,45 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     setEditContent(post.content)
     setEditMeta(post.meta_description || '')
     setAuditResult(null)
+    setChatHistory([])
+    setChatInput('')
+    setShowChat(false)
+  }
+
+  const handleChatSend = async () => {
+    if (!selectedPost || !chatInput.trim() || chatLoading) return
+    const instruction = chatInput.trim()
+    setChatInput('')
+    setChatHistory(prev => [...prev, { role: 'user', content: instruction }])
+    setChatLoading(true)
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    try {
+      // Build history for context (only last 10 messages to stay within token limits)
+      const historyForApi = chatHistory.slice(-10).map(h => ({ role: h.role, content: h.content }))
+      const result = await SABlogService.chatWithArticle(selectedPost.id, instruction, historyForApi)
+      setChatHistory(prev => [...prev, {
+        role: 'assistant',
+        content: result.message,
+        hasChanges: result.hasChanges,
+        cost: result.cost,
+      }])
+      if (result.hasChanges && result.post) {
+        const merged = { ...selectedPost, ...result.post }
+        setSelectedPost(merged)
+        setEditTitle(merged.title)
+        setEditContent(merged.content)
+        setEditMeta(merged.meta_description || '')
+        onRefresh()
+      }
+    } catch (err: any) {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: `❌ Erreur : ${err.message || 'Erreur inconnue'}` }])
+    } finally {
+      setChatLoading(false)
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        chatInputRef.current?.focus()
+      }, 100)
+    }
   }
 
   const handleSave = async (newStatus?: string) => {
@@ -523,6 +568,13 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
                 {updatingLinks ? '⏳' : '🔄'} Maillage IA
               </button>
             )}
+            <button
+              className={`sa-btn ${showChat ? 'sa-btn-primary' : 'sa-btn-secondary'}`}
+              onClick={() => { setShowChat(!showChat); setTimeout(() => chatInputRef.current?.focus(), 100) }}
+              style={showChat ? { boxShadow: '0 0 0 2px rgba(139,92,246,0.3)' } : undefined}
+            >
+              💬 Chat IA
+            </button>
             <button className="sa-btn sa-btn-secondary" onClick={handleAudit} disabled={auditing}>
               {auditing ? '⏳' : '🎯'} Audit SEO
             </button>
@@ -785,6 +837,157 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* AI Chat Panel */}
+        {showChat && (
+          <div className="sa-card" style={{ borderLeft: '4px solid #8b5cf6', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--sa-text-primary)' }}>💬 Chat IA — Éditeur intelligent</span>
+                <span style={{ fontSize: 11, color: 'var(--sa-text-tertiary)', background: 'var(--sa-bg-subtle)', padding: '2px 8px', borderRadius: 12 }}>
+                  {chatHistory.filter(h => h.role === 'user').length} échange{chatHistory.filter(h => h.role === 'user').length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {chatHistory.length > 0 && (
+                  <button
+                    className="sa-btn sa-btn-secondary"
+                    style={{ fontSize: 11, padding: '4px 10px' }}
+                    onClick={() => { setChatHistory([]); setChatInput('') }}
+                  >
+                    🗑️ Effacer
+                  </button>
+                )}
+                <button className="sa-btn sa-btn-secondary" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => setShowChat(false)}>✕ Fermer</button>
+              </div>
+            </div>
+
+            {/* Quick suggestion chips */}
+            {chatHistory.length === 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ fontSize: 12, color: 'var(--sa-text-tertiary)', marginRight: 8 }}>Suggestions :</span>
+                {[
+                  'Ajoute une section FAQ avec 5 questions',
+                  'Améliore le titre pour le SEO',
+                  'Rends l\'introduction plus accrocheuse',
+                  'Ajoute des statistiques et données chiffrées',
+                  'Ajoute un schéma mermaid pour illustrer le processus',
+                  'Traduis cet article en anglais',
+                  'Raccourcis les paragraphes trop longs',
+                  'Renforce le CTA en conclusion',
+                ].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => { setChatInput(s); setTimeout(() => chatInputRef.current?.focus(), 50) }}
+                    style={{
+                      display: 'inline-block', margin: '3px 4px', padding: '5px 12px',
+                      borderRadius: 20, fontSize: 11, border: '1px solid var(--sa-border)',
+                      background: 'var(--sa-bg-subtle)', color: 'var(--sa-text-secondary)',
+                      cursor: 'pointer', transition: 'all 0.15s', lineHeight: 1.3,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#8b5cf620'; e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.color = '#8b5cf6' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--sa-bg-subtle)'; e.currentTarget.style.borderColor = 'var(--sa-border)'; e.currentTarget.style.color = 'var(--sa-text-secondary)' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Chat messages */}
+            {chatHistory.length > 0 && (
+              <div style={{
+                maxHeight: 350, overflowY: 'auto', marginBottom: 14,
+                display: 'flex', flexDirection: 'column', gap: 10,
+                padding: '8px 4px',
+              }}>
+                {chatHistory.map((msg, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    <div style={{
+                      maxWidth: '85%',
+                      padding: '10px 14px',
+                      borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                      background: msg.role === 'user' ? '#8b5cf6' : 'var(--sa-bg-subtle)',
+                      color: msg.role === 'user' ? '#fff' : 'var(--sa-text-primary)',
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}>
+                      {msg.content}
+                    </div>
+                    {msg.role === 'assistant' && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 3, fontSize: 10, color: 'var(--sa-text-tertiary)' }}>
+                        {msg.hasChanges && <span style={{ color: '#22c55e', fontWeight: 600 }}>✓ Modifications appliquées</span>}
+                        {msg.hasChanges === false && <span>ℹ️ Aucune modification</span>}
+                        {msg.cost !== undefined && msg.cost > 0 && <span>· ${msg.cost.toFixed(4)}</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px' }}>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8b5cf6]" />
+                    <span style={{ fontSize: 13, color: 'var(--sa-text-tertiary)' }}>L'IA réfléchit...</span>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+            )}
+
+            {/* Input */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <textarea
+                ref={chatInputRef}
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleChatSend()
+                  }
+                }}
+                placeholder="Demandez à l'IA de modifier l'article... (Entrée pour envoyer, Shift+Entrée pour nouvelle ligne)"
+                style={{
+                  flex: 1, padding: '10px 14px', borderRadius: 12,
+                  border: '2px solid var(--sa-border-medium)', fontSize: 13,
+                  background: 'var(--sa-bg-secondary)', color: 'var(--sa-text-primary)',
+                  outline: 'none', transition: 'border-color 0.2s',
+                  resize: 'none', minHeight: 44, maxHeight: 120,
+                  fontFamily: 'inherit', lineHeight: 1.4,
+                }}
+                onFocus={e => e.target.style.borderColor = '#8b5cf6'}
+                onBlur={e => e.target.style.borderColor = 'var(--sa-border-medium)'}
+                rows={1}
+                disabled={chatLoading}
+              />
+              <button
+                className="sa-btn sa-btn-primary"
+                onClick={handleChatSend}
+                disabled={chatLoading || !chatInput.trim()}
+                style={{
+                  padding: '10px 18px', borderRadius: 12,
+                  fontSize: 13, whiteSpace: 'nowrap',
+                  minHeight: 44,
+                  background: chatLoading ? '#9ca3af' : undefined,
+                }}
+              >
+                {chatLoading ? '⏳' : '📤'} Envoyer
+              </button>
+            </div>
+
+            <p style={{ fontSize: 10, color: 'var(--sa-text-tertiary)', marginTop: 8 }}>
+              💡 L'IA a accès à l'article complet. Les modifications sont appliquées automatiquement. Entrée = envoyer.
+            </p>
           </div>
         )}
 

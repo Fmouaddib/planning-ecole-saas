@@ -626,8 +626,171 @@ IMPORTANT: Retourne UNIQUEMENT le JSON.`;
       );
     }
 
+    // ── ACTION: chat-article ───────────────────────────────────────
+    if (action === "chat-article") {
+      const postId = body.postId as string;
+      const instruction = body.instruction as string;
+      const history = (body.history || []) as { role: string; content: string }[];
+
+      if (!instruction) {
+        return new Response(JSON.stringify({ error: "Missing instruction" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: post } = await db.from("blog_posts").select("*").eq("id", postId).single();
+      if (!post) {
+        return new Response(JSON.stringify({ error: "Post not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch published articles for internal linking context
+      const { data: publishedArticles } = await db
+        .from("blog_posts")
+        .select("title, slug, category")
+        .eq("status", "published")
+        .neq("id", postId)
+        .order("published_at", { ascending: false })
+        .limit(30);
+
+      const articlesContext = (publishedArticles || []).length > 0
+        ? `\nARTICLES PUBLI\u00C9S DU BLOG (pour maillage interne si pertinent) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`).join("\n")}`
+        : "";
+
+      const systemPrompt = `Tu es un assistant \u00E9ditorial SEO expert. Tu travailles sur un article de blog existant et tu ex\u00E9cutes les instructions du r\u00E9dacteur en chef.
+
+ARTICLE EN COURS :
+- Titre : ${post.title}
+- Cat\u00E9gorie : ${post.category}
+- Mots-cl\u00E9s : ${(post.keywords || []).join(", ")}
+- Meta description : ${post.meta_description || "(vide)"}
+- Nombre de mots : ${countWords(post.content)}
+${articlesContext}
+
+CONTENU ACTUEL DE L'ARTICLE :
+---
+${post.content}
+---
+
+R\u00C8GLES :
+1. Tu r\u00E9ponds TOUJOURS en JSON strict avec ce format :
+{
+  "message": "Explication de ce que tu as fait (1-3 phrases)",
+  "changes": {
+    "title": "nouveau titre (ou null si inchang\u00E9)",
+    "meta_description": "nouvelle meta (ou null si inchang\u00E9e)",
+    "content": "article complet modifi\u00E9 en Markdown (ou null si inchang\u00E9)",
+    "keywords": ["nouveaux", "mots-cl\u00E9s"] // ou null si inchang\u00E9s
+  }
+}
+2. Si l'instruction ne demande pas de modification (question, analyse, avis), mets tous les champs de "changes" \u00E0 null
+3. Si tu modifies le contenu, retourne l'article COMPLET (pas juste la partie modifi\u00E9e)
+4. Respecte les normes de r\u00E9daction fran\u00E7aise : pas de majuscule \u00E0 chaque mot dans les titres, accents corrects, voix active, vouvoiement
+5. Conserve les blocs \`\`\`mermaid existants sauf instruction contraire
+6. Ne raccourcis JAMAIS l'article sauf instruction explicite
+${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALIS\u00C9ES DU SITE :\n${settings.custom_prompt}` : ""}
+
+IMPORTANT: Retourne UNIQUEMENT le JSON, sans backticks ni texte avant/apr\u00E8s.`;
+
+      // Build conversation with history
+      const historyText = history.length > 0
+        ? `\n\nHISTORIQUE DES \u00C9CHANGES PR\u00C9C\u00C9DENTS :\n${history.map(h => `${h.role === 'user' ? 'R\u00E9dacteur' : 'Assistant'}: ${h.content}`).join("\n")}\n\n`
+        : "";
+
+      const userPrompt = `${historyText}INSTRUCTION DU R\u00C9DACTEUR :\n${instruction}`;
+
+      const result = await callAI(settings as BlogSettings, systemPrompt, userPrompt, 8192);
+
+      let response: {
+        message: string;
+        changes: {
+          title: string | null;
+          meta_description: string | null;
+          content: string | null;
+          keywords: string[] | null;
+        };
+      };
+
+      try {
+        response = safeJsonParse(result.text);
+      } catch {
+        // If AI didn't return valid JSON, treat as a text-only response
+        response = {
+          message: result.text?.slice(0, 2000) || "R\u00E9ponse re\u00E7ue mais format inattendu.",
+          changes: { title: null, meta_description: null, content: null, keywords: null },
+        };
+      }
+
+      // Apply changes to the DB if any field was modified
+      const hasChanges = response.changes &&
+        (response.changes.title || response.changes.content || response.changes.meta_description || response.changes.keywords);
+
+      let updatedPost = post;
+      if (hasChanges) {
+        const patch: Record<string, any> = {};
+        if (response.changes.title) patch.title = response.changes.title;
+        if (response.changes.meta_description) patch.meta_description = response.changes.meta_description;
+        if (response.changes.content) {
+          patch.content = response.changes.content;
+          patch.word_count = countWords(response.changes.content);
+          patch.reading_time_min = Math.max(1, Math.round(patch.word_count / 220));
+        }
+        if (response.changes.keywords) patch.keywords = response.changes.keywords;
+
+        // Recompute SEO score
+        patch.seo_score = computeSeoScore({
+          title: response.changes.title || post.title,
+          meta_description: response.changes.meta_description || post.meta_description || "",
+          content: response.changes.content || post.content,
+          keywords: response.changes.keywords || post.keywords || [],
+        });
+
+        if (response.changes.title && response.changes.title.length <= 60) {
+          patch.meta_title = response.changes.title;
+        }
+
+        const { data: updated, error: updateErr } = await db
+          .from("blog_posts")
+          .update(patch)
+          .eq("id", postId)
+          .select()
+          .single();
+
+        if (updateErr) {
+          console.error("chat-article DB update failed:", updateErr);
+        } else {
+          updatedPost = updated;
+        }
+      }
+
+      const cost = estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens);
+
+      // Log
+      await db.from("blog_generation_logs").insert({
+        action: "chat-article",
+        post_id: postId,
+        model: `${result.provider}/${result.model}`,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
+        cost_estimate: cost,
+        duration_ms: Date.now() - startTime,
+        status: "success",
+        metadata: { hasChanges: !!hasChanges, instruction: instruction.slice(0, 200), provider: result.provider },
+      }).then(() => {}, (e: any) => console.error("chat-article log insert failed:", e));
+
+      return new Response(JSON.stringify({
+        message: response.message || "Op\u00E9ration termin\u00E9e.",
+        hasChanges: !!hasChanges,
+        post: updatedPost,
+        cost,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(
-      JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo, improve-article, update-links` }),
+      JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo, improve-article, update-links, chat-article` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {

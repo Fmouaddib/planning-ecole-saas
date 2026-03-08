@@ -301,6 +301,24 @@ export class SABlogService {
     return data?.post as BlogPost
   }
 
+  static async chatWithArticle(
+    postId: string,
+    instruction: string,
+    history: { role: string; content: string }[] = [],
+  ): Promise<{ message: string; hasChanges: boolean; post: BlogPost; cost: number }> {
+    const { data, error } = await supabase.functions.invoke('blog-engine', {
+      body: { action: 'chat-article', postId, instruction, history },
+    })
+    if (error) {
+      const msg = typeof error === 'object' && 'context' in error
+        ? await (error as any).context?.json?.()?.then((d: any) => d?.error) || error.message
+        : error.message
+      throw new Error(msg || 'Erreur lors de la communication avec l\'IA')
+    }
+    if (data?.error) throw new Error(data.error)
+    return data as { message: string; hasChanges: boolean; post: BlogPost; cost: number }
+  }
+
   static async updateLinks(postId: string): Promise<{ post: BlogPost; linksAdded: number; message?: string }> {
     const { data, error } = await supabase.functions.invoke('blog-engine', {
       body: { action: 'update-links', postId },
