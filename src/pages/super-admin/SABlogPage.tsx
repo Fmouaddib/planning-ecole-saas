@@ -30,53 +30,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   'productivite': 'Productivité',
 }
 
-const PROVIDER_OPTIONS = [
-  { value: 'gemini', label: '🟢 Google Gemini (GRATUIT)' },
-  { value: 'groq', label: '🟢 Groq / Llama 3 (GRATUIT)' },
-  { value: 'claude', label: '🔵 Claude (payant ~0.01-0.04€/article)' },
-]
-
-const MODEL_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
-  gemini: [
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (le plus puissant)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (rapide + raisonnement)' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (rapide, gratuit)' },
-    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (ultra léger, gratuit)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (stable, gratuit)' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (économique, gratuit)' },
-  ],
-  groq: [
-    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (gratuit)' },
-    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B (gratuit)' },
-  ],
-  claude: [
-    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (~0.01€/article)' },
-    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (~0.04€/article)' },
-  ],
-}
-
-// All models flat (used in logs display)
-const _ALL_MODELS = [
-  ...MODEL_BY_PROVIDER.gemini,
-  ...MODEL_BY_PROVIDER.groq,
-  ...MODEL_BY_PROVIDER.claude,
-]
-void _ALL_MODELS
-
-const TONE_OPTIONS = [
-  { value: 'expert', label: 'Expert (autoritaire, données)' },
-  { value: 'professional', label: 'Professionnel (informatif)' },
-  { value: 'friendly', label: 'Amical (accessible)' },
-  { value: 'casual', label: 'Décontracté (blog style)' },
-]
-
-const FREQ_OPTIONS = [
-  { value: 'daily', label: 'Quotidien' },
-  { value: 'weekly', label: 'Hebdomadaire' },
-  { value: 'biweekly', label: 'Bi-mensuel' },
-  { value: 'monthly', label: 'Mensuel' },
-]
-
 function SeoBar({ score }: { score: number }) {
   const color = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : score >= 40 ? '#f97316' : '#ef4444'
   return (
@@ -91,7 +44,7 @@ function SeoBar({ score }: { score: number }) {
 
 // ── Main Page ────────────────────────────────────────────────────
 export function SABlogPage() {
-  const [tab, setTab] = useState<'dashboard' | 'posts' | 'topics' | 'settings' | 'logs'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'posts' | 'topics' | 'logs'>('dashboard')
   const [settings, setSettings] = useState<BlogSettings | null>(null)
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [topics, setTopics] = useState<BlogTopic[]>([])
@@ -124,7 +77,6 @@ export function SABlogPage() {
     { id: 'dashboard' as const, label: 'Dashboard', icon: '📊' },
     { id: 'posts' as const, label: `Articles (${posts.length})`, icon: '📝' },
     { id: 'topics' as const, label: `Sujets (${topics.filter(t => t.status === 'pending').length})`, icon: '💡' },
-    { id: 'settings' as const, label: 'Paramètres', icon: '⚙️' },
     { id: 'logs' as const, label: 'Logs', icon: '📋' },
   ]
 
@@ -152,7 +104,7 @@ export function SABlogPage() {
       {settings && !settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key && (
         <div className="sa-card" style={{ borderLeft: '4px solid #f59e0b', marginBottom: 16 }}>
           <p className="sa-text-sm" style={{ color: '#f59e0b' }}>
-            ⚠️ <strong>Aucune clé API configurée.</strong> Allez dans l'onglet Paramètres pour ajouter au moins une clé. <strong>Gemini est gratuit</strong> — obtenez une clé sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>aistudio.google.com</a>
+            ⚠️ <strong>Aucune clé API configurée.</strong> Allez dans <strong>Paramètres plateforme</strong> (menu Monitoring → ⚙️ Paramètres) pour configurer vos clés API. <strong>Gemini est gratuit</strong> — obtenez une clé sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>aistudio.google.com</a>
           </p>
         </div>
       )}
@@ -177,7 +129,6 @@ export function SABlogPage() {
       {tab === 'dashboard' && stats && <DashboardTab stats={stats} settings={settings!} posts={posts} onRefresh={refresh} />}
       {tab === 'posts' && <PostsTab posts={posts} onRefresh={refresh} />}
       {tab === 'topics' && <TopicsTab topics={topics} settings={settings!} onRefresh={refresh} />}
-      {tab === 'settings' && settings && <SettingsTab settings={settings} onRefresh={refresh} />}
       {tab === 'logs' && <LogsTab logs={logs} />}
     </div>
   )
@@ -724,273 +675,6 @@ function TopicsTab({ topics, settings, onRefresh }: { topics: BlogTopic[]; setti
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-// ── Settings Tab ─────────────────────────────────────────────────
-function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefresh: () => void }) {
-  const [form, setForm] = useState(settings)
-  const [saving, setSaving] = useState(false)
-  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
-
-  const toggleKey = (key: string) => setShowKeys(s => ({ ...s, [key]: !s[key] }))
-
-  const currentProvider = form.provider || 'gemini'
-  const modelsForProvider = MODEL_BY_PROVIDER[currentProvider] || MODEL_BY_PROVIDER.gemini
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await SABlogService.updateSettings({
-        provider: form.provider,
-        auto_generate: form.auto_generate,
-        generation_frequency: form.generation_frequency,
-        posts_per_batch: form.posts_per_batch,
-        model: form.model,
-        tone: form.tone,
-        target_audience: form.target_audience,
-        site_name: form.site_name,
-        site_url: form.site_url,
-        blog_base_url: form.blog_base_url,
-        cta_text: form.cta_text,
-        cta_url: form.cta_url,
-        seed_keywords: form.seed_keywords,
-        categories: form.categories,
-        anthropic_api_key: form.anthropic_api_key,
-        gemini_api_key: form.gemini_api_key,
-        groq_api_key: form.groq_api_key,
-        brave_api_key: form.brave_api_key,
-        research_enabled: form.research_enabled,
-      } as Partial<BlogSettings>)
-      toast.success('Paramètres sauvegardés')
-      onRefresh()
-    } catch (err: any) {
-      toast.error(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const KeyInput = ({ label, field, placeholder, helpUrl, helpText }: { label: string; field: keyof BlogSettings; placeholder: string; helpUrl?: string; helpText?: string }) => (
-    <div className="mb-3">
-      <label className="sa-label">{label}</label>
-      {helpUrl && (
-        <p className="text-xs text-gray-400 mb-1">
-          Obtenez votre clé sur <a href={helpUrl} target="_blank" rel="noopener noreferrer" className="underline text-blue-500">{helpText || helpUrl}</a>
-        </p>
-      )}
-      <div className="flex gap-2">
-        <input
-          className="sa-input flex-1"
-          type={showKeys[field] ? 'text' : 'password'}
-          placeholder={placeholder}
-          value={(form[field] as string) || ''}
-          onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-        />
-        <button className="sa-btn sa-btn-secondary" onClick={() => toggleKey(field as string)} style={{ padding: '6px 10px' }}>
-          {showKeys[field] ? '🙈' : '👁️'}
-        </button>
-      </div>
-    </div>
-  )
-
-  return (
-    <div className="space-y-6">
-      {/* Provider & API Keys */}
-      <div className="sa-card" style={{ borderLeft: '4px solid #22c55e' }}>
-        <h3 className="sa-card-title">🔑 Provider IA & Clés API</h3>
-        <p className="text-xs text-gray-500 mb-4">
-          Choisissez votre provider IA. <strong>Gemini et Groq sont 100% gratuits</strong>. Claude est payant mais premium.
-        </p>
-
-        {/* Provider selector */}
-        <div className="mb-4">
-          <label className="sa-label">Provider principal</label>
-          <div className="flex gap-2 mt-1">
-            {PROVIDER_OPTIONS.map(p => (
-              <button
-                key={p.value}
-                onClick={() => {
-                  const firstModel = MODEL_BY_PROVIDER[p.value]?.[0]?.value || ''
-                  setForm(f => ({ ...f, provider: p.value, model: firstModel }))
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  currentProvider === p.value
-                    ? 'bg-[#e74c3c] text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Conditional API key fields with step-by-step instructions */}
-        {(currentProvider === 'gemini' || !currentProvider) && (
-          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 mb-3">
-            <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">🟢 Google Gemini — 100% GRATUIT</p>
-            <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
-              <li>Allez sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">aistudio.google.com/apikey</a></li>
-              <li>Connectez-vous avec votre compte Google</li>
-              <li>Cliquez sur <strong>"Create API Key"</strong></li>
-              <li>Sélectionnez un projet (ou créez-en un nouveau)</li>
-              <li>Copiez la clé générée (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">AIzaSy...</code>)</li>
-              <li>Collez-la ci-dessous</li>
-            </ol>
-            <p className="text-[10px] text-gray-400 mb-2">Limites gratuites : 1 500 requêtes/jour · 1 million de tokens/jour · Aucune carte bancaire requise</p>
-            <KeyInput label="Clé API Gemini" field="gemini_api_key" placeholder="AIzaSy..." />
-          </div>
-        )}
-        {currentProvider === 'groq' && (
-          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 mb-3">
-            <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">🟢 Groq (Llama 3) — 100% GRATUIT</p>
-            <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
-              <li>Allez sur <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">console.groq.com/keys</a></li>
-              <li>Créez un compte gratuit (email ou Google)</li>
-              <li>Cliquez sur <strong>"Create API Key"</strong></li>
-              <li>Donnez un nom à la clé (ex: "Blog AntiPlanning")</li>
-              <li>Copiez la clé générée (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">gsk_...</code>)</li>
-              <li>Collez-la ci-dessous</li>
-            </ol>
-            <p className="text-[10px] text-gray-400 mb-2">Limites gratuites : 30 requêtes/min · Llama 3.3 70B (très performant) · Aucune carte bancaire requise</p>
-            <KeyInput label="Clé API Groq" field="groq_api_key" placeholder="gsk_..." />
-          </div>
-        )}
-        {currentProvider === 'claude' && (
-          <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 mb-3">
-            <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-2">🔵 Claude (Anthropic) — PAYANT à l'usage</p>
-            <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
-              <li>Allez sur <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">console.anthropic.com/settings/keys</a></li>
-              <li>Connectez-vous ou créez un compte Anthropic</li>
-              <li>Ajoutez un moyen de paiement dans <strong>Settings &gt; Billing</strong></li>
-              <li>Allez dans <strong>API Keys</strong> → <strong>"Create Key"</strong></li>
-              <li>Copiez la clé (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">sk-ant-api03-...</code>)</li>
-              <li>Collez-la ci-dessous</li>
-            </ol>
-            <p className="text-[10px] text-gray-400 mb-2">Tarif : Haiku ~0.01€/article · Sonnet ~0.04€/article · Carte bancaire requise · Meilleure qualité de rédaction</p>
-            <KeyInput label="Clé API Anthropic" field="anthropic_api_key" placeholder="sk-ant-api03-..." />
-          </div>
-        )}
-
-        {/* All keys section (optional extras) */}
-        <details className="mt-4">
-          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-            ➕ Configurer d'autres providers (optionnel, fallback)
-          </summary>
-          <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-            {currentProvider !== 'gemini' && (
-              <KeyInput label="Google Gemini" field="gemini_api_key" placeholder="AIzaSy..." helpUrl="https://aistudio.google.com/apikey" helpText="aistudio.google.com" />
-            )}
-            {currentProvider !== 'groq' && (
-              <KeyInput label="Groq" field="groq_api_key" placeholder="gsk_..." helpUrl="https://console.groq.com/keys" helpText="console.groq.com" />
-            )}
-            {currentProvider !== 'claude' && (
-              <KeyInput label="Anthropic Claude" field="anthropic_api_key" placeholder="sk-ant-api03-..." helpUrl="https://console.anthropic.com/settings/keys" helpText="console.anthropic.com" />
-            )}
-          </div>
-        </details>
-      </div>
-
-      {/* Research (Brave Search) */}
-      <div className="sa-card" style={{ borderLeft: '4px solid #f97316' }}>
-        <h3 className="sa-card-title">🔍 Recherche Web (enrichissement articles)</h3>
-        <p className="text-xs text-gray-500 mb-3">
-          Avant de rédiger, l'IA recherche le web pour enrichir les articles avec des données récentes, statistiques et tendances du secteur.
-        </p>
-        <div className="flex items-center gap-3 mb-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.research_enabled ?? true} onChange={e => setForm(f => ({ ...f, research_enabled: e.target.checked }))} />
-            <span className="text-sm font-medium">Recherche web activée</span>
-          </label>
-        </div>
-        <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 mb-3">
-          <p className="text-sm font-semibold text-orange-700 dark:text-orange-400 mb-2">🔍 Brave Search API — GRATUIT</p>
-          <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
-            <li>Allez sur <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">brave.com/search/api</a></li>
-            <li>Cliquez sur <strong>"Get Started for Free"</strong></li>
-            <li>Créez un compte Brave (email)</li>
-            <li>Dans le dashboard, choisissez le plan <strong>"Free"</strong> (2 000 requêtes/mois)</li>
-            <li>Allez dans <strong>"API Keys"</strong> → <strong>"Add API Key"</strong></li>
-            <li>Copiez la clé générée (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">BSA...</code>)</li>
-            <li>Collez-la ci-dessous</li>
-          </ol>
-          <p className="text-[10px] text-gray-400 mb-2">Limites gratuites : 2 000 requêtes/mois · 1 req/seconde · Aucune carte bancaire requise</p>
-          <KeyInput label="Clé API Brave Search" field="brave_api_key" placeholder="BSA..." />
-        </div>
-      </div>
-
-      {/* Modèle & génération */}
-      <div className="sa-card">
-        <h3 className="sa-card-title">🤖 Modèle & Génération</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-          <div>
-            <label className="sa-label">Modèle IA ({PROVIDER_OPTIONS.find(p => p.value === currentProvider)?.label})</label>
-            <select className="sa-input" value={form.model} onChange={e => setForm(f => ({ ...f, model: e.target.value }))}>
-              {modelsForProvider.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="sa-label">Ton de rédaction</label>
-            <select className="sa-input" value={form.tone} onChange={e => setForm(f => ({ ...f, tone: e.target.value }))}>
-              {TONE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="sa-label">Fréquence (auto)</label>
-            <select className="sa-input" value={form.generation_frequency} onChange={e => setForm(f => ({ ...f, generation_frequency: e.target.value }))}>
-              {FREQ_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="sa-label">Articles par lot</label>
-            <input className="sa-input" type="number" min={1} max={10} value={form.posts_per_batch} onChange={e => setForm(f => ({ ...f, posts_per_batch: parseInt(e.target.value) || 2 }))} />
-          </div>
-        </div>
-        <div className="mt-3 flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.auto_generate} onChange={e => setForm(f => ({ ...f, auto_generate: e.target.checked }))} />
-            <span className="text-sm">Génération automatique activée</span>
-          </label>
-        </div>
-      </div>
-
-      {/* SEO & Site */}
-      <div className="sa-card">
-        <h3 className="sa-card-title">🎯 SEO & Site</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-          <div>
-            <label className="sa-label">Nom du site</label>
-            <input className="sa-input" value={form.site_name} onChange={e => setForm(f => ({ ...f, site_name: e.target.value }))} />
-          </div>
-          <div>
-            <label className="sa-label">URL du site</label>
-            <input className="sa-input" value={form.site_url} onChange={e => setForm(f => ({ ...f, site_url: e.target.value }))} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="sa-label">Audience cible</label>
-            <input className="sa-input" value={form.target_audience} onChange={e => setForm(f => ({ ...f, target_audience: e.target.value }))} />
-          </div>
-          <div className="md:col-span-2">
-            <label className="sa-label">CTA par défaut</label>
-            <input className="sa-input" value={form.cta_text} onChange={e => setForm(f => ({ ...f, cta_text: e.target.value }))} placeholder="Texte CTA" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="sa-label">Mots-clés seed (un par ligne)</label>
-            <textarea
-              className="sa-input"
-              rows={5}
-              value={(form.seed_keywords || []).join('\n')}
-              onChange={e => setForm(f => ({ ...f, seed_keywords: e.target.value.split('\n').map(k => k.trim()).filter(Boolean) }))}
-            />
-          </div>
-        </div>
-      </div>
-
-      <button className="sa-btn sa-btn-primary" onClick={handleSave} disabled={saving}>
-        {saving ? '⏳ Sauvegarde...' : '💾 Sauvegarder les paramètres'}
-      </button>
     </div>
   )
 }
