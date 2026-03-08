@@ -139,9 +139,20 @@ export class SAUsersService {
       await this.resetPassword(id, data.password);
     }
 
+    // Sync email in auth.users if changed
+    if (data.email) {
+      const { error: emailError } = await supabase.rpc('sa_update_user_email', {
+        p_user_id: id,
+        p_email: data.email,
+      });
+      if (emailError) {
+        console.warn('[SAUsers] sa_update_user_email warning:', emailError.message);
+      }
+    }
+
     const { data: updated, error } = await supabase
       .from('profiles')
-      .update({ full_name: data.full_name, role: data.role, phone: data.phone, center_id: data.center_id })
+      .update({ full_name: data.full_name, role: data.role, phone: data.phone, center_id: data.center_id, email: data.email })
       .eq('id', id)
       .select()
       .single();
