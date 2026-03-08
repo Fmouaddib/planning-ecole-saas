@@ -254,6 +254,7 @@ export interface CalendarEvent {
   sessionType?: 'in_person' | 'online' | 'hybrid'
   visioMeetingId?: string
   visioProvider?: string
+  isGhost?: boolean
 }
 
 export interface Program {

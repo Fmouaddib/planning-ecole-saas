@@ -208,12 +208,13 @@ export default function DayView({
             return (
               <div key={event.id} className="absolute" style={eventStyle}>
                 <div
-                  className={`h-full rounded-md px-2 py-1 text-sm text-white overflow-hidden transition-opacity text-left relative ${
-                    isConflict ? 'ring-2 ring-red-500 ring-offset-1' : ''
-                  } ${isPast ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}
+                  className={`h-full rounded-md px-2 py-1 text-sm overflow-hidden transition-opacity text-left relative ${
+                    event.isGhost ? 'text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 border-dashed' : 'text-white'
+                  } ${isConflict && !event.isGhost ? 'ring-2 ring-red-500 ring-offset-1' : ''
+                  } ${event.isGhost ? 'cursor-pointer opacity-50' : isPast ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}
                   style={{
-                    backgroundColor: event.color || '#3b82f6',
-                    backgroundImage: isConflict
+                    backgroundColor: event.isGhost ? 'rgba(156, 163, 175, 0.15)' : (event.color || '#3b82f6'),
+                    backgroundImage: isConflict && !event.isGhost
                       ? 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px)'
                       : undefined,
                   }}
@@ -223,7 +224,7 @@ export default function DayView({
                       onEventClick(event)
                     }
                   }}
-                  onPointerDown={(e) => handlePointerDown(e, event, 'move')}
+                  onPointerDown={(e) => { if (!event.isGhost) handlePointerDown(e, event, 'move') }}
                   title={
                     isPast
                       ? `${event.title} - ${event.roomName} (séance passée)`
@@ -247,8 +248,8 @@ export default function DayView({
                       {format(parseISO(typeof event.start === 'string' ? event.start : event.start.toISOString()), 'HH:mm')} - {format(parseISO(typeof event.end === 'string' ? event.end : event.end.toISOString()), 'HH:mm')}
                     </div>
                   )}
-                  {/* Resize handle — masqué pour les séances passées */}
-                  {!isPast && (
+                  {/* Resize handle — masqué pour les séances passées et ghost */}
+                  {!isPast && !event.isGhost && (
                     <div
                       className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20"
                       onPointerDown={(e) => {

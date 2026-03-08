@@ -301,8 +301,10 @@ export default function MonthView({
                 {dayEvents.slice(0, 3).map(event => (
                   <button
                     key={event.id}
-                    className="w-full text-left text-xs rounded px-1 py-0.5 text-white truncate hover:opacity-90 transition-opacity flex items-center gap-0.5"
-                    style={{ backgroundColor: event.color || '#3b82f6' }}
+                    className={`w-full text-left text-xs rounded px-1 py-0.5 truncate hover:opacity-90 transition-opacity flex items-center gap-0.5 ${
+                      event.isGhost ? 'text-gray-400 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-600 opacity-50' : 'text-white'
+                    }`}
+                    style={{ backgroundColor: event.isGhost ? 'rgba(156, 163, 175, 0.15)' : (event.color || '#3b82f6') }}
                     onClick={(e) => {
                       e.stopPropagation()
                       onEventClick(event)

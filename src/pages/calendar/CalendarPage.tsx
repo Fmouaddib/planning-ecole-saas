@@ -298,8 +298,27 @@ function CalendarPage() {
       events = studentClassIds.length > 0
         ? events.filter(e => e.classId && studentClassIds.includes(e.classId))
         : []
+    } else if (showOnlyMine && user?.id && isTeacher) {
+      // Professeur : ses séances + séances ghost (même classe/diplôme)
+      const myEvents = events.filter(e => e.userId === user.id)
+      // Collect classIds and diplome names from teacher's own sessions
+      const myClassIds = new Set<string>()
+      const myDiplomes = new Set<string>()
+      myEvents.forEach(e => {
+        if (e.classId) myClassIds.add(e.classId)
+        if (e.diplome) myDiplomes.add(e.diplome)
+      })
+      // Ghost events: same class OR same diploma, but not teacher's own
+      const ghostEvents = myClassIds.size > 0 || myDiplomes.size > 0
+        ? events
+            .filter(e => e.userId !== user.id && (
+              (e.classId && myClassIds.has(e.classId)) ||
+              (e.diplome && myDiplomes.has(e.diplome))
+            ))
+            .map(e => ({ ...e, isGhost: true }))
+        : []
+      events = [...myEvents, ...ghostEvents]
     } else if (showOnlyMine && user?.id) {
-      // Professeur : filtrer par userId
       events = events.filter(e => e.userId === user.id)
     }
     if (roomFilter) events = events.filter(e => e.roomId === roomFilter)
@@ -314,7 +333,7 @@ function CalendarPage() {
     }
     if (activeTypes.length) events = events.filter(e => e.type && activeTypes.includes(e.type))
     return events
-  }, [allEvents, showOnlyMine, isStudent, studentClassIds, user?.id, roomFilter, selectedMatieres, selectedDiplomes, selectedNiveaux, selectedTeachers, activeTypes])
+  }, [allEvents, showOnlyMine, isStudent, isTeacher, studentClassIds, user?.id, roomFilter, selectedMatieres, selectedDiplomes, selectedNiveaux, selectedTeachers, activeTypes])
 
   const totalRooms = useMemo(() => {
     if (roomFilter) return 1
