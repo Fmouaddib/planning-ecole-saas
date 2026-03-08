@@ -7,10 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-
 // ── Types ────────────────────────────────────────────────────────
 interface BlogSettings {
+  provider: string;
   model: string;
   language: string;
   tone: string;
@@ -24,6 +23,10 @@ interface BlogSettings {
   cta_text: string;
   cta_url: string;
   anthropic_api_key: string | null;
+  gemini_api_key: string | null;
+  groq_api_key: string | null;
+  brave_api_key: string | null;
+  research_enabled: boolean;
 }
 
 interface TopicSuggestion {
@@ -32,6 +35,215 @@ interface TopicSuggestion {
   keywords: string[];
   category: string;
   priority: number;
+}
+
+interface AIResponse {
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+  provider: string;
+}
+
+interface SearchResult {
+  title: string;
+  description: string;
+  url: string;
+}
+
+// ── Provider abstraction ─────────────────────────────────────────
+async function callAI(
+  settings: BlogSettings,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 4096,
+): Promise<AIResponse> {
+  const provider = settings.provider || "gemini";
+
+  switch (provider) {
+    case "gemini":
+      return callGemini(settings, systemPrompt, userPrompt, maxTokens);
+    case "groq":
+      return callGroq(settings, systemPrompt, userPrompt, maxTokens);
+    case "claude":
+      return callClaude(settings, systemPrompt, userPrompt, maxTokens);
+    default:
+      // Try in order: Gemini (free) → Groq (free) → Claude (paid)
+      if (settings.gemini_api_key) {
+        return callGemini(settings, systemPrompt, userPrompt, maxTokens);
+      }
+      if (settings.groq_api_key) {
+        return callGroq(settings, systemPrompt, userPrompt, maxTokens);
+      }
+      if (settings.anthropic_api_key) {
+        return callClaude(settings, systemPrompt, userPrompt, maxTokens);
+      }
+      throw new Error("Aucune clé API configurée. Ajoutez au moins une clé (Gemini gratuit recommandé).");
+  }
+}
+
+// ── Google Gemini (FREE: 1500 req/day, 1M tokens/day) ───────────
+async function callGemini(
+  settings: BlogSettings,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number,
+): Promise<AIResponse> {
+  const apiKey = settings.gemini_api_key;
+  if (!apiKey) throw new Error("Clé API Gemini non configurée");
+
+  const model = settings.model?.startsWith("gemini")
+    ? settings.model
+    : "gemini-2.0-flash";
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          temperature: 0.7,
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const usage = data.usageMetadata || {};
+
+  return {
+    text,
+    inputTokens: usage.promptTokenCount || 0,
+    outputTokens: usage.candidatesTokenCount || 0,
+    model,
+    provider: "gemini",
+  };
+}
+
+// ── Groq (FREE: Llama 3.3 70B, 30 RPM) ─────────────────────────
+async function callGroq(
+  settings: BlogSettings,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number,
+): Promise<AIResponse> {
+  const apiKey = settings.groq_api_key;
+  if (!apiKey) throw new Error("Clé API Groq non configurée");
+
+  const model = settings.model?.startsWith("llama") || settings.model?.startsWith("mixtral")
+    ? settings.model
+    : "llama-3.3-70b-versatile";
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      temperature: 0.7,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Groq API ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  return {
+    text: data.choices?.[0]?.message?.content || "",
+    inputTokens: data.usage?.prompt_tokens || 0,
+    outputTokens: data.usage?.completion_tokens || 0,
+    model,
+    provider: "groq",
+  };
+}
+
+// ── Claude (PAID) ────────────────────────────────────────────────
+async function callClaude(
+  settings: BlogSettings,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens: number,
+): Promise<AIResponse> {
+  const apiKey = settings.anthropic_api_key;
+  if (!apiKey) throw new Error("Clé API Anthropic non configurée");
+
+  const model = settings.model?.startsWith("claude")
+    ? settings.model
+    : "claude-haiku-4-5-20251001";
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Claude API ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  return {
+    text: data.content[0]?.text || "",
+    inputTokens: data.usage?.input_tokens || 0,
+    outputTokens: data.usage?.output_tokens || 0,
+    model,
+    provider: "claude",
+  };
+}
+
+// ── Brave Search (FREE: 2000 req/month) ─────────────────────────
+async function searchWeb(
+  apiKey: string,
+  query: string,
+  count = 5,
+): Promise<SearchResult[]> {
+  const res = await fetch(
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}&search_lang=fr`,
+    {
+      headers: { "X-Subscription-Token": apiKey, Accept: "application/json" },
+    },
+  );
+
+  if (!res.ok) {
+    console.error(`Brave Search ${res.status}: ${await res.text()}`);
+    return [];
+  }
+
+  const data = await res.json();
+  return (data.web?.results || []).map((r: any) => ({
+    title: r.title || "",
+    description: r.description || "",
+    url: r.url || "",
+  }));
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -60,82 +272,43 @@ function computeSeoScore(post: {
 }): number {
   let score = 0;
   const content = post.content.toLowerCase();
-  // Title length 30-65 chars
   if (post.title.length >= 30 && post.title.length <= 65) score += 15;
   else if (post.title.length > 0) score += 5;
-  // Meta description 120-160 chars
-  if (
-    post.meta_description.length >= 120 &&
-    post.meta_description.length <= 160
-  )
-    score += 15;
+  if (post.meta_description.length >= 120 && post.meta_description.length <= 160) score += 15;
   else if (post.meta_description.length > 0) score += 5;
-  // H2 headings present
   if ((content.match(/^## /gm) || []).length >= 3) score += 15;
-  // Keyword in title
-  if (
-    post.keywords.some((kw) => post.title.toLowerCase().includes(kw.toLowerCase()))
-  )
-    score += 15;
-  // Keywords in content
-  const kwHits = post.keywords.filter((kw) =>
-    content.includes(kw.toLowerCase()),
-  ).length;
+  if (post.keywords.some((kw) => post.title.toLowerCase().includes(kw.toLowerCase()))) score += 15;
+  const kwHits = post.keywords.filter((kw) => content.includes(kw.toLowerCase())).length;
   score += Math.min(15, kwHits * 5);
-  // Word count 1200+
   const words = countWords(post.content);
   if (words >= 1500) score += 15;
   else if (words >= 1000) score += 10;
   else if (words >= 500) score += 5;
-  // Internal links
   if (content.includes("anti-planning")) score += 5;
-  // FAQ section
-  if (content.includes("## faq") || content.includes("## questions"))
-    score += 5;
+  if (content.includes("## faq") || content.includes("## questions")) score += 5;
   return Math.min(100, score);
 }
 
-async function callClaude(
-  apiKey: string,
-  model: string,
-  systemPrompt: string,
-  userPrompt: string,
-  maxTokens = 4096,
-): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
-  const res = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Claude API ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return {
-    text: data.content[0]?.text || "",
-    inputTokens: data.usage?.input_tokens || 0,
-    outputTokens: data.usage?.output_tokens || 0,
+function estimateCost(provider: string, model: string, inputTokens: number, outputTokens: number): number {
+  if (provider === "gemini" || provider === "groq") return 0; // FREE
+  const pricing: Record<string, { input: number; output: number }> = {
+    "claude-haiku-4-5-20251001": { input: 0.8, output: 4 },
+    "claude-sonnet-4-6": { input: 3, output: 15 },
+    "claude-opus-4-6": { input: 15, output: 75 },
   };
+  const p = pricing[model] || pricing["claude-haiku-4-5-20251001"];
+  return (inputTokens * p.input + outputTokens * p.output) / 1_000_000;
 }
 
 // ── System Prompts ───────────────────────────────────────────────
-function buildArticleSystemPrompt(settings: BlogSettings): string {
-  const internalLinksText =
-    settings.internal_links.length > 0
-      ? `\nLiens internes à intégrer naturellement :\n${settings.internal_links.map((l) => `- [${l.title}](${l.url})`).join("\n")}`
-      : "";
+function buildArticleSystemPrompt(settings: BlogSettings, researchContext?: string): string {
+  const internalLinksText = settings.internal_links?.length > 0
+    ? `\nLiens internes à intégrer naturellement :\n${settings.internal_links.map((l) => `- [${l.title}](${l.url})`).join("\n")}`
+    : "";
+
+  const researchBlock = researchContext
+    ? `\n\nCONTEXTE DE RECHERCHE WEB (utilise ces données pour enrichir l'article avec des faits récents, statistiques et tendances) :\n${researchContext}\n`
+    : "";
 
   return `Tu es un rédacteur SEO expert spécialisé dans le secteur de la formation professionnelle, de l'éducation et de la gestion de centres de formation en France.
 
@@ -146,7 +319,7 @@ AUDIENCE CIBLE: ${settings.target_audience}
 TON: ${settings.tone === "expert" ? "Expert et autoritaire, avec des données et exemples concrets" : settings.tone === "professional" ? "Professionnel et informatif" : settings.tone === "casual" ? "Décontracté mais crédible" : "Amical et accessible"}
 
 LANGUE: ${settings.language === "fr" ? "Français" : "English"}
-
+${researchBlock}
 RÈGLES SEO STRICTES:
 1. Le titre (H1) doit contenir le mot-clé principal, entre 30 et 65 caractères
 2. La meta description doit faire 120-160 caractères, inclure le mot-clé et un appel à l'action
@@ -159,6 +332,7 @@ RÈGLES SEO STRICTES:
 9. Paragraphes courts (3-4 lignes max)
 10. Utiliser des listes à puces et des tableaux quand pertinent
 11. Ajouter un CTA vers ${settings.site_name} en conclusion
+12. Intégrer des données chiffrées et statistiques récentes quand disponibles
 ${internalLinksText}
 
 CTA PAR DÉFAUT: ${settings.cta_text} → ${settings.cta_url}
@@ -177,14 +351,18 @@ FORMAT DE SORTIE (JSON strict):
 IMPORTANT: Retourne UNIQUEMENT le JSON, sans backticks ni texte avant/après.`;
 }
 
-function buildTopicSystemPrompt(settings: BlogSettings): string {
+function buildTopicSystemPrompt(settings: BlogSettings, researchContext?: string): string {
+  const researchBlock = researchContext
+    ? `\n\nTENDANCES WEB ACTUELLES (base tes suggestions sur ces données récentes) :\n${researchContext}\n`
+    : "";
+
   return `Tu es un stratège SEO expert spécialisé dans le secteur de la formation professionnelle et de l'éducation en France.
 
 SITE: ${settings.site_name} — logiciel SaaS de planning pour centres de formation.
 AUDIENCE: ${settings.target_audience}
 MOTS-CLÉS SEED: ${settings.seed_keywords.join(", ")}
 CATÉGORIES: ${settings.categories.join(", ")}
-
+${researchBlock}
 Ta mission : suggérer des sujets d'articles de blog qui vont :
 1. Cibler des requêtes long-tail avec un volume de recherche réaliste
 2. Répondre aux questions que se posent les directeurs de centres de formation
@@ -213,6 +391,23 @@ FORMAT JSON (array strict) :
 IMPORTANT: Retourne UNIQUEMENT le JSON array, sans backticks.`;
 }
 
+// ── Research helper ──────────────────────────────────────────────
+async function doResearch(settings: BlogSettings, query: string): Promise<string> {
+  if (!settings.research_enabled || !settings.brave_api_key) return "";
+
+  try {
+    const results = await searchWeb(settings.brave_api_key, query, 8);
+    if (results.length === 0) return "";
+
+    return results
+      .map((r, i) => `[${i + 1}] ${r.title}\n${r.description}\nSource: ${r.url}`)
+      .join("\n\n");
+  } catch (err) {
+    console.error("Research error:", err);
+    return "";
+  }
+}
+
 // ── Main handler ─────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -222,16 +417,12 @@ Deno.serve(async (req: Request) => {
   const startTime = Date.now();
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -243,7 +434,6 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const action = body.action as string;
 
-    // Load settings
     const { data: settings, error: settingsError } = await db
       .from("blog_settings")
       .select("*")
@@ -251,26 +441,20 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (settingsError || !settings) {
-      return new Response(
-        JSON.stringify({ error: "Blog settings not found" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Blog settings not found" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const apiKey = settings.anthropic_api_key;
-    if (!apiKey) {
+    // Check at least one API key is configured
+    const hasKey = settings.gemini_api_key || settings.groq_api_key || settings.anthropic_api_key;
+    if (!hasKey) {
       return new Response(
         JSON.stringify({
-          error:
-            "Clé API Anthropic non configurée. Ajoutez-la dans les paramètres du blog.",
+          error: "Aucune clé API configurée. Ajoutez au moins une clé (Gemini gratuit recommandé) dans les paramètres du blog.",
         }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -279,7 +463,11 @@ Deno.serve(async (req: Request) => {
       const count = body.count || 10;
       const existingTopics = body.existingTopics || [];
 
-      const systemPrompt = buildTopicSystemPrompt(settings as BlogSettings);
+      // Research trending topics
+      const researchQuery = `${settings.seed_keywords.slice(0, 3).join(" ")} tendances 2025 2026 formation`;
+      const researchContext = await doResearch(settings as BlogSettings, researchQuery);
+
+      const systemPrompt = buildTopicSystemPrompt(settings as BlogSettings, researchContext);
       const userPrompt = `Suggère ${count} sujets d'articles de blog uniques et pertinents.
 ${existingTopics.length > 0 ? `\nSujets DÉJÀ traités (à éviter) :\n${existingTopics.map((t: string) => `- ${t}`).join("\n")}` : ""}
 
@@ -289,38 +477,26 @@ Privilégie un mix entre :
 - Articles de fond (transformation digitale, IA dans la formation)
 - Articles pratiques (checklists, templates, cas d'usage)`;
 
-      const result = await callClaude(
-        apiKey,
-        settings.model || "claude-haiku-4-5-20251001",
-        systemPrompt,
-        userPrompt,
-        2048,
-      );
+      const result = await callAI(settings as BlogSettings, systemPrompt, userPrompt, 2048);
 
       let suggestions: TopicSuggestion[];
       try {
         suggestions = JSON.parse(result.text);
       } catch {
-        // Try to extract JSON from response
         const match = result.text.match(/\[[\s\S]*\]/);
         if (match) suggestions = JSON.parse(match[0]);
-        else throw new Error("Invalid JSON from Claude: " + result.text.slice(0, 200));
+        else throw new Error("Invalid JSON from AI: " + result.text.slice(0, 200));
       }
 
-      // Log
       await db.from("blog_generation_logs").insert({
         action: "suggest-topics",
-        model: settings.model,
+        model: result.model,
         input_tokens: result.inputTokens,
         output_tokens: result.outputTokens,
-        cost_estimate: estimateCost(
-          settings.model,
-          result.inputTokens,
-          result.outputTokens,
-        ),
+        cost_estimate: estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens),
         duration_ms: Date.now() - startTime,
         status: "success",
-        metadata: { count: suggestions.length },
+        metadata: { count: suggestions.length, provider: result.provider, research: !!researchContext },
       });
 
       return new Response(JSON.stringify({ suggestions }), {
@@ -332,7 +508,6 @@ Privilégie un mix entre :
     if (action === "generate-article") {
       const topicId = body.topicId as string;
 
-      // Get topic
       const { data: topic, error: topicErr } = await db
         .from("blog_topics")
         .select("*")
@@ -340,25 +515,29 @@ Privilégie un mix entre :
         .single();
 
       if (topicErr || !topic) {
-        return new Response(
-          JSON.stringify({ error: "Topic not found" }),
-          {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
+        return new Response(JSON.stringify({ error: "Topic not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      // Mark as generating
-      await db
-        .from("blog_topics")
-        .update({ status: "generating" })
-        .eq("id", topicId);
+      await db.from("blog_topics").update({ status: "generating" }).eq("id", topicId);
 
       try {
-        const systemPrompt = buildArticleSystemPrompt(
-          settings as BlogSettings,
-        );
+        // Step 1: Research the topic
+        const researchQueries = [
+          topic.topic,
+          ...(topic.keywords || []).slice(0, 2).map((k: string) => `${k} formation France 2025`),
+        ];
+
+        let researchContext = "";
+        for (const q of researchQueries) {
+          const results = await doResearch(settings as BlogSettings, q);
+          if (results) researchContext += results + "\n\n";
+        }
+
+        // Step 2: Generate article with research context
+        const systemPrompt = buildArticleSystemPrompt(settings as BlogSettings, researchContext || undefined);
         const userPrompt = `Rédige un article de blog SEO complet sur le sujet suivant :
 
 SUJET : ${topic.topic}
@@ -368,13 +547,7 @@ CATÉGORIE : ${topic.category}
 
 Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_description, excerpt, content, keywords, featured_image_prompt.`;
 
-        const result = await callClaude(
-          apiKey,
-          settings.model || "claude-haiku-4-5-20251001",
-          systemPrompt,
-          userPrompt,
-          8192,
-        );
+        const result = await callAI(settings as BlogSettings, systemPrompt, userPrompt, 8192);
 
         let article: {
           title: string;
@@ -401,28 +574,19 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
           content: article.content,
           keywords: article.keywords || topic.keywords || [],
         });
-        const cost = estimateCost(
-          settings.model,
-          result.inputTokens,
-          result.outputTokens,
-        );
+        const cost = estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens);
 
-        // Check slug uniqueness
-        let baseSlug = slugify(article.title);
+        // Slug uniqueness check
+        const baseSlug = slugify(article.title);
         let slug = baseSlug;
         let attempt = 0;
         while (true) {
-          const { data: existing } = await db
-            .from("blog_posts")
-            .select("id")
-            .eq("slug", slug)
-            .maybeSingle();
+          const { data: existing } = await db.from("blog_posts").select("id").eq("slug", slug).maybeSingle();
           if (!existing) break;
           attempt++;
           slug = `${baseSlug}-${attempt}`;
         }
 
-        // Insert post
         const { data: post, error: postErr } = await db
           .from("blog_posts")
           .insert({
@@ -440,7 +604,7 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
             reading_time_min: Math.max(1, Math.round(wordCount / 220)),
             seo_score: seoScore,
             topic_id: topicId,
-            model_used: settings.model,
+            model_used: `${result.provider}/${result.model}`,
             generation_cost_estimate: cost,
           })
           .select()
@@ -448,54 +612,39 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
 
         if (postErr) throw postErr;
 
-        // Update topic
-        await db
-          .from("blog_topics")
-          .update({ status: "generated", generated_post_id: post.id })
-          .eq("id", topicId);
+        await db.from("blog_topics").update({ status: "generated", generated_post_id: post.id }).eq("id", topicId);
 
-        // Update settings counters
-        await db
-          .from("blog_settings")
-          .update({
-            last_generation_at: new Date().toISOString(),
-            total_posts_generated: (settings.total_posts_generated || 0) + 1,
-          })
-          .eq("id", 1);
+        await db.from("blog_settings").update({
+          last_generation_at: new Date().toISOString(),
+          total_posts_generated: (settings.total_posts_generated || 0) + 1,
+        }).eq("id", 1);
 
-        // Log
         await db.from("blog_generation_logs").insert({
           action: "generate-article",
           topic_id: topicId,
           post_id: post.id,
-          model: settings.model,
+          model: `${result.provider}/${result.model}`,
           input_tokens: result.inputTokens,
           output_tokens: result.outputTokens,
           cost_estimate: cost,
           duration_ms: Date.now() - startTime,
           status: "success",
-          metadata: { wordCount, seoScore, slug },
+          metadata: { wordCount, seoScore, slug, provider: result.provider, research: !!researchContext },
         });
 
         return new Response(JSON.stringify({ post }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } catch (err) {
-        // Mark topic as failed
-        await db
-          .from("blog_topics")
-          .update({ status: "failed", error_message: err.message })
-          .eq("id", topicId);
-
+        await db.from("blog_topics").update({ status: "failed", error_message: err.message }).eq("id", topicId);
         await db.from("blog_generation_logs").insert({
           action: "generate-article",
           topic_id: topicId,
-          model: settings.model,
+          model: `${settings.provider}/${settings.model}`,
           duration_ms: Date.now() - startTime,
           status: "error",
           error_message: err.message,
         });
-
         throw err;
       }
     }
@@ -504,7 +653,6 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
     if (action === "batch-generate") {
       const limit = body.limit || settings.posts_per_batch || 2;
 
-      // Get pending topics by priority
       const { data: topics } = await db
         .from("blog_topics")
         .select("id, topic")
@@ -516,40 +664,23 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
       if (!topics?.length) {
         return new Response(
           JSON.stringify({ message: "Aucun sujet en attente", generated: 0 }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
-      const results: { topicId: string; postId?: string; error?: string }[] =
-        [];
+      const results: { topicId: string; postId?: string; error?: string }[] = [];
 
       for (const t of topics) {
         try {
-          // Recursive call — reuse generate-article logic
-          const innerReq = new Request(req.url, {
+          const innerRes = await fetch(`${supabaseUrl}/functions/v1/blog-engine`, {
             method: "POST",
-            headers: req.headers,
+            headers: {
+              Authorization: authHeader,
+              "Content-Type": "application/json",
+              apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
+            },
             body: JSON.stringify({ action: "generate-article", topicId: t.id }),
           });
-          // Instead of recursive fetch, inline the logic via a sub-call
-          // For simplicity, we call the same endpoint
-          const innerRes = await fetch(
-            `${supabaseUrl}/functions/v1/blog-engine`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: authHeader,
-                "Content-Type": "application/json",
-                apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
-              },
-              body: JSON.stringify({
-                action: "generate-article",
-                topicId: t.id,
-              }),
-            },
-          );
 
           if (innerRes.ok) {
             const data = await innerRes.json();
@@ -573,20 +704,13 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
     if (action === "analyze-seo") {
       const postId = body.postId as string;
 
-      const { data: post } = await db
-        .from("blog_posts")
-        .select("*")
-        .eq("id", postId)
-        .single();
+      const { data: post } = await db.from("blog_posts").select("*").eq("id", postId).single();
 
       if (!post) {
-        return new Response(
-          JSON.stringify({ error: "Post not found" }),
-          {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
+        return new Response(JSON.stringify({ error: "Post not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const systemPrompt = `Tu es un auditeur SEO expert. Analyse l'article suivant et donne un audit détaillé avec des recommandations concrètes.
@@ -601,9 +725,8 @@ Retourne un JSON :
 
 IMPORTANT: JSON uniquement.`;
 
-      const result = await callClaude(
-        apiKey,
-        settings.model || "claude-haiku-4-5-20251001",
+      const result = await callAI(
+        settings as BlogSettings,
         systemPrompt,
         `Titre: ${post.title}\nMeta: ${post.meta_description}\nMots-clés: ${(post.keywords || []).join(", ")}\n\n${post.content}`,
         2048,
@@ -618,12 +741,8 @@ IMPORTANT: JSON uniquement.`;
         else audit = { score: 0, issues: [], strengths: [], recommendations: [] };
       }
 
-      // Update seo_score
       if (audit.score) {
-        await db
-          .from("blog_posts")
-          .update({ seo_score: audit.score })
-          .eq("id", postId);
+        await db.from("blog_posts").update({ seo_score: audit.score }).eq("id", postId);
       }
 
       return new Response(JSON.stringify({ audit }), {
@@ -632,13 +751,8 @@ IMPORTANT: JSON uniquement.`;
     }
 
     return new Response(
-      JSON.stringify({
-        error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo`,
-      }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo` }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
     console.error("blog-engine error:", error);
@@ -648,18 +762,3 @@ IMPORTANT: JSON uniquement.`;
     });
   }
 });
-
-function estimateCost(
-  model: string,
-  inputTokens: number,
-  outputTokens: number,
-): number {
-  // Pricing per million tokens (USD)
-  const pricing: Record<string, { input: number; output: number }> = {
-    "claude-haiku-4-5-20251001": { input: 0.8, output: 4 },
-    "claude-sonnet-4-6": { input: 3, output: 15 },
-    "claude-opus-4-6": { input: 15, output: 75 },
-  };
-  const p = pricing[model] || pricing["claude-haiku-4-5-20251001"];
-  return (inputTokens * p.input + outputTokens * p.output) / 1_000_000;
-}

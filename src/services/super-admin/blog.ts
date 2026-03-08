@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 // ── Types ────────────────────────────────────────────────────────
 export interface BlogSettings {
   id: number
+  provider: string
   auto_generate: boolean
   generation_frequency: string
   posts_per_batch: number
@@ -24,6 +25,10 @@ export interface BlogSettings {
   last_generation_at: string | null
   total_posts_generated: number
   anthropic_api_key: string | null
+  gemini_api_key: string | null
+  groq_api_key: string | null
+  brave_api_key: string | null
+  research_enabled: boolean
   updated_at: string
 }
 

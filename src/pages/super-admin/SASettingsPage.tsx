@@ -10,16 +10,32 @@ interface AnalyticsSettings {
   enabled: boolean
 }
 
-const MODEL_OPTIONS = [
-  { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (~0.01€/article)' },
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (~0.04€/article)' },
+const PROVIDER_OPTIONS = [
+  { value: 'gemini', label: '🟢 Gemini (GRATUIT)' },
+  { value: 'groq', label: '🟢 Groq (GRATUIT)' },
+  { value: 'claude', label: '🔵 Claude (payant)' },
 ]
 
+const MODEL_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
+  gemini: [
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (gratuit)' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (gratuit)' },
+  ],
+  groq: [
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (gratuit)' },
+    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B (gratuit)' },
+  ],
+  claude: [
+    { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 (~0.01€)' },
+    { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6 (~0.04€)' },
+  ],
+}
+
 const TONE_OPTIONS = [
-  { value: 'expert', label: 'Expert (autoritaire, données)' },
-  { value: 'professional', label: 'Professionnel (informatif)' },
-  { value: 'friendly', label: 'Amical (accessible)' },
-  { value: 'casual', label: 'Décontracté (blog style)' },
+  { value: 'expert', label: 'Expert' },
+  { value: 'professional', label: 'Professionnel' },
+  { value: 'friendly', label: 'Amical' },
+  { value: 'casual', label: 'Décontracté' },
 ]
 
 const FREQ_OPTIONS = [
@@ -91,6 +107,7 @@ export const SASettingsPage = () => {
     setSavedBlog(false)
     try {
       await SABlogService.updateSettings({
+        provider: blogForm.provider,
         auto_generate: blogForm.auto_generate,
         generation_frequency: blogForm.generation_frequency,
         posts_per_batch: blogForm.posts_per_batch,
@@ -105,6 +122,10 @@ export const SASettingsPage = () => {
         seed_keywords: blogForm.seed_keywords,
         categories: blogForm.categories,
         anthropic_api_key: blogForm.anthropic_api_key,
+        gemini_api_key: blogForm.gemini_api_key,
+        groq_api_key: blogForm.groq_api_key,
+        brave_api_key: blogForm.brave_api_key,
+        research_enabled: blogForm.research_enabled,
       } as Partial<BlogSettings>)
       setSavedBlog(true)
       toast.success('Paramètres blog sauvegardés')
@@ -115,6 +136,9 @@ export const SASettingsPage = () => {
       setSavingBlog(false)
     }
   }
+
+  const currentBlogProvider = blogForm.provider || 'gemini'
+  const blogModels = MODEL_BY_PROVIDER[currentBlogProvider] || MODEL_BY_PROVIDER.gemini
 
   if (isLoading) {
     return (
@@ -252,33 +276,58 @@ export const SASettingsPage = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 600 }}>
-            {/* API Key */}
-            <div style={{ padding: 16, borderRadius: 8, border: '1px solid #8b5cf6', background: 'rgba(139, 92, 246, 0.05)' }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#8b5cf6' }}>
-                🔑 Clé API Anthropic
+            {/* Provider selector */}
+            <div style={{ padding: 16, borderRadius: 8, border: '1px solid #22c55e', background: 'rgba(34, 197, 94, 0.05)' }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#22c55e' }}>
+                🔑 Provider IA
               </label>
               <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>
-                Obtenez votre clé sur console.anthropic.com/settings/keys
+                Gemini et Groq sont 100% gratuits. Claude est payant.
               </p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={blogForm.anthropic_api_key || ''}
-                  onChange={e => setBlogForm(f => ({ ...f, anthropic_api_key: e.target.value }))}
-                  placeholder="sk-ant-api03-..."
-                  style={{
-                    flex: 1, padding: '8px 12px', borderRadius: 8,
-                    border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)',
-                    color: 'var(--sa-text)', fontSize: 14, fontFamily: 'monospace',
-                  }}
-                />
-                <button
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="sa-btn sa-btn-secondary"
-                  style={{ padding: '8px 12px' }}
-                >
-                  {showApiKey ? '🙈' : '👁️'}
-                </button>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                {PROVIDER_OPTIONS.map(p => (
+                  <button
+                    key={p.value}
+                    onClick={() => {
+                      const firstModel = MODEL_BY_PROVIDER[p.value]?.[0]?.value || ''
+                      setBlogForm(f => ({ ...f, provider: p.value, model: firstModel }))
+                    }}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                      border: currentBlogProvider === p.value ? '2px solid #e74c3c' : '1px solid var(--sa-border)',
+                      background: currentBlogProvider === p.value ? 'rgba(231, 76, 60, 0.1)' : 'var(--sa-bg)',
+                      color: 'var(--sa-text)',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              {/* API Key for selected provider */}
+              {currentBlogProvider === 'gemini' && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type={showApiKey ? 'text' : 'password'} value={blogForm.gemini_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, gemini_api_key: e.target.value }))} placeholder="AIzaSy..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                  <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                </div>
+              )}
+              {currentBlogProvider === 'groq' && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type={showApiKey ? 'text' : 'password'} value={blogForm.groq_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, groq_api_key: e.target.value }))} placeholder="gsk_..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                  <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                </div>
+              )}
+              {currentBlogProvider === 'claude' && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type={showApiKey ? 'text' : 'password'} value={blogForm.anthropic_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, anthropic_api_key: e.target.value }))} placeholder="sk-ant-api03-..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                  <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                </div>
+              )}
+              {/* Brave Search */}
+              <div style={{ marginTop: 12 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>🔍 Brave Search (recherche web gratuite)</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="password" value={blogForm.brave_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, brave_api_key: e.target.value }))} placeholder="BSA..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                </div>
               </div>
             </div>
 
@@ -295,7 +344,7 @@ export const SASettingsPage = () => {
                     color: 'var(--sa-text)', fontSize: 14,
                   }}
                 >
-                  {MODEL_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  {blogModels.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
               <div>

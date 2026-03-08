@@ -30,10 +30,35 @@ const CATEGORY_LABELS: Record<string, string> = {
   'productivite': 'Productivité',
 }
 
-const MODEL_OPTIONS = [
-  { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (le moins cher — ~0.01€/article)' },
-  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (meilleure qualité — ~0.04€/article)' },
+const PROVIDER_OPTIONS = [
+  { value: 'gemini', label: '🟢 Google Gemini (GRATUIT)' },
+  { value: 'groq', label: '🟢 Groq / Llama 3 (GRATUIT)' },
+  { value: 'claude', label: '🔵 Claude (payant ~0.01-0.04€/article)' },
 ]
+
+const MODEL_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
+  gemini: [
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (rapide, gratuit)' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (stable, gratuit)' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (meilleur, gratuit)' },
+  ],
+  groq: [
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (gratuit)' },
+    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B (gratuit)' },
+  ],
+  claude: [
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (~0.01€/article)' },
+    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (~0.04€/article)' },
+  ],
+}
+
+// All models flat (used in logs display)
+const _ALL_MODELS = [
+  ...MODEL_BY_PROVIDER.gemini,
+  ...MODEL_BY_PROVIDER.groq,
+  ...MODEL_BY_PROVIDER.claude,
+]
+void _ALL_MODELS
 
 const TONE_OPTIONS = [
   { value: 'expert', label: 'Expert (autoritaire, données)' },
@@ -121,10 +146,10 @@ export function SABlogPage() {
       </div>
 
       {/* API Key warning */}
-      {settings && !settings.anthropic_api_key && (
+      {settings && !settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key && (
         <div className="sa-card" style={{ borderLeft: '4px solid #f59e0b', marginBottom: 16 }}>
           <p className="sa-text-sm" style={{ color: '#f59e0b' }}>
-            ⚠️ <strong>Clé API Anthropic non configurée.</strong> Allez dans l'onglet Paramètres pour ajouter votre clé. Obtenez-la sur <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>console.anthropic.com</a>
+            ⚠️ <strong>Aucune clé API configurée.</strong> Allez dans l'onglet Paramètres pour ajouter au moins une clé. <strong>Gemini est gratuit</strong> — obtenez une clé sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>aistudio.google.com</a>
           </p>
         </div>
       )}
@@ -202,7 +227,7 @@ function DashboardTab({ stats, settings, posts, onRefresh }: { stats: any; setti
           <button
             className="sa-btn sa-btn-primary"
             onClick={handleBatchGenerate}
-            disabled={batchLoading || !settings.anthropic_api_key || stats.pendingTopics === 0}
+            disabled={batchLoading || (!settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key) || stats.pendingTopics === 0}
           >
             {batchLoading ? '⏳ Génération...' : `🚀 Générer ${settings.posts_per_batch} article(s)`}
           </button>
@@ -566,7 +591,7 @@ function TopicsTab({ topics, settings, onRefresh }: { topics: BlogTopic[]; setti
     <div className="space-y-6">
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        <button className="sa-btn sa-btn-primary" onClick={handleSuggest} disabled={suggesting || !settings.anthropic_api_key}>
+        <button className="sa-btn sa-btn-primary" onClick={handleSuggest} disabled={suggesting || (!settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key)}>
           {suggesting ? '⏳ Analyse IA en cours...' : '🧠 Suggérer des sujets (IA)'}
         </button>
         <button className="sa-btn sa-btn-secondary" onClick={() => setShowManual(!showManual)}>
@@ -663,7 +688,7 @@ function TopicsTab({ topics, settings, onRefresh }: { topics: BlogTopic[]; setti
                             className="sa-btn sa-btn-primary"
                             style={{ fontSize: 11, padding: '4px 8px' }}
                             onClick={() => handleGenerate(t.id)}
-                            disabled={generating === t.id || !settings.anthropic_api_key}
+                            disabled={generating === t.id || (!settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key)}
                           >
                             {generating === t.id ? '⏳' : '🚀'} Générer
                           </button>
@@ -704,12 +729,18 @@ function TopicsTab({ topics, settings, onRefresh }: { topics: BlogTopic[]; setti
 function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefresh: () => void }) {
   const [form, setForm] = useState(settings)
   const [saving, setSaving] = useState(false)
-  const [showApiKey, setShowApiKey] = useState(false)
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
+
+  const toggleKey = (key: string) => setShowKeys(s => ({ ...s, [key]: !s[key] }))
+
+  const currentProvider = form.provider || 'gemini'
+  const modelsForProvider = MODEL_BY_PROVIDER[currentProvider] || MODEL_BY_PROVIDER.gemini
 
   const handleSave = async () => {
     setSaving(true)
     try {
       await SABlogService.updateSettings({
+        provider: form.provider,
         auto_generate: form.auto_generate,
         generation_frequency: form.generation_frequency,
         posts_per_batch: form.posts_per_batch,
@@ -724,6 +755,10 @@ function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefres
         seed_keywords: form.seed_keywords,
         categories: form.categories,
         anthropic_api_key: form.anthropic_api_key,
+        gemini_api_key: form.gemini_api_key,
+        groq_api_key: form.groq_api_key,
+        brave_api_key: form.brave_api_key,
+        research_enabled: form.research_enabled,
       } as Partial<BlogSettings>)
       toast.success('Paramètres sauvegardés')
       onRefresh()
@@ -734,27 +769,129 @@ function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefres
     }
   }
 
+  const KeyInput = ({ label, field, placeholder, helpUrl, helpText }: { label: string; field: keyof BlogSettings; placeholder: string; helpUrl?: string; helpText?: string }) => (
+    <div className="mb-3">
+      <label className="sa-label">{label}</label>
+      {helpUrl && (
+        <p className="text-xs text-gray-400 mb-1">
+          Obtenez votre clé sur <a href={helpUrl} target="_blank" rel="noopener noreferrer" className="underline text-blue-500">{helpText || helpUrl}</a>
+        </p>
+      )}
+      <div className="flex gap-2">
+        <input
+          className="sa-input flex-1"
+          type={showKeys[field] ? 'text' : 'password'}
+          placeholder={placeholder}
+          value={(form[field] as string) || ''}
+          onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
+        />
+        <button className="sa-btn sa-btn-secondary" onClick={() => toggleKey(field as string)} style={{ padding: '6px 10px' }}>
+          {showKeys[field] ? '🙈' : '👁️'}
+        </button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-6">
-      {/* API Key */}
-      <div className="sa-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
-        <h3 className="sa-card-title">🔑 Clé API Anthropic</h3>
-        <p className="text-xs text-gray-500 mb-3">
-          Obtenez votre clé sur <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="underline text-blue-500">console.anthropic.com</a>.
-          Claude Haiku 4.5 coûte ~0.01€ par article. Sonnet 4.6 ~0.04€.
+      {/* Provider & API Keys */}
+      <div className="sa-card" style={{ borderLeft: '4px solid #22c55e' }}>
+        <h3 className="sa-card-title">🔑 Provider IA & Clés API</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Choisissez votre provider IA. <strong>Gemini et Groq sont 100% gratuits</strong>. Claude est payant mais premium.
         </p>
-        <div className="flex gap-2">
-          <input
-            className="sa-input flex-1"
-            type={showApiKey ? 'text' : 'password'}
-            placeholder="sk-ant-api03-..."
-            value={form.anthropic_api_key || ''}
-            onChange={e => setForm(f => ({ ...f, anthropic_api_key: e.target.value }))}
-          />
-          <button className="sa-btn sa-btn-secondary" onClick={() => setShowApiKey(!showApiKey)}>
-            {showApiKey ? '🙈' : '👁️'}
-          </button>
+
+        {/* Provider selector */}
+        <div className="mb-4">
+          <label className="sa-label">Provider principal</label>
+          <div className="flex gap-2 mt-1">
+            {PROVIDER_OPTIONS.map(p => (
+              <button
+                key={p.value}
+                onClick={() => {
+                  const firstModel = MODEL_BY_PROVIDER[p.value]?.[0]?.value || ''
+                  setForm(f => ({ ...f, provider: p.value, model: firstModel }))
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  currentProvider === p.value
+                    ? 'bg-[#e74c3c] text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Conditional API key fields */}
+        {(currentProvider === 'gemini' || !currentProvider) && (
+          <KeyInput
+            label="🟢 Clé API Google Gemini (GRATUIT)"
+            field="gemini_api_key"
+            placeholder="AIzaSy..."
+            helpUrl="https://aistudio.google.com/apikey"
+            helpText="aistudio.google.com"
+          />
+        )}
+        {currentProvider === 'groq' && (
+          <KeyInput
+            label="🟢 Clé API Groq (GRATUIT)"
+            field="groq_api_key"
+            placeholder="gsk_..."
+            helpUrl="https://console.groq.com/keys"
+            helpText="console.groq.com"
+          />
+        )}
+        {currentProvider === 'claude' && (
+          <KeyInput
+            label="🔵 Clé API Anthropic (payant)"
+            field="anthropic_api_key"
+            placeholder="sk-ant-api03-..."
+            helpUrl="https://console.anthropic.com/settings/keys"
+            helpText="console.anthropic.com"
+          />
+        )}
+
+        {/* All keys section (optional extras) */}
+        <details className="mt-4">
+          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+            ➕ Configurer d'autres providers (optionnel, fallback)
+          </summary>
+          <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+            {currentProvider !== 'gemini' && (
+              <KeyInput label="Google Gemini" field="gemini_api_key" placeholder="AIzaSy..." helpUrl="https://aistudio.google.com/apikey" helpText="aistudio.google.com" />
+            )}
+            {currentProvider !== 'groq' && (
+              <KeyInput label="Groq" field="groq_api_key" placeholder="gsk_..." helpUrl="https://console.groq.com/keys" helpText="console.groq.com" />
+            )}
+            {currentProvider !== 'claude' && (
+              <KeyInput label="Anthropic Claude" field="anthropic_api_key" placeholder="sk-ant-api03-..." helpUrl="https://console.anthropic.com/settings/keys" helpText="console.anthropic.com" />
+            )}
+          </div>
+        </details>
+      </div>
+
+      {/* Research (Brave Search) */}
+      <div className="sa-card" style={{ borderLeft: '4px solid #f97316' }}>
+        <h3 className="sa-card-title">🔍 Recherche Web (enrichissement articles)</h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Avant de rédiger, l'IA recherche le web pour enrichir les articles avec des données récentes et des tendances.
+          <strong> Brave Search : 2000 requêtes/mois gratuites.</strong>
+        </p>
+        <div className="flex items-center gap-3 mb-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.research_enabled ?? true} onChange={e => setForm(f => ({ ...f, research_enabled: e.target.checked }))} />
+            <span className="text-sm font-medium">Recherche web activée</span>
+          </label>
+        </div>
+        <KeyInput
+          label="Clé API Brave Search (gratuit)"
+          field="brave_api_key"
+          placeholder="BSA..."
+          helpUrl="https://brave.com/search/api/"
+          helpText="brave.com/search/api"
+        />
       </div>
 
       {/* Modèle & génération */}
@@ -762,9 +899,9 @@ function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefres
         <h3 className="sa-card-title">🤖 Modèle & Génération</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
           <div>
-            <label className="sa-label">Modèle IA</label>
+            <label className="sa-label">Modèle IA ({PROVIDER_OPTIONS.find(p => p.value === currentProvider)?.label})</label>
             <select className="sa-input" value={form.model} onChange={e => setForm(f => ({ ...f, model: e.target.value }))}>
-              {MODEL_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              {modelsForProvider.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
           <div>
