@@ -824,33 +824,51 @@ function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefres
           </div>
         </div>
 
-        {/* Conditional API key fields */}
+        {/* Conditional API key fields with step-by-step instructions */}
         {(currentProvider === 'gemini' || !currentProvider) && (
-          <KeyInput
-            label="🟢 Clé API Google Gemini (GRATUIT)"
-            field="gemini_api_key"
-            placeholder="AIzaSy..."
-            helpUrl="https://aistudio.google.com/apikey"
-            helpText="aistudio.google.com"
-          />
+          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 mb-3">
+            <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">🟢 Google Gemini — 100% GRATUIT</p>
+            <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
+              <li>Allez sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">aistudio.google.com/apikey</a></li>
+              <li>Connectez-vous avec votre compte Google</li>
+              <li>Cliquez sur <strong>"Create API Key"</strong></li>
+              <li>Sélectionnez un projet (ou créez-en un nouveau)</li>
+              <li>Copiez la clé générée (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">AIzaSy...</code>)</li>
+              <li>Collez-la ci-dessous</li>
+            </ol>
+            <p className="text-[10px] text-gray-400 mb-2">Limites gratuites : 1 500 requêtes/jour · 1 million de tokens/jour · Aucune carte bancaire requise</p>
+            <KeyInput label="Clé API Gemini" field="gemini_api_key" placeholder="AIzaSy..." />
+          </div>
         )}
         {currentProvider === 'groq' && (
-          <KeyInput
-            label="🟢 Clé API Groq (GRATUIT)"
-            field="groq_api_key"
-            placeholder="gsk_..."
-            helpUrl="https://console.groq.com/keys"
-            helpText="console.groq.com"
-          />
+          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 mb-3">
+            <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">🟢 Groq (Llama 3) — 100% GRATUIT</p>
+            <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
+              <li>Allez sur <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">console.groq.com/keys</a></li>
+              <li>Créez un compte gratuit (email ou Google)</li>
+              <li>Cliquez sur <strong>"Create API Key"</strong></li>
+              <li>Donnez un nom à la clé (ex: "Blog AntiPlanning")</li>
+              <li>Copiez la clé générée (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">gsk_...</code>)</li>
+              <li>Collez-la ci-dessous</li>
+            </ol>
+            <p className="text-[10px] text-gray-400 mb-2">Limites gratuites : 30 requêtes/min · Llama 3.3 70B (très performant) · Aucune carte bancaire requise</p>
+            <KeyInput label="Clé API Groq" field="groq_api_key" placeholder="gsk_..." />
+          </div>
         )}
         {currentProvider === 'claude' && (
-          <KeyInput
-            label="🔵 Clé API Anthropic (payant)"
-            field="anthropic_api_key"
-            placeholder="sk-ant-api03-..."
-            helpUrl="https://console.anthropic.com/settings/keys"
-            helpText="console.anthropic.com"
-          />
+          <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 mb-3">
+            <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-2">🔵 Claude (Anthropic) — PAYANT à l'usage</p>
+            <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
+              <li>Allez sur <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">console.anthropic.com/settings/keys</a></li>
+              <li>Connectez-vous ou créez un compte Anthropic</li>
+              <li>Ajoutez un moyen de paiement dans <strong>Settings &gt; Billing</strong></li>
+              <li>Allez dans <strong>API Keys</strong> → <strong>"Create Key"</strong></li>
+              <li>Copiez la clé (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">sk-ant-api03-...</code>)</li>
+              <li>Collez-la ci-dessous</li>
+            </ol>
+            <p className="text-[10px] text-gray-400 mb-2">Tarif : Haiku ~0.01€/article · Sonnet ~0.04€/article · Carte bancaire requise · Meilleure qualité de rédaction</p>
+            <KeyInput label="Clé API Anthropic" field="anthropic_api_key" placeholder="sk-ant-api03-..." />
+          </div>
         )}
 
         {/* All keys section (optional extras) */}
@@ -876,8 +894,7 @@ function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefres
       <div className="sa-card" style={{ borderLeft: '4px solid #f97316' }}>
         <h3 className="sa-card-title">🔍 Recherche Web (enrichissement articles)</h3>
         <p className="text-xs text-gray-500 mb-3">
-          Avant de rédiger, l'IA recherche le web pour enrichir les articles avec des données récentes et des tendances.
-          <strong> Brave Search : 2000 requêtes/mois gratuites.</strong>
+          Avant de rédiger, l'IA recherche le web pour enrichir les articles avec des données récentes, statistiques et tendances du secteur.
         </p>
         <div className="flex items-center gap-3 mb-3">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -885,13 +902,20 @@ function SettingsTab({ settings, onRefresh }: { settings: BlogSettings; onRefres
             <span className="text-sm font-medium">Recherche web activée</span>
           </label>
         </div>
-        <KeyInput
-          label="Clé API Brave Search (gratuit)"
-          field="brave_api_key"
-          placeholder="BSA..."
-          helpUrl="https://brave.com/search/api/"
-          helpText="brave.com/search/api"
-        />
+        <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 mb-3">
+          <p className="text-sm font-semibold text-orange-700 dark:text-orange-400 mb-2">🔍 Brave Search API — GRATUIT</p>
+          <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-3 list-decimal list-inside">
+            <li>Allez sur <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer" className="underline text-blue-500 font-medium">brave.com/search/api</a></li>
+            <li>Cliquez sur <strong>"Get Started for Free"</strong></li>
+            <li>Créez un compte Brave (email)</li>
+            <li>Dans le dashboard, choisissez le plan <strong>"Free"</strong> (2 000 requêtes/mois)</li>
+            <li>Allez dans <strong>"API Keys"</strong> → <strong>"Add API Key"</strong></li>
+            <li>Copiez la clé générée (commence par <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">BSA...</code>)</li>
+            <li>Collez-la ci-dessous</li>
+          </ol>
+          <p className="text-[10px] text-gray-400 mb-2">Limites gratuites : 2 000 requêtes/mois · 1 req/seconde · Aucune carte bancaire requise</p>
+          <KeyInput label="Clé API Brave Search" field="brave_api_key" placeholder="BSA..." />
+        </div>
       </div>
 
       {/* Modèle & génération */}
