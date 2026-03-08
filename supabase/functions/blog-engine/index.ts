@@ -890,7 +890,17 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
         keywords: string[];
       };
 
-      improved = safeJsonParse(result.text);
+      try {
+        improved = safeJsonParse(result.text);
+      } catch (parseErr) {
+        console.error("Failed to parse improve-article response:", parseErr, result.text?.slice(0, 500));
+        throw new Error("L'IA a retourné une réponse invalide. Réessayez.");
+      }
+
+      // Fallback: use original values if AI didn't return them
+      if (!improved.title) improved.title = post.title;
+      if (!improved.content) improved.content = post.content;
+      if (!improved.meta_description) improved.meta_description = post.meta_description || "";
 
       const wordCount = countWords(improved.content);
       const seoScore = computeSeoScore({
@@ -901,6 +911,7 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
       });
       const cost = estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens);
 
+      // Update the post — preserve status and slug (no status change on improve)
       const { data: updatedPost, error: updateErr } = await db
         .from("blog_posts")
         .update({
@@ -911,6 +922,7 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
           word_count: wordCount,
           reading_time_min: Math.max(1, Math.round(wordCount / 220)),
           seo_score: seoScore,
+          meta_title: improved.title.length <= 60 ? improved.title : (post.meta_title || improved.title.slice(0, 60)),
         })
         .eq("id", postId)
         .select()

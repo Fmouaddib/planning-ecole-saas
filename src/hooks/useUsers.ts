@@ -290,6 +290,39 @@ export function useUsers(): UseUsersReturn {
     }
   }, [currentUser?.role, currentUser?.id, handleError])
 
+  // ==================== INVITATION ====================
+
+  const sendInvitationToUser = useCallback(async (
+    userId: UUID,
+    options?: { customSubject?: string; customHtmlContent?: string }
+  ) => {
+    const targetUser = users.find(u => u.id === userId)
+    if (!targetUser) throw new Error('Utilisateur introuvable')
+
+    const activeCtx = getActiveContext()
+    const centerName = activeCtx?.centerName || 'votre centre'
+    const redirectTo = window.location.origin
+
+    const { error: inviteError } = await supabase.functions.invoke('send-invitation', {
+      body: {
+        email: targetUser.email,
+        userName: `${targetUser.firstName} ${targetUser.lastName}`.trim(),
+        centerName,
+        role: targetUser.role,
+        redirectTo,
+        ...(options?.customSubject && { customSubject: options.customSubject }),
+        ...(options?.customHtmlContent && { customHtmlContent: options.customHtmlContent }),
+      },
+    })
+
+    if (inviteError) {
+      console.error('[useUsers] send-invitation error:', inviteError)
+      throw new Error('L\'email d\'invitation n\'a pas pu être envoyé')
+    }
+
+    toast.success(`Invitation envoyée à ${targetUser.firstName} ${targetUser.lastName}`)
+  }, [users])
+
   // ==================== QUERY FUNCTIONS ====================
 
   const getUserById = useCallback((id: UUID): User | undefined => {
@@ -411,6 +444,7 @@ export function useUsers(): UseUsersReturn {
     createUser,
     updateUser,
     deleteUser,
+    sendInvitationToUser,
     getUserById,
     getUsersByRole,
     refreshUsers,

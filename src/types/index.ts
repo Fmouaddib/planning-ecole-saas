@@ -633,6 +633,7 @@ export interface UseUsersReturn {
   createUser: (data: RegisterData) => Promise<User>
   updateUser: (id: UUID, data: Partial<User>) => Promise<User>
   deleteUser: (id: UUID) => Promise<void>
+  sendInvitationToUser: (userId: UUID, options?: { customSubject?: string; customHtmlContent?: string }) => Promise<void>
   getUserById: (id: UUID) => User | undefined
   getUsersByRole: (role: UserRole) => User[]
   refreshUsers: () => Promise<void>

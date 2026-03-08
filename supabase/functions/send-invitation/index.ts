@@ -15,6 +15,8 @@ interface InvitationRequest {
   centerName: string;
   role: string;
   redirectTo: string;
+  customSubject?: string;
+  customHtmlContent?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -81,7 +83,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { email, userName, centerName, role, redirectTo } =
+    const { email, userName, centerName, role, redirectTo, customSubject, customHtmlContent } =
       (await req.json()) as InvitationRequest;
 
     if (!email || !redirectTo) {
@@ -134,7 +136,13 @@ Deno.serve(async (req: Request) => {
     let subject: string;
     let htmlContent: string;
 
-    if (template) {
+    if (customSubject && customHtmlContent) {
+      // Use custom content provided by admin (with setup URL injection)
+      subject = customSubject;
+      htmlContent = customHtmlContent
+        .replace(/\{\{setup_url\}\}/g, setupUrl)
+        .replace(/\{\{login_url\}\}/g, setupUrl);
+    } else if (template) {
       subject = template.subject.replace(
         /\{\{center_name\}\}/g,
         centerName || "votre centre",

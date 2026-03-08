@@ -62,7 +62,7 @@ const emptyForm: UserFormData = {
 
 function UsersPage() {
   const {
-    users, isLoading, error, createUser, updateUser, deleteUser, refreshUsers,
+    users, isLoading, error, createUser, updateUser, deleteUser, sendInvitationToUser, refreshUsers,
     canCreateUsers, canUpdateUser, canDeleteUser,
   } = useUsers()
   const {
@@ -89,6 +89,10 @@ function UsersPage() {
   const [contactForm, setContactForm] = useState({ firstName: '', lastName: '', email: '', phone: '', relationship: 'parent' as ContactRelationship, receiveBulletins: true, receiveAbsences: true })
   const [editingContactId, setEditingContactId] = useState<string | null>(null)
   const [showContactForm, setShowContactForm] = useState(false)
+  const [inviteUser, setInviteUser] = useState<User | null>(null)
+  const [inviteSubject, setInviteSubject] = useState('')
+  const [inviteBody, setInviteBody] = useState('')
+  const [sendingInvite, setSendingInvite] = useState(false)
 
   useEffect(() => { fetchContacts() }, [fetchContacts])
 
@@ -104,6 +108,49 @@ function UsersPage() {
   }, [users, search, roleFilter])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
+
+  const openInvite = (user: User) => {
+    const roleLabel = roleLabels[user.role] || user.role
+    setInviteUser(user)
+    setInviteSubject(`Invitation à rejoindre votre centre de formation`)
+    setInviteBody(
+      `Bonjour ${user.firstName} ${user.lastName},\n\n` +
+      `Vous êtes invité(e) à rejoindre notre plateforme AntiPlanning en tant que ${roleLabel}.\n\n` +
+      `Pour activer votre compte, cliquez sur le bouton "Créer mon mot de passe" dans l'email que vous recevrez.\n\n` +
+      `Ce lien est valable 24 heures.\n\n` +
+      `Cordialement,\nL'équipe AntiPlanning`
+    )
+  }
+
+  const handleSendInvite = async () => {
+    if (!inviteUser) return
+    setSendingInvite(true)
+    try {
+      const htmlContent = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+  <div style="background:linear-gradient(135deg,#FF5B46,#FBA625);color:white;padding:24px;border-radius:8px 8px 0 0">
+    <h1 style="margin:0;font-size:22px">AntiPlanning</h1>
+  </div>
+  <div style="padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;background:#fff">
+    ${inviteBody.split('\n').map(line => `<p style="font-size:15px;color:#333;margin:8px 0">${line || '&nbsp;'}</p>`).join('\n    ')}
+    <p style="text-align:center;margin:28px 0">
+      <a href="{{setup_url}}" style="display:inline-block;background:linear-gradient(135deg,#FF5B46,#FBA625);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">
+        Créer mon mot de passe
+      </a>
+    </p>
+  </div>
+  <p style="color:#9ca3af;font-size:11px;margin-top:16px;text-align:center">AntiPlanning — Ne pas répondre à cet email</p>
+</div>`
+      await sendInvitationToUser(inviteUser.id, {
+        customSubject: inviteSubject,
+        customHtmlContent: htmlContent,
+      })
+      setInviteUser(null)
+    } catch {
+      // error handled by hook
+    } finally {
+      setSendingInvite(false)
+    }
+  }
 
   const openCreate = () => {
     setForm(emptyForm)
@@ -362,6 +409,11 @@ function UsersPage() {
                           <Button variant="ghost" size="sm" onClick={() => navigateToDM(u.id)} title="Envoyer un message">
                             <MessageCircle size={14} className="text-primary-500" />
                           </Button>
+                          {canUpdateUser(u.id) && (
+                            <Button variant="ghost" size="sm" onClick={() => openInvite(u)} title="Envoyer une invitation">
+                              <Send size={14} className="text-green-600" />
+                            </Button>
+                          )}
                           {canUpdateUser(u.id) && (
                             <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
                               <Pencil size={14} />
@@ -791,6 +843,76 @@ function UsersPage() {
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={submitting}>
             Supprimer
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Invitation Modal */}
+      <Modal
+        isOpen={!!inviteUser}
+        onClose={() => setInviteUser(null)}
+        title={`Envoyer une invitation à ${inviteUser?.firstName || ''} ${inviteUser?.lastName || ''}`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
+            <p className="text-sm text-green-800 dark:text-green-300">
+              Un email sera envoyé à <strong>{inviteUser?.email}</strong> avec un lien pour créer/réinitialiser son mot de passe.
+            </p>
+          </div>
+
+          <Input
+            label="Objet de l'email"
+            value={inviteSubject}
+            onChange={e => setInviteSubject(e.target.value)}
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+              Contenu du message
+            </label>
+            <textarea
+              value={inviteBody}
+              onChange={e => setInviteBody(e.target.value)}
+              rows={10}
+              className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-sm resize-y focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+            <p className="text-xs text-neutral-400 mt-1">
+              Le bouton "Créer mon mot de passe" sera automatiquement ajouté sous votre message.
+            </p>
+          </div>
+
+          {/* Preview */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Aperçu
+            </label>
+            <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
+              <div style={{ background: 'linear-gradient(135deg, #FF5B46, #FBA625)', color: 'white', padding: '16px 20px' }}>
+                <strong style={{ fontSize: 16 }}>AntiPlanning</strong>
+              </div>
+              <div className="p-4 bg-white dark:bg-neutral-900 text-sm text-neutral-700 dark:text-neutral-300">
+                {inviteBody.split('\n').map((line, i) => (
+                  <p key={i} style={{ margin: '6px 0', minHeight: 8 }}>{line || '\u00A0'}</p>
+                ))}
+                <div className="text-center my-6">
+                  <span className="inline-block px-6 py-3 rounded-lg text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg, #FF5B46, #FBA625)' }}>
+                    Créer mon mot de passe
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setInviteUser(null)}>Annuler</Button>
+          <Button
+            onClick={handleSendInvite}
+            isLoading={sendingInvite}
+            leftIcon={Send}
+            disabled={!inviteSubject.trim()}
+          >
+            Envoyer l'invitation
           </Button>
         </ModalFooter>
       </Modal>

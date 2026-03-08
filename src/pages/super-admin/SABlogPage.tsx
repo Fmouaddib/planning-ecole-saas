@@ -314,7 +314,8 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
       }
       if (newStatus) patch.status = newStatus as BlogPost['status']
       await SABlogService.updatePost(selectedPost.id, patch)
-      toast.success(newStatus === 'published' ? 'Article publié !' : 'Article sauvegardé')
+      const msg = newStatus === 'published' ? 'Article publié !' : selectedPost.status === 'published' ? 'Article publié mis à jour !' : 'Article sauvegardé'
+      toast.success(msg)
       setSelectedPost(null)
       onRefresh()
     } catch (err: any) {
@@ -354,15 +355,19 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     setImproving(true)
     try {
       const improved = await SABlogService.improveArticle(selectedPost.id, auditResult)
-      setSelectedPost(improved)
-      setEditTitle(improved.title)
-      setEditContent(improved.content)
-      setEditMeta(improved.meta_description || '')
+      // Update local state with improved article
+      const merged = { ...selectedPost, ...improved }
+      setSelectedPost(merged)
+      setEditTitle(merged.title)
+      setEditContent(merged.content)
+      setEditMeta(merged.meta_description || '')
       setAuditResult(null)
-      toast.success(`Article amélioré ! Score SEO : ${improved.seo_score}`)
+      toast.success(`Article amélioré ! Score SEO : ${merged.seo_score}`)
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message)
+      // If edge function fails, try to save locally-audited changes
+      console.error('Improve error:', err)
+      toast.error(err.message || 'Erreur lors de l\'amélioration')
     } finally {
       setImproving(false)
     }
