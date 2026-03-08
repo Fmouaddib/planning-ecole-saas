@@ -321,7 +321,15 @@ export function useUsers(): UseUsersReturn {
 
     if (inviteError) {
       console.error('[useUsers] send-invitation error:', inviteError)
-      throw new Error('L\'email d\'invitation n\'a pas pu être envoyé')
+      // Extract detailed error message
+      let detail = ''
+      if (typeof inviteError === 'object' && inviteError !== null) {
+        if ('context' in inviteError) {
+          try { detail = (await (inviteError as any).context?.json())?.error || '' } catch {}
+        }
+        if (!detail) detail = (inviteError as any).message || JSON.stringify(inviteError)
+      }
+      throw new Error(detail || 'L\'email d\'invitation n\'a pas pu être envoyé')
     }
 
     toast.success(`Invitation envoyée à ${targetUser.firstName} ${targetUser.lastName}`)

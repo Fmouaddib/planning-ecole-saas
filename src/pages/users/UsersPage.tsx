@@ -93,6 +93,7 @@ function UsersPage() {
   const [inviteSubject, setInviteSubject] = useState('')
   const [inviteBody, setInviteBody] = useState('')
   const [sendingInvite, setSendingInvite] = useState(false)
+  const [inviteResult, setInviteResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => { fetchContacts() }, [fetchContacts])
 
@@ -112,6 +113,7 @@ function UsersPage() {
   const openInvite = (user: User) => {
     const roleLabel = roleLabels[user.role] || user.role
     setInviteUser(user)
+    setInviteResult(null)
     setInviteSubject(`Invitation à rejoindre votre centre de formation`)
 
     // Role-specific feature descriptions
@@ -165,6 +167,7 @@ function UsersPage() {
   const handleSendInvite = async () => {
     if (!inviteUser) return
     setSendingInvite(true)
+    setInviteResult(null)
     try {
       const htmlContent = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
   <div style="background:linear-gradient(135deg,#FF5B46,#FBA625);color:white;padding:24px;border-radius:8px 8px 0 0">
@@ -184,9 +187,9 @@ function UsersPage() {
         customSubject: inviteSubject,
         customHtmlContent: htmlContent,
       })
-      setInviteUser(null)
-    } catch {
-      // error handled by hook
+      setInviteResult({ status: 'success', message: `Email envoyé avec succès à ${inviteUser.email}` })
+    } catch (err: any) {
+      setInviteResult({ status: 'error', message: err?.message || 'Erreur inconnue lors de l\'envoi' })
     } finally {
       setSendingInvite(false)
     }
@@ -943,17 +946,49 @@ function UsersPage() {
               </div>
             </div>
           </div>
+          {/* Send result status */}
+          {inviteResult && (
+            <div className={`border rounded-lg px-4 py-3 ${
+              inviteResult.status === 'success'
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+            }`}>
+              <div className="flex items-start gap-2">
+                <span className="text-lg mt-0.5">{inviteResult.status === 'success' ? '✅' : '❌'}</span>
+                <div>
+                  <p className={`text-sm font-medium ${
+                    inviteResult.status === 'success'
+                      ? 'text-green-800 dark:text-green-300'
+                      : 'text-red-800 dark:text-red-300'
+                  }`}>
+                    {inviteResult.status === 'success' ? 'Email envoyé' : 'Echec de l\'envoi'}
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    inviteResult.status === 'success'
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {inviteResult.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <ModalFooter>
-          <Button variant="secondary" onClick={() => setInviteUser(null)}>Annuler</Button>
-          <Button
-            onClick={handleSendInvite}
-            isLoading={sendingInvite}
-            leftIcon={Send}
-            disabled={!inviteSubject.trim()}
-          >
-            Envoyer l'invitation
+          <Button variant="secondary" onClick={() => { setInviteUser(null); setInviteResult(null) }}>
+            {inviteResult?.status === 'success' ? 'Fermer' : 'Annuler'}
           </Button>
+          {inviteResult?.status !== 'success' && (
+            <Button
+              onClick={handleSendInvite}
+              isLoading={sendingInvite}
+              leftIcon={Send}
+              disabled={!inviteSubject.trim()}
+            >
+              {inviteResult?.status === 'error' ? 'Réessayer' : 'Envoyer l\'invitation'}
+            </Button>
+          )}
         </ModalFooter>
       </Modal>
 
