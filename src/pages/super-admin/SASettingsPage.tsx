@@ -18,8 +18,12 @@ const PROVIDER_OPTIONS = [
 
 const MODEL_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
   gemini: [
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (gratuit)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (gratuit)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (le plus puissant)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (rapide + raisonnement)' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (rapide, gratuit)' },
+    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (ultra léger)' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (stable)' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (économique)' },
   ],
   groq: [
     { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (gratuit)' },
