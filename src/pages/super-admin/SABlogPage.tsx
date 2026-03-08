@@ -156,8 +156,8 @@ function DashboardTab({ stats, settings, posts, onRefresh }: { stats: any; setti
   const kpis = [
     { label: 'Articles', value: stats.totalPosts, icon: '📝' },
     { label: 'Publiés', value: stats.published, icon: '✅' },
+    { label: 'Vues totales', value: stats.totalViews?.toLocaleString('fr-FR') || 0, icon: '👁️' },
     { label: 'À relire', value: stats.reviews, icon: '👀' },
-    { label: 'Brouillons', value: stats.drafts, icon: '📋' },
     { label: 'Sujets en attente', value: stats.pendingTopics, icon: '💡' },
     { label: 'Score SEO moyen', value: stats.avgSeoScore, icon: '🎯' },
     { label: 'Coût total', value: `$${stats.totalCost.toFixed(3)}`, icon: '💰' },
@@ -222,6 +222,7 @@ function DashboardTab({ stats, settings, posts, onRefresh }: { stats: any; setti
                 <th>Catégorie</th>
                 <th>Statut</th>
                 <th>SEO</th>
+                <th>Vues</th>
                 <th>Mots</th>
                 <th>Coût</th>
               </tr>
@@ -236,6 +237,7 @@ function DashboardTab({ stats, settings, posts, onRefresh }: { stats: any; setti
                   <td><span className="sa-badge">{CATEGORY_LABELS[p.category] || p.category}</span></td>
                   <td><span className={STATUS_BADGES[p.status]?.cls || 'sa-badge'}>{STATUS_BADGES[p.status]?.label || p.status}</span></td>
                   <td><SeoBar score={p.seo_score} /></td>
+                  <td style={{ fontSize: 13 }}>{p.view_count || 0}</td>
                   <td style={{ fontSize: 13 }}>{p.word_count}</td>
                   <td style={{ fontSize: 13 }}>${p.generation_cost_estimate?.toFixed(4)}</td>
                 </tr>

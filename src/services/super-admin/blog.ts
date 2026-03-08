@@ -70,6 +70,7 @@ export interface BlogPost {
   topic_id: string | null
   model_used: string | null
   generation_cost_estimate: number
+  view_count: number
   created_at: string
   updated_at: string
   published_at: string | null
@@ -241,15 +242,30 @@ export class SABlogService {
 
   // Edge function calls
   static async suggestTopics(count = 10): Promise<TopicSuggestion[]> {
-    const existingTopics = await this.getTopics()
+    const [existingTopics, existingPosts] = await Promise.all([
+      this.getTopics(),
+      this.getPosts(),
+    ])
+    // Combine topic names + article titles to avoid duplicates
+    const allExisting = [
+      ...existingTopics.map(t => t.topic),
+      ...existingPosts.map(p => p.title),
+    ]
     const { data, error } = await supabase.functions.invoke('blog-engine', {
       body: {
         action: 'suggest-topics',
         count,
-        existingTopics: existingTopics.map(t => t.topic),
+        existingTopics: allExisting,
       },
     })
-    if (error) throw error
+    if (error) {
+      // Extract error message from FunctionsHttpError context
+      const msg = typeof error === 'object' && 'context' in error
+        ? await (error as any).context?.json?.()?.then((d: any) => d?.error) || error.message
+        : error.message
+      throw new Error(msg || 'Erreur lors de la suggestion de sujets')
+    }
+    if (data?.error) throw new Error(data.error)
     return data?.suggestions || []
   }
 
@@ -302,6 +318,7 @@ export class SABlogService {
     pendingTopics: number
     totalCost: number
     avgSeoScore: number
+    totalViews: number
   }> {
     const [posts, topics, logs] = await Promise.all([
       this.getPosts(),
@@ -317,6 +334,7 @@ export class SABlogService {
     const avgSeoScore = posts.length > 0
       ? Math.round(posts.reduce((s, p) => s + p.seo_score, 0) / posts.length)
       : 0
+    const totalViews = posts.reduce((s, p) => s + (p.view_count || 0), 0)
 
     return {
       totalPosts: posts.length,
@@ -326,6 +344,7 @@ export class SABlogService {
       pendingTopics,
       totalCost,
       avgSeoScore,
+      totalViews,
     }
   }
 }

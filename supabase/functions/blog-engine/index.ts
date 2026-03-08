@@ -1125,7 +1125,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON.`;
       if (updateErr) throw updateErr;
 
       const cost = estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens);
-      await db.from("blog_generation_log").insert({
+      await db.from("blog_generation_logs").insert({
         action: "update-links",
         post_id: postId,
         model: `${result.provider}/${result.model}`,
