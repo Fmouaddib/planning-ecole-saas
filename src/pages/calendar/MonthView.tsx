@@ -40,6 +40,8 @@ interface MonthViewProps {
   onEventClick: (e: CalendarEvent) => void
   onDayClick: (day: Date) => void
   totalRooms: number
+  hourStart?: number
+  hourEnd?: number
 }
 
 export default function MonthView({
@@ -48,6 +50,8 @@ export default function MonthView({
   onEventClick,
   onDayClick,
   totalRooms,
+  hourStart = HOUR_START,
+  hourEnd = HOUR_END,
 }: MonthViewProps) {
   const [showOccupation, setShowOccupation] = useState(false)
 
@@ -65,8 +69,8 @@ export default function MonthView({
 
   const occupationData = useMemo(() => {
     const data = new Map<string, { rate: number; bookedHours: number; roomsUsed: number }>()
-    const slotStart = HOUR_START
-    const slotEnd = HOUR_END
+    const slotStart = hourStart
+    const slotEnd = hourEnd
     const slotHours = slotEnd - slotStart // 12h
     const maxHours = totalRooms * slotHours
 
@@ -182,7 +186,7 @@ export default function MonthView({
           </button>
         </div>
         <div className="text-xs text-neutral-400">
-          {totalRooms} salle{totalRooms > 1 ? 's' : ''} · {HOUR_START}h-{HOUR_END}h
+          {totalRooms} salle{totalRooms > 1 ? 's' : ''} · {hourStart}h-{hourEnd}h
         </div>
       </div>
 
@@ -251,7 +255,7 @@ export default function MonthView({
                   !inCurrentMonth ? 'opacity-40' : ''
                 } ${isWeekend ? 'bg-neutral-50 dark:bg-neutral-900' : style.bg} ${isToday(day) ? 'ring-2 ring-inset ring-primary-400' : ''}`}
                 onClick={() => onDayClick(day)}
-                title={`${occ?.bookedHours ?? 0}h de séances / ${totalRooms * (HOUR_END - HOUR_START)}h possibles (${occ?.roomsUsed ?? 0} salle${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''} active${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''})`}
+                title={`${occ?.bookedHours ?? 0}h de séances / ${totalRooms * (hourEnd - hourStart)}h possibles (${occ?.roomsUsed ?? 0} salle${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''} active${(occ?.roomsUsed ?? 0) > 1 ? 's' : ''})`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className={`text-sm font-medium ${

@@ -983,6 +983,8 @@ function CalendarPage() {
               onEventClick={handleEventClick}
               onDayClick={(day) => handleSlotClick(day, null)}
               totalRooms={totalRooms}
+              hourStart={centerHourStart}
+              hourEnd={centerHourEnd}
             />
           )}
           {view === 'day' && (
@@ -1004,6 +1006,8 @@ function CalendarPage() {
               currentDate={currentDate}
               events={filteredEvents}
               onEventClick={handleEventClick}
+              hourStart={centerHourStart}
+              hourEnd={centerHourEnd}
               buildings={isDemoMode
                 ? mockBuildingRooms.map(b => ({
                     ...b,

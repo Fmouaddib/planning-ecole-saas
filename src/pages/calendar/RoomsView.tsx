@@ -4,9 +4,8 @@ import { fr } from 'date-fns/locale'
 import { Building2 } from 'lucide-react'
 import type { CalendarEvent } from '@/types'
 
-const HOUR_START = 8
-const HOUR_END = 20
-const HOURS = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
+const DEFAULT_HOUR_START = 8
+const DEFAULT_HOUR_END = 20
 
 const bookingTypeLabels: Record<string, string> = {
   course: 'Cours',
@@ -21,12 +20,17 @@ export function RoomsView({
   events,
   onEventClick,
   buildings,
+  hourStart = DEFAULT_HOUR_START,
+  hourEnd = DEFAULT_HOUR_END,
 }: {
   currentDate: Date
   events: CalendarEvent[]
   onEventClick: (e: CalendarEvent) => void
   buildings: { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }[]
+  hourStart?: number
+  hourEnd?: number
 }) {
+  const HOURS = Array.from({ length: hourEnd - hourStart }, (_, i) => hourStart + i)
   const weekStart = useMemo(
     () => startOfWeek(currentDate, { weekStartsOn: 1 }),
     [currentDate],
@@ -198,13 +202,13 @@ export function RoomsView({
                       const endH = end.getHours() + end.getMinutes() / 60
 
                       const leftPct =
-                        ((Math.max(startH, HOUR_START) - HOUR_START) /
-                          (HOUR_END - HOUR_START)) *
+                        ((Math.max(startH, hourStart) - hourStart) /
+                          (hourEnd - hourStart)) *
                         100
                       const widthPct =
-                        ((Math.min(endH, HOUR_END) -
-                          Math.max(startH, HOUR_START)) /
-                          (HOUR_END - HOUR_START)) *
+                        ((Math.min(endH, hourEnd) -
+                          Math.max(startH, hourStart)) /
+                          (hourEnd - hourStart)) *
                         100
 
                       if (widthPct <= 0) return null
