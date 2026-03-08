@@ -299,25 +299,10 @@ function CalendarPage() {
         ? events.filter(e => e.classId && studentClassIds.includes(e.classId))
         : []
     } else if (showOnlyMine && user?.id && isTeacher) {
-      // Professeur : ses séances + séances ghost (même classe/diplôme)
-      const myEvents = events.filter(e => e.userId === user.id)
-      // Collect classIds and diplome names from teacher's own sessions
-      const myClassIds = new Set<string>()
-      const myDiplomes = new Set<string>()
-      myEvents.forEach(e => {
-        if (e.classId) myClassIds.add(e.classId)
-        if (e.diplome) myDiplomes.add(e.diplome)
-      })
-      // Ghost events: same class OR same diploma, but not teacher's own
-      const ghostEvents = myClassIds.size > 0 || myDiplomes.size > 0
-        ? events
-            .filter(e => e.userId !== user.id && (
-              (e.classId && myClassIds.has(e.classId)) ||
-              (e.diplome && myDiplomes.has(e.diplome))
-            ))
-            .map(e => ({ ...e, isGhost: true }))
-        : []
-      events = [...myEvents, ...ghostEvents]
+      // Professeur : TOUTES les séances visibles, mais celles des autres profs grisées
+      events = events.map(e =>
+        e.userId === user.id ? e : { ...e, isGhost: true }
+      )
     } else if (showOnlyMine && user?.id) {
       events = events.filter(e => e.userId === user.id)
     }
@@ -440,6 +425,12 @@ function CalendarPage() {
     setCreateDate(date)
     setCreateHour(hour)
     setShowCreateModal(true)
+  }
+
+  // Bloquer le clic sur les séances ghost (autres profs)
+  const handleEventClick = (event: CalendarEvent) => {
+    if (event.isGhost) return
+    setSelectedEvent(event)
   }
 
   const handleCreateSubmit = async (data: {
@@ -989,7 +980,7 @@ function CalendarPage() {
             <WeekView
               currentDate={currentDate}
               events={filteredEvents}
-              onEventClick={setSelectedEvent}
+              onEventClick={handleEventClick}
               onSlotClick={handleSlotClick}
               onEventUpdate={handleEventUpdate}
               hourStart={centerHourStart}
@@ -1002,7 +993,7 @@ function CalendarPage() {
             <MonthView
               currentDate={currentDate}
               events={filteredEvents}
-              onEventClick={setSelectedEvent}
+              onEventClick={handleEventClick}
               onDayClick={(day) => handleSlotClick(day, null)}
               totalRooms={totalRooms}
             />
@@ -1011,7 +1002,7 @@ function CalendarPage() {
             <DayView
               currentDate={currentDate}
               events={filteredEvents}
-              onEventClick={setSelectedEvent}
+              onEventClick={handleEventClick}
               onSlotClick={handleSlotClick}
               onEventUpdate={handleEventUpdate}
               hourStart={centerHourStart}
@@ -1025,7 +1016,7 @@ function CalendarPage() {
             <RoomsView
               currentDate={currentDate}
               events={filteredEvents}
-              onEventClick={setSelectedEvent}
+              onEventClick={handleEventClick}
               buildings={isDemoMode
                 ? mockBuildingRooms.map(b => ({
                     ...b,
