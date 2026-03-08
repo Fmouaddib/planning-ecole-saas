@@ -282,13 +282,13 @@ export const SASettingsPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 600 }}>
             {/* Provider selector */}
             <div style={{ padding: 16, borderRadius: 8, border: '1px solid #22c55e', background: 'rgba(34, 197, 94, 0.05)' }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#22c55e' }}>
-                🔑 Provider IA
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#22c55e' }}>
+                🔑 Provider IA principal
               </label>
-              <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>
-                Gemini et Groq sont 100% gratuits. Claude est payant.
+              <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>
+                Choisissez le provider IA pour la génération d'articles. <strong>Gemini et Groq sont 100% gratuits</strong>. Claude est payant mais premium.
               </p>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                 {PROVIDER_OPTIONS.map(p => (
                   <button
                     key={p.value}
@@ -297,7 +297,7 @@ export const SASettingsPage = () => {
                       setBlogForm(f => ({ ...f, provider: p.value, model: firstModel }))
                     }}
                     style={{
-                      padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                      padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
                       border: currentBlogProvider === p.value ? '2px solid #e74c3c' : '1px solid var(--sa-border)',
                       background: currentBlogProvider === p.value ? 'rgba(231, 76, 60, 0.1)' : 'var(--sa-bg)',
                       color: 'var(--sa-text)',
@@ -307,31 +307,130 @@ export const SASettingsPage = () => {
                   </button>
                 ))}
               </div>
-              {/* API Key for selected provider */}
+
+              {/* Gemini instructions + key */}
               {currentBlogProvider === 'gemini' && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input type={showApiKey ? 'text' : 'password'} value={blogForm.gemini_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, gemini_api_key: e.target.value }))} placeholder="AIzaSy..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
-                  <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                <div style={{ padding: 14, borderRadius: 8, background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.3)', marginBottom: 12 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#16a34a', marginBottom: 8 }}>🟢 Google Gemini — 100% GRATUIT</p>
+                  <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Comment obtenir votre clé API :</p>
+                  <ol style={{ fontSize: 12, opacity: 0.7, margin: '0 0 10px 0', paddingLeft: 20, lineHeight: 1.8 }}>
+                    <li>Allez sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline', fontWeight: 500 }}>aistudio.google.com/apikey</a></li>
+                    <li>Connectez-vous avec votre compte Google</li>
+                    <li>Cliquez sur <strong>"Create API Key"</strong></li>
+                    <li>Sélectionnez un projet (ou créez-en un nouveau)</li>
+                    <li>Copiez la clé générée (commence par <code style={{ background: 'rgba(0,0,0,0.1)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>AIzaSy...</code>)</li>
+                    <li>Collez-la ci-dessous</li>
+                  </ol>
+                  <p style={{ fontSize: 10, opacity: 0.5, marginBottom: 8 }}>Limites gratuites : 1 500 requêtes/jour · 1 million de tokens/jour · Aucune carte bancaire requise</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type={showApiKey ? 'text' : 'password'} value={blogForm.gemini_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, gemini_api_key: e.target.value }))} placeholder="AIzaSy..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                    <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                  </div>
                 </div>
               )}
+
+              {/* Groq instructions + key */}
               {currentBlogProvider === 'groq' && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input type={showApiKey ? 'text' : 'password'} value={blogForm.groq_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, groq_api_key: e.target.value }))} placeholder="gsk_..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
-                  <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                <div style={{ padding: 14, borderRadius: 8, background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.3)', marginBottom: 12 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#16a34a', marginBottom: 8 }}>🟢 Groq (Llama 3) — 100% GRATUIT</p>
+                  <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Comment obtenir votre clé API :</p>
+                  <ol style={{ fontSize: 12, opacity: 0.7, margin: '0 0 10px 0', paddingLeft: 20, lineHeight: 1.8 }}>
+                    <li>Allez sur <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline', fontWeight: 500 }}>console.groq.com/keys</a></li>
+                    <li>Créez un compte gratuit (email ou Google)</li>
+                    <li>Cliquez sur <strong>"Create API Key"</strong></li>
+                    <li>Donnez un nom à la clé (ex: "Blog AntiPlanning")</li>
+                    <li>Copiez la clé générée (commence par <code style={{ background: 'rgba(0,0,0,0.1)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>gsk_...</code>)</li>
+                    <li>Collez-la ci-dessous</li>
+                  </ol>
+                  <p style={{ fontSize: 10, opacity: 0.5, marginBottom: 8 }}>Limites gratuites : 30 requêtes/min · Llama 3.3 70B (très performant) · Aucune carte bancaire requise</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type={showApiKey ? 'text' : 'password'} value={blogForm.groq_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, groq_api_key: e.target.value }))} placeholder="gsk_..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                    <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                  </div>
                 </div>
               )}
+
+              {/* Claude instructions + key */}
               {currentBlogProvider === 'claude' && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input type={showApiKey ? 'text' : 'password'} value={blogForm.anthropic_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, anthropic_api_key: e.target.value }))} placeholder="sk-ant-api03-..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
-                  <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                <div style={{ padding: 14, borderRadius: 8, background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', marginBottom: 12 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#2563eb', marginBottom: 8 }}>🔵 Claude (Anthropic) — PAYANT à l'usage</p>
+                  <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Comment obtenir votre clé API :</p>
+                  <ol style={{ fontSize: 12, opacity: 0.7, margin: '0 0 10px 0', paddingLeft: 20, lineHeight: 1.8 }}>
+                    <li>Allez sur <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline', fontWeight: 500 }}>console.anthropic.com/settings/keys</a></li>
+                    <li>Connectez-vous ou créez un compte Anthropic</li>
+                    <li>Ajoutez un moyen de paiement dans <strong>Settings &gt; Billing</strong></li>
+                    <li>Allez dans <strong>API Keys</strong> &rarr; <strong>"Create Key"</strong></li>
+                    <li>Copiez la clé (commence par <code style={{ background: 'rgba(0,0,0,0.1)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>sk-ant-api03-...</code>)</li>
+                    <li>Collez-la ci-dessous</li>
+                  </ol>
+                  <p style={{ fontSize: 10, opacity: 0.5, marginBottom: 8 }}>Tarif : Haiku ~0.01€/article · Sonnet ~0.04€/article · Carte bancaire requise · Meilleure qualité de rédaction</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type={showApiKey ? 'text' : 'password'} value={blogForm.anthropic_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, anthropic_api_key: e.target.value }))} placeholder="sk-ant-api03-..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                    <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
+                  </div>
                 </div>
               )}
-              {/* Tavily Search */}
-              <div style={{ marginTop: 12 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>🔍 Tavily (recherche web gratuite — 1 000 req/mois)</label>
-                <p style={{ fontSize: 11, opacity: 0.5, marginBottom: 6 }}>
-                  Clé gratuite sur <a href="https://app.tavily.com/home" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>app.tavily.com</a> — Inscrivez-vous, copiez votre API Key
-                </p>
+
+              {/* Other providers (fallback) */}
+              <details style={{ marginTop: 8 }}>
+                <summary style={{ fontSize: 12, opacity: 0.5, cursor: 'pointer' }}>
+                  ➕ Configurer d'autres providers (optionnel, fallback automatique)
+                </summary>
+                <div style={{ marginTop: 10, padding: 12, borderRadius: 8, background: 'rgba(0,0,0,0.03)' }}>
+                  <p style={{ fontSize: 11, opacity: 0.5, marginBottom: 10 }}>
+                    Si le provider principal échoue, le système tentera automatiquement : Gemini → Groq → Claude
+                  </p>
+                  {currentBlogProvider !== 'gemini' && (
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Google Gemini — <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>obtenir une clé</a></label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input type="password" value={blogForm.gemini_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, gemini_api_key: e.target.value }))} placeholder="AIzaSy..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                      </div>
+                    </div>
+                  )}
+                  {currentBlogProvider !== 'groq' && (
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Groq — <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>obtenir une clé</a></label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input type="password" value={blogForm.groq_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, groq_api_key: e.target.value }))} placeholder="gsk_..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                      </div>
+                    </div>
+                  )}
+                  {currentBlogProvider !== 'claude' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Anthropic Claude — <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>obtenir une clé</a></label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input type="password" value={blogForm.anthropic_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, anthropic_api_key: e.target.value }))} placeholder="sk-ant-api03-..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+
+            {/* Tavily Search — Research enrichment */}
+            <div style={{ padding: 16, borderRadius: 8, border: '1px solid #f97316', background: 'rgba(249, 115, 22, 0.05)' }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#f97316' }}>
+                🔍 Recherche Web (enrichissement articles)
+              </label>
+              <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>
+                Avant de rédiger, l'IA recherche le web pour enrichir les articles avec des données récentes, statistiques et tendances du secteur.
+              </p>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 12 }}>
+                <input type="checkbox" checked={blogForm.research_enabled ?? true} onChange={e => setBlogForm(f => ({ ...f, research_enabled: e.target.checked }))} />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Recherche web activée</span>
+              </label>
+              <div style={{ padding: 14, borderRadius: 8, background: 'rgba(249, 115, 22, 0.08)', border: '1px solid rgba(249, 115, 22, 0.3)' }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#ea580c', marginBottom: 8 }}>🔍 Tavily Search API — GRATUIT (1 000 req/mois)</p>
+                <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Comment obtenir votre clé API :</p>
+                <ol style={{ fontSize: 12, opacity: 0.7, margin: '0 0 10px 0', paddingLeft: 20, lineHeight: 1.8 }}>
+                  <li>Allez sur <a href="https://app.tavily.com/home" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline', fontWeight: 500 }}>app.tavily.com</a></li>
+                  <li>Créez un compte gratuit (Google ou email)</li>
+                  <li>Votre clé API est affichée directement sur le dashboard</li>
+                  <li>Copiez la clé (commence par <code style={{ background: 'rgba(0,0,0,0.1)', padding: '1px 4px', borderRadius: 3, fontSize: 11 }}>tvly-...</code>)</li>
+                  <li>Collez-la ci-dessous</li>
+                </ol>
+                <p style={{ fontSize: 10, opacity: 0.5, marginBottom: 8 }}>Limites gratuites : 1 000 requêtes/mois · Aucune carte bancaire requise · Conçu pour enrichir les réponses IA</p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input type="password" value={blogForm.tavily_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, tavily_api_key: e.target.value }))} placeholder="tvly-..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
                 </div>
