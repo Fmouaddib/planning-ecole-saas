@@ -130,13 +130,13 @@ export const SASettingsPage = () => {
         cta_url: blogForm.cta_url || '',
         seed_keywords: blogForm.seed_keywords ?? [],
         categories: blogForm.categories ?? [],
-        anthropic_api_key: blogForm.anthropic_api_key || null,
-        gemini_api_key: blogForm.gemini_api_key || null,
-        groq_api_key: blogForm.groq_api_key || null,
-        tavily_api_key: blogForm.tavily_api_key || null,
+        anthropic_api_key: blogForm.anthropic_api_key?.trim() || null,
+        gemini_api_key: blogForm.gemini_api_key?.trim() || null,
+        groq_api_key: blogForm.groq_api_key?.trim() || null,
+        tavily_api_key: blogForm.tavily_api_key?.trim() || null,
         research_enabled: blogForm.research_enabled ?? true,
         custom_prompt: blogForm.custom_prompt || null,
-        unsplash_api_key: blogForm.unsplash_api_key || null,
+        unsplash_api_key: blogForm.unsplash_api_key?.trim() || null,
       }
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Timeout \u2014 la requete a pris trop longtemps')), 15000)

@@ -381,13 +381,19 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     try {
       const settings = await SABlogService.getSettings()
       if (!settings.unsplash_api_key) {
-        toast.error('Clé API Unsplash non configurée — allez dans Paramètres > Blog IA')
+        toast.error('Cle API Unsplash non configuree - allez dans Parametres > Blog IA')
+        return
+      }
+      // Sanitize API key: trim whitespace and remove any non-ASCII characters
+      const apiKey = settings.unsplash_api_key.trim().replace(/[^\x20-\x7E]/g, '')
+      if (!apiKey) {
+        toast.error('Cle API Unsplash invalide (caracteres speciaux detectes)')
         return
       }
       const query = (selectedPost.keywords || []).slice(0, 2).join(' ') + ' ' + (selectedPost.category || 'education')
       const res = await fetch(
         `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`,
-        { headers: { Authorization: `Client-ID ${settings.unsplash_api_key}` } }
+        { headers: { Authorization: `Client-ID ${apiKey}` } }
       )
       if (!res.ok) throw new Error('Erreur Unsplash')
       const data = await res.json()
