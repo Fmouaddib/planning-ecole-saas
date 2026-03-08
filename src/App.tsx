@@ -244,7 +244,10 @@ export default function App() {
               setAppState('authenticated')
             }
           } else if (event === 'PASSWORD_RECOVERY') {
-            window.location.hash = '#/reset-password'
+            // Don't redirect if user is on the setup-account page (invitation flow)
+            if (!window.location.hash.startsWith('#/setup-account/')) {
+              window.location.hash = '#/reset-password'
+            }
           } else if (event === 'SIGNED_OUT') {
             setUser(null)
             setAppState('unauthenticated')
