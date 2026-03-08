@@ -83,7 +83,7 @@ export default function BlogPostPage() {
       setPost(data as FullPost)
 
       // Increment view count
-      supabase.rpc('increment_blog_view', { post_slug: slug }).catch(() => {})
+      supabase.rpc('increment_blog_view', { post_slug: slug }).then(() => {}, () => {})
 
       // Update meta tags for SEO
       if (data.meta_title) document.title = data.meta_title
