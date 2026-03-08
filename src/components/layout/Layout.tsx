@@ -3,6 +3,7 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { NotificationPanel } from './NotificationPanel'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useChatNotifications } from '@/hooks/useChat'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { User } from '@/types'
@@ -42,6 +43,7 @@ export const Layout: React.FC<LayoutProps> = ({
     markAllAsRead,
     deleteNotification,
   } = useNotifications()
+  const { messages: chatMessages, totalUnread: chatUnreadCount } = useChatNotifications()
   const { isInstallable, promptInstall } = useInstallPrompt()
   const isOnline = useOnlineStatus()
 
@@ -119,7 +121,7 @@ export const Layout: React.FC<LayoutProps> = ({
           onNotificationsClick={() => setNotifPanelOpen(prev => !prev)}
           onNavigate={onNavigate}
           onLogout={onLogout}
-          unreadCount={unreadCount}
+          unreadCount={unreadCount + chatUnreadCount}
         />
         <NotificationPanel
           isOpen={notifPanelOpen}
@@ -129,6 +131,8 @@ export const Layout: React.FC<LayoutProps> = ({
           onMarkAllAsRead={markAllAsRead}
           onDelete={deleteNotification}
           onNavigate={(path) => { onNavigate?.(path); setNotifPanelOpen(false) }}
+          chatMessages={chatMessages}
+          chatUnreadCount={chatUnreadCount}
         />
       </div>
 

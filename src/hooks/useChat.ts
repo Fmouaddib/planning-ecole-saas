@@ -238,6 +238,111 @@ export function useChat() {
   }
 }
 
+// Lightweight hook for notification center — returns recent unread messages
+export interface ChatNotifMessage {
+  id: string
+  channelId: string
+  channelName: string
+  channelType: 'dm' | 'class' | 'subject'
+  senderName: string
+  content: string
+  createdAt: string
+}
+
+export function useChatNotifications() {
+  const { user } = useAuthContext()
+  const [messages, setMessages] = useState<ChatNotifMessage[]>([])
+  const [totalUnread, setTotalUnread] = useState(0)
+
+  useEffect(() => {
+    if (isDemoMode || !user) return
+    let cancelled = false
+
+    const fetchRecentUnread = async () => {
+      // 1. Get membership + last_read_at
+      const { data: members } = await supabase
+        .from('chat_members')
+        .select('channel_id, last_read_at')
+        .eq('user_id', user.id)
+
+      if (cancelled || !members?.length) return
+
+      const channelIds = members.map(m => m.channel_id)
+
+      // 2. Get channels for names/types
+      const { data: channels } = await supabase
+        .from('chat_channels')
+        .select('id, name, type')
+        .in('id', channelIds)
+
+      const channelMap = Object.fromEntries((channels || []).map(c => [c.id, c]))
+
+      // 3. Get recent unread messages (last 15 across all channels)
+      let total = 0
+      const allMsgs: ChatNotifMessage[] = []
+
+      for (const m of members) {
+        const lastRead = m.last_read_at || '1970-01-01'
+        const { count } = await supabase
+          .from('chat_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('channel_id', m.channel_id)
+          .is('deleted_at', null)
+          .gt('created_at', lastRead)
+        total += count || 0
+
+        if ((count || 0) > 0) {
+          const { data: msgs } = await supabase
+            .from('chat_messages')
+            .select('id, channel_id, content, created_at, sender:profiles!sender_id(id, full_name)')
+            .eq('channel_id', m.channel_id)
+            .is('deleted_at', null)
+            .gt('created_at', lastRead)
+            .order('created_at', { ascending: false })
+            .limit(3)
+
+          if (msgs) {
+            const ch = channelMap[m.channel_id]
+            for (const msg of msgs) {
+              const sender = msg.sender as any
+              const senderName = sender?.full_name
+                ? parseFullName(sender.full_name).firstName + ' ' + parseFullName(sender.full_name).lastName
+                : 'Inconnu'
+              allMsgs.push({
+                id: msg.id,
+                channelId: msg.channel_id,
+                channelName: ch?.name || 'Chat',
+                channelType: (ch?.type || 'dm') as 'dm' | 'class' | 'subject',
+                senderName: senderName.trim(),
+                content: msg.content || '',
+                createdAt: msg.created_at,
+              })
+            }
+          }
+        }
+      }
+
+      if (!cancelled) {
+        // Sort by date, keep latest 15
+        allMsgs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setMessages(allMsgs.slice(0, 15))
+        setTotalUnread(total)
+      }
+    }
+
+    fetchRecentUnread()
+
+    const channel = supabase
+      .channel('chat_notif_realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => fetchRecentUnread())
+      .subscribe()
+
+    return () => { cancelled = true; supabase.removeChannel(channel) }
+  }, [user])
+
+  return { messages, totalUnread }
+}
+
 // Lightweight hook for sidebar unread badge (avoids loading full chat)
 export function useChatUnread(): number {
   const { user } = useAuthContext()

@@ -139,8 +139,11 @@ function CalendarPage() {
   }, [centerSettings.custom_session_types])
 
   // Horaires et jours d'ouverture du centre
-  const centerHourStart = centerSettings.opening_time ? parseInt(centerSettings.opening_time.split(':')[0], 10) : 8
-  const centerHourEnd = centerSettings.closing_time ? parseInt(centerSettings.closing_time.split(':')[0], 10) : 20
+  const rawStart = centerSettings.opening_time ? parseInt(centerSettings.opening_time.split(':')[0], 10) : 8
+  const rawEnd = centerSettings.closing_time ? parseInt(centerSettings.closing_time.split(':')[0], 10) : 20
+  // 00:00 = minuit = 24h ; s'assurer que hourEnd > hourStart avec minimum 1h d'écart
+  const centerHourStart = isNaN(rawStart) ? 8 : rawStart
+  const centerHourEnd = (isNaN(rawEnd) || rawEnd <= centerHourStart) ? (rawEnd === 0 ? 24 : Math.max(centerHourStart + 1, 20)) : rawEnd
   const centerWorkingDays = centerSettings.working_days || [1, 2, 3, 4, 5]
   const calendarLabels = centerSettings.calendar_labels || ['title', 'room', 'teacher']
 

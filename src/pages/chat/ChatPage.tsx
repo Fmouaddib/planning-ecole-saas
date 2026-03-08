@@ -45,6 +45,19 @@ function ChatPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-open channel from notification click (?channel=xxx)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const channelId = params.get('channel')
+    if (channelId && !chat.isLoading) {
+      chat.setActiveChannelId(channelId)
+      chat.markAsRead(channelId)
+      setMobileView('messages')
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [chat.isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSelectChannel = (id: string) => {
     chat.setActiveChannelId(id)
     chat.markAsRead(id)
