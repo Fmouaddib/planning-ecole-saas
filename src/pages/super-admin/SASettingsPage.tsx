@@ -118,22 +118,29 @@ export const SASettingsPage = () => {
         posts_per_batch: blogForm.posts_per_batch ?? 2,
         model: blogForm.model ?? 'gemini-2.0-flash',
         tone: blogForm.tone ?? 'professional',
-        target_audience: blogForm.target_audience ?? '',
-        site_name: blogForm.site_name ?? '',
-        site_url: blogForm.site_url ?? '',
-        blog_base_url: blogForm.blog_base_url ?? '',
-        cta_text: blogForm.cta_text ?? '',
-        cta_url: blogForm.cta_url ?? '',
+        target_audience: blogForm.target_audience || '',
+        site_name: blogForm.site_name || '',
+        site_url: blogForm.site_url || '',
+        blog_base_url: blogForm.blog_base_url || '',
+        cta_text: blogForm.cta_text || '',
+        cta_url: blogForm.cta_url || '',
         seed_keywords: blogForm.seed_keywords ?? [],
         categories: blogForm.categories ?? [],
-        anthropic_api_key: blogForm.anthropic_api_key ?? null,
-        gemini_api_key: blogForm.gemini_api_key ?? null,
-        groq_api_key: blogForm.groq_api_key ?? null,
-        tavily_api_key: blogForm.tavily_api_key ?? null,
+        anthropic_api_key: blogForm.anthropic_api_key || null,
+        gemini_api_key: blogForm.gemini_api_key || null,
+        groq_api_key: blogForm.groq_api_key || null,
+        tavily_api_key: blogForm.tavily_api_key || null,
         research_enabled: blogForm.research_enabled ?? true,
       }
-      const result = await SABlogService.updateSettings(patch)
-      setBlogForm(result) // sync form with saved data
+      // Timeout de sécurité (15s) pour éviter bouton bloqué
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout — la requête a pris trop longtemps')), 15000)
+      )
+      const result = await Promise.race([
+        SABlogService.updateSettings(patch),
+        timeoutPromise,
+      ])
+      setBlogForm(result)
       setSavedBlog(true)
       toast.success('Paramètres blog sauvegardés')
       setTimeout(() => setSavedBlog(false), 3000)
