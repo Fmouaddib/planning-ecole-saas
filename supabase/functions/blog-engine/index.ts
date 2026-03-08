@@ -25,7 +25,7 @@ interface BlogSettings {
   anthropic_api_key: string | null;
   gemini_api_key: string | null;
   groq_api_key: string | null;
-  brave_api_key: string | null;
+  tavily_api_key: string | null;
   research_enabled: boolean;
 }
 
@@ -220,28 +220,33 @@ async function callClaude(
   };
 }
 
-// ── Brave Search (FREE: 2000 req/month) ─────────────────────────
+// ── Tavily Search (FREE: 1000 req/month) ─────────────────────────
 async function searchWeb(
   apiKey: string,
   query: string,
   count = 5,
 ): Promise<SearchResult[]> {
-  const res = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}&search_lang=fr`,
-    {
-      headers: { "X-Subscription-Token": apiKey, Accept: "application/json" },
-    },
-  );
+  const res = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query,
+      max_results: count,
+      search_depth: "basic",
+      include_answer: false,
+    }),
+  });
 
   if (!res.ok) {
-    console.error(`Brave Search ${res.status}: ${await res.text()}`);
+    console.error(`Tavily Search ${res.status}: ${await res.text()}`);
     return [];
   }
 
   const data = await res.json();
-  return (data.web?.results || []).map((r: any) => ({
+  return (data.results || []).map((r: any) => ({
     title: r.title || "",
-    description: r.description || "",
+    description: r.content || "",
     url: r.url || "",
   }));
 }
@@ -393,10 +398,10 @@ IMPORTANT: Retourne UNIQUEMENT le JSON array, sans backticks.`;
 
 // ── Research helper ──────────────────────────────────────────────
 async function doResearch(settings: BlogSettings, query: string): Promise<string> {
-  if (!settings.research_enabled || !settings.brave_api_key) return "";
+  if (!settings.research_enabled || !settings.tavily_api_key) return "";
 
   try {
-    const results = await searchWeb(settings.brave_api_key, query, 8);
+    const results = await searchWeb(settings.tavily_api_key, query, 8);
     if (results.length === 0) return "";
 
     return results

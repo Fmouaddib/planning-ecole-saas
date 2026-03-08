@@ -128,7 +128,7 @@ export const SASettingsPage = () => {
         anthropic_api_key: blogForm.anthropic_api_key,
         gemini_api_key: blogForm.gemini_api_key,
         groq_api_key: blogForm.groq_api_key,
-        brave_api_key: blogForm.brave_api_key,
+        tavily_api_key: blogForm.tavily_api_key,
         research_enabled: blogForm.research_enabled,
       } as Partial<BlogSettings>)
       setSavedBlog(true)
@@ -326,11 +326,14 @@ export const SASettingsPage = () => {
                   <button onClick={() => setShowApiKey(!showApiKey)} className="sa-btn sa-btn-secondary" style={{ padding: '8px 12px' }}>{showApiKey ? '🙈' : '👁️'}</button>
                 </div>
               )}
-              {/* Brave Search */}
+              {/* Tavily Search */}
               <div style={{ marginTop: 12 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>🔍 Brave Search (recherche web gratuite)</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 4 }}>🔍 Tavily (recherche web gratuite — 1 000 req/mois)</label>
+                <p style={{ fontSize: 11, opacity: 0.5, marginBottom: 6 }}>
+                  Clé gratuite sur <a href="https://app.tavily.com/home" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>app.tavily.com</a> — Inscrivez-vous, copiez votre API Key
+                </p>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input type="password" value={blogForm.brave_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, brave_api_key: e.target.value }))} placeholder="BSA..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
+                  <input type="password" value={blogForm.tavily_api_key || ''} onChange={e => setBlogForm(f => ({ ...f, tavily_api_key: e.target.value }))} placeholder="tvly-..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--sa-border)', backgroundColor: 'var(--sa-bg)', color: 'var(--sa-text)', fontSize: 13, fontFamily: 'monospace' }} />
                 </div>
               </div>
             </div>
