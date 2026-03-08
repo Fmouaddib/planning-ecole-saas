@@ -88,6 +88,8 @@ export function SABlogPage() {
     )
   }
 
+  const noApiKey = !settings?.gemini_api_key && !settings?.groq_api_key && !settings?.anthropic_api_key
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -101,7 +103,7 @@ export function SABlogPage() {
       </div>
 
       {/* API Key warning */}
-      {settings && !settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key && (
+      {noApiKey && (
         <div className="sa-card" style={{ borderLeft: '4px solid #f59e0b', marginBottom: 16 }}>
           <p className="sa-text-sm" style={{ color: '#f59e0b' }}>
             ⚠️ <strong>Aucune clé API configurée.</strong> Allez dans <strong>Paramètres plateforme</strong> (menu Monitoring → ⚙️ Paramètres) pour configurer vos clés API. <strong>Gemini est gratuit</strong> — obtenez une clé sur <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>aistudio.google.com</a>
@@ -137,6 +139,7 @@ export function SABlogPage() {
 // ── Dashboard Tab ────────────────────────────────────────────────
 function DashboardTab({ stats, settings, posts, onRefresh }: { stats: any; settings: BlogSettings; posts: BlogPost[]; onRefresh: () => void }) {
   const [batchLoading, setBatchLoading] = useState(false)
+  const noApiKey = !settings?.gemini_api_key && !settings?.groq_api_key && !settings?.anthropic_api_key
 
   const handleBatchGenerate = async () => {
     setBatchLoading(true)
@@ -181,7 +184,8 @@ function DashboardTab({ stats, settings, posts, onRefresh }: { stats: any; setti
           <button
             className="sa-btn sa-btn-primary"
             onClick={handleBatchGenerate}
-            disabled={batchLoading || (!settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key) || stats.pendingTopics === 0}
+            disabled={batchLoading || noApiKey || stats.pendingTopics === 0}
+            title={noApiKey ? 'Configurez au moins une clé API dans Paramètres' : stats.pendingTopics === 0 ? 'Ajoutez des sujets dans l\'onglet Sujets d\'abord' : ''}
           >
             {batchLoading ? '⏳ Génération...' : `🚀 Générer ${settings.posts_per_batch} article(s)`}
           </button>
@@ -189,6 +193,16 @@ function DashboardTab({ stats, settings, posts, onRefresh }: { stats: any; setti
             Modèle : {settings.model} · {stats.pendingTopics} sujet(s) en file d'attente
           </span>
         </div>
+        {noApiKey && (
+          <p className="text-xs text-amber-500 mt-2">
+            ⚠ Aucune clé API configurée — allez dans <strong>Paramètres &gt; Blog SEO</strong> pour ajouter une clé Gemini, Groq ou Claude.
+          </p>
+        )}
+        {!noApiKey && stats.pendingTopics === 0 && (
+          <p className="text-xs text-amber-500 mt-2">
+            ⚠ Aucun sujet en attente — allez dans l'onglet <strong>Sujets</strong> pour en créer ou en suggérer via l'IA.
+          </p>
+        )}
         {settings.last_generation_at && (
           <p className="text-xs text-gray-400 mt-2">
             Dernière génération : {new Date(settings.last_generation_at).toLocaleString('fr-FR')}
@@ -445,6 +459,7 @@ function TopicsTab({ topics, settings, onRefresh }: { topics: BlogTopic[]; setti
   const [suggestions, setSuggestions] = useState<TopicSuggestion[]>([])
   const [generating, setGenerating] = useState<string | null>(null)
   const [showManual, setShowManual] = useState(false)
+  const noApiKey = !settings?.gemini_api_key && !settings?.groq_api_key && !settings?.anthropic_api_key
   const [manualTopic, setManualTopic] = useState('')
   const [manualKeywords, setManualKeywords] = useState('')
   const [manualCategory, setManualCategory] = useState('conseils-pratiques')
@@ -642,7 +657,7 @@ function TopicsTab({ topics, settings, onRefresh }: { topics: BlogTopic[]; setti
                             className="sa-btn sa-btn-primary"
                             style={{ fontSize: 11, padding: '4px 8px' }}
                             onClick={() => handleGenerate(t.id)}
-                            disabled={generating === t.id || (!settings.gemini_api_key && !settings.groq_api_key && !settings.anthropic_api_key)}
+                            disabled={generating === t.id || noApiKey}
                           >
                             {generating === t.id ? '⏳' : '🚀'} Générer
                           </button>
