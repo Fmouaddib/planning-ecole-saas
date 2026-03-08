@@ -740,7 +740,10 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
 
         // Fetch Unsplash image if API key configured
         if (settings.unsplash_api_key && article.featured_image_prompt) {
-          const searchQuery = (article.keywords || []).slice(0, 2).join(" ") + " " + (topic.category || "education");
+          // Use the AI-generated image prompt for better relevance, fallback to keywords
+          const searchQuery = article.featured_image_prompt
+            ? article.featured_image_prompt.slice(0, 100)
+            : (article.keywords || []).slice(0, 2).join(" ") + " " + (topic.category || "education");
           const imageUrl = await searchUnsplashImage(settings.unsplash_api_key, searchQuery);
           if (imageUrl) {
             await db.from("blog_posts").update({ featured_image_url: imageUrl }).eq("id", post.id);

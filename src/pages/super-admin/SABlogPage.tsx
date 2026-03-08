@@ -265,6 +265,9 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
   const [showLinkPanel, setShowLinkPanel] = useState(false)
   const [linkSearch, setLinkSearch] = useState('')
   const [fetchingImage, setFetchingImage] = useState(false)
+  const [imageChoices, setImageChoices] = useState<{ url: string; thumb: string; author: string; downloadLocation: string }[]>([])
+  const [showImagePicker, setShowImagePicker] = useState(false)
+  const [imageQuery, setImageQuery] = useState('')
   const [updatingLinks, setUpdatingLinks] = useState(false)
   const textareaRef = { current: null as HTMLTextAreaElement | null }
 
@@ -377,45 +380,79 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     }
   }
 
-  const handleFetchImage = async () => {
-    if (!selectedPost) return
+  // Unsplash API key cached for the session
+  const unsplashKeyRef = { current: '' }
+
+  const fetchUnsplashImages = async (query: string) => {
     setFetchingImage(true)
     try {
-      const settings = await SABlogService.getSettings()
-      if (!settings.unsplash_api_key) {
-        toast.error('Cle API Unsplash non configuree - allez dans Parametres > Blog IA')
+      if (!unsplashKeyRef.current) {
+        const settings = await SABlogService.getSettings()
+        if (!settings.unsplash_api_key) {
+          toast.error('Clé API Unsplash non configurée — allez dans Paramètres > Blog IA')
+          return
+        }
+        unsplashKeyRef.current = settings.unsplash_api_key.trim().replace(/[^\x20-\x7E]/g, '')
+      }
+      if (!unsplashKeyRef.current) {
+        toast.error('Clé API Unsplash invalide')
         return
       }
-      // Sanitize API key: trim whitespace and remove any non-ASCII characters
-      const apiKey = settings.unsplash_api_key.trim().replace(/[^\x20-\x7E]/g, '')
-      if (!apiKey) {
-        toast.error('Cle API Unsplash invalide (caracteres speciaux detectes)')
-        return
-      }
-      const query = (selectedPost.keywords || []).slice(0, 2).join(' ') + ' ' + (selectedPost.category || 'education')
       const res = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`,
-        { headers: { Authorization: `Client-ID ${apiKey}` } }
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=12&orientation=landscape`,
+        { headers: { Authorization: `Client-ID ${unsplashKeyRef.current}` } }
       )
       if (!res.ok) throw new Error('Erreur Unsplash')
       const data = await res.json()
-      const photos = data.results || []
+      const photos = (data.results || []).map((p: any) => ({
+        url: p.urls?.regular || p.urls?.small || '',
+        thumb: p.urls?.small || p.urls?.thumb || '',
+        author: p.user?.name || 'Unsplash',
+        downloadLocation: p.links?.download_location || '',
+      }))
       if (photos.length === 0) {
-        toast.error('Aucune image trouvée pour ces mots-clés')
+        toast.error('Aucune image trouvée pour cette recherche')
         return
       }
-      // Use the first result
-      const imageUrl = photos[0].urls?.regular || photos[0].urls?.small
-      if (imageUrl) {
-        await SABlogService.updatePost(selectedPost.id, { featured_image_url: imageUrl } as any)
-        setSelectedPost({ ...selectedPost, featured_image_url: imageUrl } as any)
-        toast.success('Image de couverture mise à jour')
-        onRefresh()
-      }
+      setImageChoices(photos)
+      setShowImagePicker(true)
     } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de la récupération d\'image')
+      toast.error(err.message || 'Erreur Unsplash')
     } finally {
       setFetchingImage(false)
+    }
+  }
+
+  const handleFetchImage = async () => {
+    if (!selectedPost) return
+    // Build a smart query: title keywords + category for better relevance
+    const titleWords = selectedPost.title
+      .replace(/[^a-zA-ZÀ-ÿ\s]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 3)
+      .slice(0, 3)
+      .join(' ')
+    const kwPart = (selectedPost.keywords || []).slice(0, 2).join(' ')
+    const query = `${titleWords} ${kwPart}`.trim() || selectedPost.category || 'education'
+    setImageQuery(query)
+    await fetchUnsplashImages(query)
+  }
+
+  const handleSelectImage = async (choice: { url: string; downloadLocation: string }) => {
+    if (!selectedPost) return
+    try {
+      // Trigger Unsplash download tracking (API requirement)
+      if (choice.downloadLocation && unsplashKeyRef.current) {
+        fetch(`${choice.downloadLocation}?client_id=${unsplashKeyRef.current}`).catch(() => {})
+      }
+      await SABlogService.updatePost(selectedPost.id, { featured_image_url: choice.url } as any)
+      setSelectedPost({ ...selectedPost, featured_image_url: choice.url } as any)
+      setShowImagePicker(false)
+      setImageChoices([])
+      toast.success('Image de couverture mise à jour')
+      onRefresh()
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la mise à jour')
     }
   }
 
@@ -487,6 +524,58 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
               alt={selectedPost.title}
               style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 12 }}
             />
+          </div>
+        )}
+
+        {/* Image picker */}
+        {showImagePicker && imageChoices.length > 0 && (
+          <div className="sa-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--sa-text-primary)' }}>Choisir une image de couverture ({imageChoices.length})</span>
+              <button className="sa-btn sa-btn-secondary" onClick={() => { setShowImagePicker(false); setImageChoices([]) }} style={{ fontSize: 12 }}>Fermer</button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <input
+                type="text"
+                value={imageQuery}
+                onChange={e => setImageQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && imageQuery.trim()) fetchUnsplashImages(imageQuery.trim()) }}
+                placeholder="Modifier la recherche..."
+                style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--sa-border)', fontSize: 13, background: 'var(--sa-bg-secondary)', color: 'var(--sa-text-primary)' }}
+              />
+              <button
+                className="sa-btn sa-btn-primary"
+                onClick={() => imageQuery.trim() && fetchUnsplashImages(imageQuery.trim())}
+                disabled={fetchingImage}
+                style={{ fontSize: 12, whiteSpace: 'nowrap' }}
+              >
+                {fetchingImage ? '...' : 'Rechercher'}
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+              {imageChoices.map((img, i) => (
+                <div
+                  key={i}
+                  onClick={() => handleSelectImage(img)}
+                  style={{
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    border: (selectedPost as any)?.featured_image_url === img.url ? '3px solid #8b5cf6' : '2px solid transparent',
+                    transition: 'all 0.15s',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.03)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}
+                >
+                  <img src={img.thumb} alt={`Option ${i + 1}`} style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} loading="lazy" />
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.6))', padding: '12px 6px 4px', fontSize: 10, color: '#fff' }}>
+                    {img.author}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 10, color: 'var(--sa-text-tertiary)', marginTop: 8 }}>Photos via Unsplash. Cliquez pour sélectionner.</p>
           </div>
         )}
 
