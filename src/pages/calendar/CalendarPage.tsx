@@ -827,19 +827,6 @@ function CalendarPage() {
             Imprimer
           </button>
 
-          {/* Teacher toggle: Mes cours / Tout le centre (pas pour étudiants) */}
-          {isTeacher && (
-            <button
-              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                showOnlyMine
-                  ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
-                  : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setShowOnlyMine(v => !v)}
-            >
-              {showOnlyMine ? 'Mes cours' : 'Tout le centre'}
-            </button>
-          )}
 
           {/* Batch create button — admin uniquement */}
           {user?.role === 'admin' && (
