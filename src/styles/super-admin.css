@@ -808,6 +808,126 @@
   }
 }
 
+/* ===== Card ===== */
+.sa-card {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 20px;
+  box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e5e5;
+  margin-bottom: 0;
+}
+
+.sa-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #171717;
+  margin-bottom: 4px;
+}
+
+/* ===== Badge variants ===== */
+.sa-badge-success {
+  display: inline-block;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.sa-badge-warning {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.sa-badge-info {
+  display: inline-block;
+  background: #dbeafe;
+  color: #1e40af;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.sa-badge-error {
+  display: inline-block;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+/* ===== Table wrap ===== */
+.sa-table-wrap {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e5e5;
+}
+
+/* ===== Form: sa-input / sa-label / sa-text-sm ===== */
+.sa-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d4;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+  outline: none;
+  background: white;
+  color: #171717;
+}
+
+.sa-input:focus {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+}
+
+.sa-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #737373;
+  margin-bottom: 6px;
+}
+
+.sa-text-sm {
+  font-size: 0.85rem;
+  color: #171717;
+}
+
+/* ===== Dark: card, badges, table-wrap, inputs ===== */
+.dark .sa-card {
+  background: #18181b;
+  border-color: #27272a;
+}
+
+.dark .sa-card-title { color: #fafafa; }
+
+.dark .sa-badge-success { background: #052e16; color: #86efac; }
+.dark .sa-badge-warning { background: #451a03; color: #fcd34d; }
+.dark .sa-badge-info { background: #172554; color: #93c5fd; }
+.dark .sa-badge-error { background: #450a0a; color: #fca5a5; }
+
+.dark .sa-table-wrap { border-color: #27272a; }
+
+.dark .sa-input {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #fafafa;
+}
+
+.dark .sa-label { color: #a1a1aa; }
+.dark .sa-text-sm { color: #e4e4e7; }
+
 /* ===== CSS custom properties for inline styles ===== */
 :root {
   --sa-text-primary: #171717;
