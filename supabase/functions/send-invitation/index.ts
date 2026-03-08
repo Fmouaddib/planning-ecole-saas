@@ -199,15 +199,28 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Resolve center_id: use provided value, or look up from user's profile
+    let resolvedCenterId = centerId || null;
+    if (!resolvedCenterId) {
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("center_id")
+        .eq("email", email)
+        .limit(1)
+        .maybeSingle();
+      if (profile?.center_id) resolvedCenterId = profile.center_id;
+    }
+
     // Log in email_logs (include center_id so it appears in admin's email list)
-    await adminClient.from("email_logs").insert({
+    const { error: logError } = await adminClient.from("email_logs").insert({
       participant_email: email,
       email_type: "center_invitation",
       status: "sent",
       rendered_subject: subject,
       rendered_html: htmlContent,
-      ...(centerId ? { center_id: centerId } : {}),
+      ...(resolvedCenterId ? { center_id: resolvedCenterId } : {}),
     });
+    if (logError) console.error("email_logs insert error:", logError);
 
     return new Response(
       JSON.stringify({ success: true, messageId: result.messageId }),
