@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { SABlogService, type BlogSettings, type BlogPost, type BlogTopic, type BlogLog, type TopicSuggestion, type SeoAudit } from '@/services/super-admin/blog'
+import { MarkdownWithMermaid } from '@/components/ui/MermaidRenderer'
 import toast from 'react-hot-toast'
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -258,6 +259,37 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
   const [auditResult, setAuditResult] = useState<SeoAudit | null>(null)
   const [auditing, setAuditing] = useState(false)
   const [improving, setImproving] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [showLinkPanel, setShowLinkPanel] = useState(false)
+  const [linkSearch, setLinkSearch] = useState('')
+  const textareaRef = { current: null as HTMLTextAreaElement | null }
+
+  // Published posts for internal linking (exclude current)
+  const publishedPosts = posts.filter(p => p.status === 'published' && p.id !== selectedPost?.id)
+  const filteredLinks = linkSearch
+    ? publishedPosts.filter(p => p.title.toLowerCase().includes(linkSearch.toLowerCase()) || p.keywords?.some(k => k.toLowerCase().includes(linkSearch.toLowerCase())))
+    : publishedPosts
+
+  const insertInternalLink = (post: BlogPost) => {
+    const link = `[${post.title}](#/blog/${post.slug})`
+    const ta = textareaRef.current
+    if (ta) {
+      const start = ta.selectionStart
+      const end = ta.selectionEnd
+      const before = editContent.slice(0, start)
+      const after = editContent.slice(end)
+      setEditContent(before + link + after)
+      // Restore cursor position after the inserted link
+      setTimeout(() => {
+        ta.focus()
+        ta.selectionStart = ta.selectionEnd = start + link.length
+      }, 10)
+    } else {
+      setEditContent(editContent + '\n' + link)
+    }
+    setShowLinkPanel(false)
+    setLinkSearch('')
+  }
 
   const filtered = filter
     ? posts.filter(p => p.status === filter)
@@ -342,6 +374,20 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <button className="sa-btn sa-btn-secondary" onClick={() => setSelectedPost(null)}>← Retour</button>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {selectedPost.status === 'published' && (
+              <a
+                href={`#/blog/${selectedPost.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="sa-btn sa-btn-secondary"
+                style={{ textDecoration: 'none' }}
+              >
+                🌐 Voir en ligne
+              </a>
+            )}
+            <button className="sa-btn sa-btn-secondary" onClick={() => { setShowLinkPanel(!showLinkPanel); setLinkSearch('') }}>
+              🔗 Lien interne
+            </button>
             <button className="sa-btn sa-btn-secondary" onClick={handleAudit} disabled={auditing}>
               {auditing ? '⏳' : '🎯'} Audit SEO
             </button>
@@ -400,6 +446,59 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
           </div>
         )}
 
+        {/* Internal link panel */}
+        {showLinkPanel && (
+          <div className="sa-card" style={{ borderLeft: '4px solid #3b82f6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div className="sa-card-title">🔗 Insérer un lien vers un article publié</div>
+              <button className="sa-btn sa-btn-secondary" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => setShowLinkPanel(false)}>✕ Fermer</button>
+            </div>
+            <input
+              className="sa-form-input"
+              placeholder="Rechercher un article par titre ou mot-clé..."
+              value={linkSearch}
+              onChange={e => setLinkSearch(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
+            {publishedPosts.length === 0 ? (
+              <p style={{ fontSize: 12, color: 'var(--sa-text-tertiary)' }}>Aucun article publié disponible pour le maillage interne.</p>
+            ) : (
+              <div style={{ maxHeight: 250, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {filteredLinks.slice(0, 15).map(p => (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: 'var(--sa-bg-subtle)',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => insertInternalLink(p)}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--sa-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.title}
+                      </p>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                        <span style={{ fontSize: 10, color: 'var(--sa-text-tertiary)' }}>/{p.slug}</span>
+                        <span style={{ fontSize: 10, color: 'var(--sa-text-tertiary)' }}>·</span>
+                        <span style={{ fontSize: 10, color: 'var(--sa-text-tertiary)' }}>SEO: {p.seo_score}</span>
+                        <span style={{ fontSize: 10, color: 'var(--sa-text-tertiary)' }}>·</span>
+                        <span style={{ fontSize: 10, color: 'var(--sa-text-tertiary)' }}>{CATEGORY_LABELS[p.category] || p.category}</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, whiteSpace: 'nowrap' }}>+ Insérer</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Editor */}
         <div className="sa-card">
           <div className="sa-form-group">
@@ -413,14 +512,47 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
             <span style={{ fontSize: 10, color: 'var(--sa-text-tertiary)' }}>{editMeta.length} chars (optimal: 120-160)</span>
           </div>
           <div className="sa-form-group">
-            <label className="sa-form-label">Contenu (Markdown)</label>
-            <textarea
-              className="sa-form-textarea"
-              rows={25}
-              value={editContent}
-              onChange={e => setEditContent(e.target.value)}
-              style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <label className="sa-form-label" style={{ marginBottom: 0 }}>Contenu (Markdown)</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  className={`sa-btn ${!showPreview ? 'sa-btn-primary' : 'sa-btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '4px 12px' }}
+                  onClick={() => setShowPreview(false)}
+                >
+                  Éditer
+                </button>
+                <button
+                  className={`sa-btn ${showPreview ? 'sa-btn-primary' : 'sa-btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '4px 12px' }}
+                  onClick={() => setShowPreview(true)}
+                >
+                  Aperçu
+                </button>
+              </div>
+            </div>
+            {showPreview ? (
+              <div style={{
+                minHeight: 500,
+                maxHeight: 700,
+                overflow: 'auto',
+                padding: 24,
+                borderRadius: 8,
+                border: '1px solid var(--sa-border-medium)',
+                background: '#fff',
+              }}>
+                <MarkdownWithMermaid content={editContent} />
+              </div>
+            ) : (
+              <textarea
+                ref={el => { textareaRef.current = el }}
+                className="sa-form-textarea"
+                rows={25}
+                value={editContent}
+                onChange={e => setEditContent(e.target.value)}
+                style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }}
+              />
+            )}
           </div>
           <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--sa-text-tertiary)' }}>
             <span>Mots-clés : {selectedPost.keywords?.join(', ')}</span>
@@ -466,6 +598,7 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
                 <th>Mots</th>
                 <th>Lecture</th>
                 <th>Créé le</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -480,6 +613,19 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
                   <td style={{ fontSize: 13 }}>{p.word_count}</td>
                   <td style={{ fontSize: 13 }}>{p.reading_time_min} min</td>
                   <td style={{ fontSize: 13 }}>{new Date(p.created_at).toLocaleDateString('fr-FR')}</td>
+                  <td>
+                    {p.status === 'published' && (
+                      <a
+                        href={`#/blog/${p.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        style={{ fontSize: 11, color: '#3b82f6', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+                      >
+                        🌐 Voir
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

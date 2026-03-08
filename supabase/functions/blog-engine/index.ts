@@ -410,9 +410,22 @@ RÈGLES SEO STRICTES:
 10. Utiliser des listes à puces et des tableaux quand pertinent
 11. Ajouter un CTA vers ${settings.site_name} en conclusion
 12. Intégrer des données chiffrées et statistiques récentes quand disponibles
+13. Intégrer 2-3 SCHÉMAS MERMAID dans l'article pour illustrer visuellement les concepts clés
 ${internalLinksText}
 
 CTA PAR DÉFAUT: ${settings.cta_text} → ${settings.cta_url}
+
+SCHÉMAS MERMAID (OBLIGATOIRE):
+- Insère 2-3 blocs \`\`\`mermaid dans le contenu Markdown aux endroits stratégiques
+- Types possibles : flowchart (processus), graph (relations), pie (répartitions), timeline (chronologie), mindmap (concepts)
+- Les schémas doivent illustrer les concepts expliqués dans l'article
+- Garde les schémas simples (5-10 nœuds max) et lisibles
+- Utilise des labels en français
+- Exemple de bloc dans le contenu :
+\`\`\`mermaid
+flowchart LR
+    A[Étape 1] --> B[Étape 2] --> C[Résultat]
+\`\`\`
 
 FORMAT DE SORTIE (JSON strict):
 {
@@ -420,7 +433,7 @@ FORMAT DE SORTIE (JSON strict):
   "meta_title": "Meta title pour Google (max 60 chars)",
   "meta_description": "Meta description (120-160 chars)",
   "excerpt": "Résumé accrocheur (2-3 phrases)",
-  "content": "Article complet en Markdown (H2, H3, listes, gras, liens)",
+  "content": "Article complet en Markdown (H2, H3, listes, gras, liens, blocs mermaid)",
   "keywords": ["mot-clé 1", "mot-clé 2", ...],
   "featured_image_prompt": "Description pour générer une image de couverture (en anglais, style professionnel)"
 }
@@ -837,6 +850,7 @@ RÈGLES:
 3. Ne raccourcis PAS l'article — garde au minimum le même nombre de mots
 4. Améliore les titres, paragraphes et mots-clés selon les recommandations
 5. Si l'audit mentionne la meta description ou le titre, améliore-les aussi
+6. Conserve les blocs \`\`\`mermaid existants et ajoute-en 1-2 de plus si l'article n'en contient pas (flowchart, graph, pie, timeline — en français, 5-10 nœuds max)
 
 FORMAT DE SORTIE (JSON strict):
 {

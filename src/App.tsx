@@ -26,6 +26,8 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
 const CheckoutSuccessPage = lazy(() => import('@/pages/checkout/CheckoutSuccessPage'))
+const BlogListPage = lazy(() => import('@/pages/landing/BlogListPage'))
+const BlogPostPage = lazy(() => import('@/pages/landing/BlogPostPage'))
 
 // Lazy-loaded pages
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'))
@@ -632,6 +634,8 @@ export default function App() {
     if (hash === '#/about') return landingSuspense(AboutPage)
     if (hash === '#/ecole-en-ligne') return landingSuspense(OnlineSchoolPage)
     if (hash === '#/pricing') return landingSuspense(PricingPage)
+    if (hash === '#/blog') return landingSuspense(BlogListPage)
+    if (hash.startsWith('#/blog/')) return landingSuspense(BlogPostPage)
 
     // Default: show landing page
     return landingSuspense(LandingPage)
@@ -653,6 +657,22 @@ export default function App() {
           addonType={hashParams.get('addon_type') || undefined}
           addonName={decodeURIComponent(hashParams.get('addon_name') || '')}
         />
+      </Suspense>
+    )
+  }
+
+  // Blog public accessible aux utilisateurs authentifiés aussi
+  if (hash === '#/blog') {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center"><LoadingState size="lg" text="Chargement..." /></div>}>
+        <BlogListPage />
+      </Suspense>
+    )
+  }
+  if (hash.startsWith('#/blog/')) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center"><LoadingState size="lg" text="Chargement..." /></div>}>
+        <BlogPostPage />
       </Suspense>
     )
   }

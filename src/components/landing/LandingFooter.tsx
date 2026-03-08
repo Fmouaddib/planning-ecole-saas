@@ -30,7 +30,7 @@ export default function LandingFooter() {
         </div>
         <div className="landing-footer-col">
           <h4>{t('footer.resources')}</h4>
-          <a href="#/">{t('footer.blog')}</a>
+          <a href="#/blog">{t('footer.blog')}</a>
           <a href="#/">{t('footer.docs')}</a>
           <a href="#/">{t('footer.guides')}</a>
         </div>
