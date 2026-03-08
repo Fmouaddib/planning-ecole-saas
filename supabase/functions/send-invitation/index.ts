@@ -109,7 +109,8 @@ Deno.serve(async (req: Request) => {
     });
 
     // Resolve center slug → build production redirect URL
-    let productionUrl = redirectTo; // fallback to caller-provided URL
+    // Never use localhost — always fall back to Vercel production URL
+    let productionUrl = redirectTo?.startsWith("http://localhost") ? VERCEL_PROD_URL : (redirectTo || VERCEL_PROD_URL);
     if (centerId) {
       const { data: center } = await adminClient
         .from("training_centers")
@@ -142,7 +143,19 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const setupUrl = linkData.properties.action_link;
+    // Build setup URL pointing to our app with the token hash in the path.
+    // This avoids all issues with & encoding in HTML emails and email client link tracking.
+    // The app will call supabase.auth.verifyOtp({ token_hash, type: 'recovery' }) client-side.
+    const actionLink = linkData.properties.action_link;
+    const actionUrl = new URL(actionLink);
+    const tokenHash = actionUrl.searchParams.get("token_hash") || actionUrl.searchParams.get("token") || linkData.properties.hashed_token || "";
+    console.log(`[send-invitation] token_hash extracted: ${tokenHash} (from action_link: ${actionLink})`);
+
+    // Clean URL with NO query parameters — just path-based token
+    const setupUrl = `${productionUrl}/#/setup-account/${tokenHash}`;
+    const htmlSetupUrl = setupUrl; // No HTML encoding needed — no & in URL
+    console.log(`[send-invitation] Final setup URL: ${setupUrl}`);
+
     const roleLabel = ROLE_LABELS[role] || role;
 
     // Try to fetch custom template from DB
@@ -161,8 +174,8 @@ Deno.serve(async (req: Request) => {
       // Use custom content provided by admin (with setup URL injection)
       subject = customSubject;
       htmlContent = customHtmlContent
-        .replace(/\{\{setup_url\}\}/g, setupUrl)
-        .replace(/\{\{login_url\}\}/g, setupUrl);
+        .replace(/\{\{setup_url\}\}/g, htmlSetupUrl)
+        .replace(/\{\{login_url\}\}/g, htmlSetupUrl);
     } else if (template) {
       subject = template.subject.replace(
         /\{\{center_name\}\}/g,
@@ -172,15 +185,15 @@ Deno.serve(async (req: Request) => {
         .replace(/\{\{recipient_name\}\}/g, userName || "")
         .replace(/\{\{center_name\}\}/g, centerName || "votre centre")
         .replace(/\{\{role\}\}/g, roleLabel)
-        .replace(/\{\{login_url\}\}/g, setupUrl)
-        .replace(/\{\{setup_url\}\}/g, setupUrl);
+        .replace(/\{\{login_url\}\}/g, htmlSetupUrl)
+        .replace(/\{\{setup_url\}\}/g, htmlSetupUrl);
     } else {
       subject = `Invitation \u00e0 rejoindre ${centerName || "votre centre"}`;
       htmlContent = buildDefaultHtml(
         userName || "",
         centerName || "votre centre",
         roleLabel,
-        setupUrl,
+        htmlSetupUrl,
       );
     }
 

@@ -494,6 +494,31 @@ export default function App() {
     )
   }
 
+  // Route setup-account: invitation link with token_hash in path
+  // URL format: /#/setup-account/TOKEN_HASH — verifies token client-side then shows reset password
+  if (hash.startsWith('#/setup-account/')) {
+    const tokenHash = hash.replace('#/setup-account/', '').split('?')[0]
+    if (tokenHash) {
+      // Verify the token client-side, then redirect to reset-password
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }) => {
+        if (error) {
+          console.error('[setup-account] verifyOtp error:', error)
+          toast.error('Le lien d\'invitation est invalide ou a expiré. Contactez votre administrateur.')
+          window.location.hash = '#/login'
+        } else {
+          // Session created — PASSWORD_RECOVERY event will fire via onAuthStateChange
+          window.location.hash = '#/reset-password'
+        }
+      })
+    }
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+        <Toaster position="top-center" />
+        <LoadingState size="lg" text="Vérification de votre invitation..." />
+      </div>
+    )
+  }
+
   // Route reset-password accessible avec ou sans session (recovery token crée une session)
   if (hash === '#/reset-password') {
     return (
