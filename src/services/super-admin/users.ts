@@ -186,27 +186,18 @@ export class SAUsersService {
   static async resetPassword(userId: string, newPassword: string): Promise<void> {
     if (isDemoMode) { console.log(`Demo: reset password for ${userId}`); return; }
 
-    const { data, error } = await supabase.functions.invoke('admin-update-user', {
-      body: { user_id: userId, password: newPassword },
+    if (newPassword.length < 6) {
+      throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+    }
+
+    const { error } = await supabase.rpc('sa_reset_password_v2', {
+      p_user_id: userId,
+      p_password: newPassword,
     });
 
     if (error) {
-      console.error('[SAUsers] resetPassword error:', error);
-      // Try to extract the real error from the response body
-      let detail = '';
-      try {
-        const ctx = (error as any).context;
-        if (ctx && typeof ctx.json === 'function') {
-          const body = await ctx.json();
-          detail = body?.error || '';
-        }
-      } catch { /* ignore */ }
-      throw new Error(detail || error.message || 'Erreur lors du changement de mot de passe');
-    }
-
-    if (data?.error) {
-      console.error('[SAUsers] resetPassword API error:', data.error);
-      throw new Error(data.error);
+      console.error('[SAUsers] resetPassword error:', error.message);
+      throw new Error(error.message || 'Erreur lors du changement de mot de passe');
     }
   }
 }
