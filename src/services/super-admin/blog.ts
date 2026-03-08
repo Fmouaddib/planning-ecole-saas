@@ -285,6 +285,14 @@ export class SABlogService {
     return data?.post as BlogPost
   }
 
+  static async updateLinks(postId: string): Promise<{ post: BlogPost; linksAdded: number; message?: string }> {
+    const { data, error } = await supabase.functions.invoke('blog-engine', {
+      body: { action: 'update-links', postId },
+    })
+    if (error) throw error
+    return data as { post: BlogPost; linksAdded: number; message?: string }
+  }
+
   // Stats
   static async getStats(): Promise<{
     totalPosts: number

@@ -301,6 +301,7 @@ export function useUsers(): UseUsersReturn {
 
     const activeCtx = getActiveContext()
     const centerName = activeCtx?.centerName || 'votre centre'
+    const centerId = activeCtx?.centerId || currentUser?.establishmentId || ''
     const redirectTo = window.location.origin
 
     const { error: inviteError } = await supabase.functions.invoke('send-invitation', {
@@ -308,6 +309,7 @@ export function useUsers(): UseUsersReturn {
         email: targetUser.email,
         userName: `${targetUser.firstName} ${targetUser.lastName}`.trim(),
         centerName,
+        centerId,
         role: targetUser.role,
         redirectTo,
         ...(options?.customSubject && { customSubject: options.customSubject }),

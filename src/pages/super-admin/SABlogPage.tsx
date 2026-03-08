@@ -263,6 +263,7 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
   const [showLinkPanel, setShowLinkPanel] = useState(false)
   const [linkSearch, setLinkSearch] = useState('')
   const [fetchingImage, setFetchingImage] = useState(false)
+  const [updatingLinks, setUpdatingLinks] = useState(false)
   const textareaRef = { current: null as HTMLTextAreaElement | null }
 
   // Published posts for internal linking (exclude current)
@@ -410,6 +411,27 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
     }
   }
 
+  const handleUpdateLinks = async () => {
+    if (!selectedPost) return
+    setUpdatingLinks(true)
+    try {
+      const result = await SABlogService.updateLinks(selectedPost.id)
+      if (result.message) {
+        toast(result.message)
+      } else {
+        const merged = { ...selectedPost, ...result.post }
+        setSelectedPost(merged)
+        setEditContent(merged.content)
+        toast.success(`${result.linksAdded} lien(s) interne(s) ajouté(s) !`)
+        onRefresh()
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la mise à jour des liens')
+    } finally {
+      setUpdatingLinks(false)
+    }
+  }
+
   if (selectedPost) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -433,6 +455,11 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
             <button className="sa-btn sa-btn-secondary" onClick={() => { setShowLinkPanel(!showLinkPanel); setLinkSearch('') }}>
               🔗 Lien interne
             </button>
+            {selectedPost.status === 'published' && publishedPosts.length > 0 && (
+              <button className="sa-btn sa-btn-secondary" onClick={handleUpdateLinks} disabled={updatingLinks}>
+                {updatingLinks ? '⏳' : '🔄'} Maillage IA
+              </button>
+            )}
             <button className="sa-btn sa-btn-secondary" onClick={handleAudit} disabled={auditing}>
               {auditing ? '⏳' : '🎯'} Audit SEO
             </button>

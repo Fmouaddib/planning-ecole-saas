@@ -412,9 +412,15 @@ function estimateCost(provider: string, model: string, inputTokens: number, outp
 }
 
 // ── System Prompts ───────────────────────────────────────────────
-function buildArticleSystemPrompt(settings: BlogSettings, researchContext?: string): string {
-  const internalLinksText = settings.internal_links?.length > 0
-    ? `\nLiens internes à intégrer naturellement :\n${settings.internal_links.map((l) => `- [${l.title}](${l.url})`).join("\n")}`
+function buildArticleSystemPrompt(settings: BlogSettings, researchContext?: string, publishedArticles?: { title: string; slug: string; category: string }[]): string {
+  // Build internal links from both manual settings AND existing published articles
+  const manualLinks = settings.internal_links?.length > 0
+    ? settings.internal_links.map((l) => `- [${l.title}](${l.url})`)
+    : [];
+  const articleLinks = (publishedArticles || []).map((a) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`);
+  const allLinks = [...manualLinks, ...articleLinks];
+  const internalLinksText = allLinks.length > 0
+    ? `\nLIENS INTERNES À INTÉGRER NATURELLEMENT (insère 3-5 liens pertinents dans le corps de l'article) :\n${allLinks.join("\n")}`
     : "";
 
   const researchBlock = researchContext
@@ -654,8 +660,16 @@ Privilégie un mix entre :
           if (results) researchContext += results + "\n\n";
         }
 
-        // Step 2: Generate article with research context
-        const systemPrompt = buildArticleSystemPrompt(settings as BlogSettings, researchContext || undefined);
+        // Step 2: Fetch existing published articles for internal linking
+        const { data: publishedArticles } = await db
+          .from("blog_posts")
+          .select("title, slug, category")
+          .eq("status", "published")
+          .order("published_at", { ascending: false })
+          .limit(50);
+
+        // Step 3: Generate article with research context + internal links
+        const systemPrompt = buildArticleSystemPrompt(settings as BlogSettings, researchContext || undefined, publishedArticles || []);
         const userPrompt = `Rédige un article de blog SEO complet sur le sujet suivant :
 
 SUJET : ${topic.topic}
@@ -887,6 +901,19 @@ IMPORTANT: JSON uniquement.`;
         });
       }
 
+      // Fetch published articles for internal linking (exclude current article)
+      const { data: publishedArticles } = await db
+        .from("blog_posts")
+        .select("title, slug, category")
+        .eq("status", "published")
+        .neq("id", postId)
+        .order("published_at", { ascending: false })
+        .limit(50);
+
+      const articleLinksText = (publishedArticles || []).length > 0
+        ? `\nARTICLES PUBLIÉS DISPONIBLES POUR LE MAILLAGE INTERNE (insère 3-5 liens pertinents) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`).join("\n")}`
+        : "";
+
       const issuesText = (audit.issues || [])
         .map((i) => `- [${i.severity}] ${i.message} → Correction: ${i.fix}`)
         .join("\n");
@@ -905,7 +932,9 @@ RÈGLES:
 5. Si l'audit mentionne la meta description ou le titre, améliore-les aussi
 6. Conserve les blocs \`\`\`mermaid existants et ajoute-en 1-2 de plus si l'article n'en contient pas (flowchart, graph, pie, timeline — en français, 5-10 nœuds max)
 7. RESPECTE les normes de rédaction française : pas de majuscule à chaque mot dans les titres (seule la première lettre + noms propres), accents corrects, voix active, vouvoiement
+8. MAILLAGE INTERNE : intègre naturellement 3-5 liens vers les articles publiés listés ci-dessous, en utilisant des ancres contextuelles pertinentes
 ${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALISÉES :\n${settings.custom_prompt}` : ""}
+${articleLinksText}
 
 FORMAT DE SORTIE (JSON strict):
 {
@@ -1008,8 +1037,114 @@ Applique toutes les corrections et retourne l'article amélioré en JSON.`;
       });
     }
 
+    // ── ACTION: update-links ───────────────────────────────────────
+    if (action === "update-links") {
+      const postId = body.postId as string;
+
+      const { data: post } = await db.from("blog_posts").select("*").eq("id", postId).single();
+      if (!post) {
+        return new Response(JSON.stringify({ error: "Post not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch all published articles except this one
+      const { data: publishedArticles } = await db
+        .from("blog_posts")
+        .select("title, slug, category, keywords")
+        .eq("status", "published")
+        .neq("id", postId)
+        .order("published_at", { ascending: false })
+        .limit(50);
+
+      if (!publishedArticles?.length) {
+        return new Response(JSON.stringify({ post, linksAdded: 0, message: "Aucun autre article publié pour le maillage." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Find which articles are already linked in the content
+      const alreadyLinked = (publishedArticles || []).filter((a: any) => post.content.includes(a.slug));
+      const notLinked = (publishedArticles || []).filter((a: any) => !post.content.includes(a.slug));
+
+      if (notLinked.length === 0) {
+        return new Response(JSON.stringify({ post, linksAdded: 0, message: "Tous les articles sont déjà liés." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const manualLinks = (settings.internal_links || []).map((l: any) => `- [${l.title}](${l.url})`);
+      const newArticleLinks = notLinked.map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug}) [catégorie: ${a.category}]`);
+
+      const systemPrompt = `Tu es un rédacteur SEO expert. Tu dois mettre à jour un article existant en y intégrant NATURELLEMENT des liens internes vers de nouveaux articles du même blog.
+
+RÈGLES STRICTES :
+1. NE MODIFIE PAS le texte existant — garde le contenu identique à 99%
+2. Intègre 2-5 liens internes NOUVEAUX aux endroits les plus pertinents du texte
+3. Utilise des ancres contextuelles naturelles (pas de "cliquez ici" mais le sujet du lien intégré dans une phrase)
+4. Privilégie les liens vers des articles de la même catégorie ou avec des mots-clés communs
+5. Ne touche PAS aux liens déjà présents dans l'article
+6. RESPECTE les normes de rédaction française
+${settings.custom_prompt ? `\nINSTRUCTIONS PERSONNALISÉES :\n${settings.custom_prompt}` : ""}
+
+NOUVEAUX ARTICLES À LIER :
+${newArticleLinks.join("\n")}
+${manualLinks.length > 0 ? `\nLIENS MANUELS :\n${manualLinks.join("\n")}` : ""}
+
+FORMAT DE SORTIE (JSON strict) :
+{
+  "content": "Article complet avec les nouveaux liens intégrés",
+  "links_added": 3
+}
+
+IMPORTANT: Retourne UNIQUEMENT le JSON.`;
+
+      const result = await callAI(
+        settings as BlogSettings,
+        systemPrompt,
+        `ARTICLE ACTUEL :\n\nTITRE : ${post.title}\nCATÉGORIE : ${post.category}\nMOTS-CLÉS : ${(post.keywords || []).join(", ")}\n\nCONTENU :\n${post.content}`,
+        8192,
+      );
+
+      let updated: { content: string; links_added: number };
+      try {
+        updated = safeJsonParse(result.text);
+      } catch {
+        throw new Error("L'IA a retourné une réponse invalide pour la mise à jour des liens.");
+      }
+
+      if (!updated.content) updated.content = post.content;
+
+      const { data: updatedPost, error: updateErr } = await db
+        .from("blog_posts")
+        .update({ content: updated.content })
+        .eq("id", postId)
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
+
+      const cost = estimateCost(result.provider, result.model, result.inputTokens, result.outputTokens);
+      await db.from("blog_generation_log").insert({
+        action: "update-links",
+        post_id: postId,
+        model: `${result.provider}/${result.model}`,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
+        cost_estimate: cost,
+        duration_ms: Date.now() - startTime,
+        status: "success",
+        metadata: { linksAdded: updated.links_added, availableArticles: notLinked.length, provider: result.provider },
+      });
+
+      return new Response(
+        JSON.stringify({ post: updatedPost, linksAdded: updated.links_added }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo, improve-article` }),
+      JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo, improve-article, update-links` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {

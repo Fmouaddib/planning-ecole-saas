@@ -113,10 +113,50 @@ function UsersPage() {
     const roleLabel = roleLabels[user.role] || user.role
     setInviteUser(user)
     setInviteSubject(`Invitation à rejoindre votre centre de formation`)
+
+    // Role-specific feature descriptions
+    const roleFeatures: Record<string, string> = {
+      teacher: `En tant qu'enseignant, vous pourrez :\n` +
+        `• Consulter votre planning de cours en temps réel\n` +
+        `• Déclarer vos disponibilités et indisponibilités\n` +
+        `• Saisir les notes et évaluations de vos élèves\n` +
+        `• Marquer les présences et absences en classe\n` +
+        `• Échanger avec vos classes via la messagerie intégrée\n` +
+        `• Recevoir les notifications d'affectations et modifications`,
+      student: `En tant qu'étudiant, vous pourrez :\n` +
+        `• Consulter votre emploi du temps actualisé\n` +
+        `• Voir vos notes, moyennes et bulletins\n` +
+        `• Suivre votre historique de présences\n` +
+        `• Accéder aux matières de votre programme\n` +
+        `• Communiquer avec vos enseignants et votre classe`,
+      admin: `En tant qu'administrateur, vous pourrez :\n` +
+        `• Gérer le planning complet de votre centre\n` +
+        `• Administrer les enseignants, étudiants et salles\n` +
+        `• Configurer les diplômes, programmes et matières\n` +
+        `• Suivre les présences, notes et bulletins\n` +
+        `• Envoyer des emails et notifications\n` +
+        `• Accéder aux statistiques et tableaux de bord`,
+      staff: `En tant que membre du personnel, vous pourrez :\n` +
+        `• Consulter le planning général du centre\n` +
+        `• Gérer les salles et ressources\n` +
+        `• Accéder aux informations des classes et étudiants`,
+      trainer: `En tant que formateur, vous pourrez :\n` +
+        `• Consulter votre planning de formations\n` +
+        `• Saisir les évaluations et présences\n` +
+        `• Échanger avec vos groupes via la messagerie`,
+      coordinator: `En tant que coordinateur, vous pourrez :\n` +
+        `• Superviser le planning des formations\n` +
+        `• Gérer les affectations des formateurs\n` +
+        `• Suivre les indicateurs de présence et de résultats`,
+    }
+
+    const features = roleFeatures[user.role] || roleFeatures['staff'] || ''
+
     setInviteBody(
       `Bonjour ${user.firstName} ${user.lastName},\n\n` +
       `Vous êtes invité(e) à rejoindre notre plateforme AntiPlanning en tant que ${roleLabel}.\n\n` +
-      `Pour activer votre compte, cliquez sur le bouton "Créer mon mot de passe" dans l'email que vous recevrez.\n\n` +
+      `${features}\n\n` +
+      `Pour activer votre compte, cliquez sur le bouton ci-dessous et créez votre mot de passe.\n\n` +
       `Ce lien est valable 24 heures.\n\n` +
       `Cordialement,\nL'équipe AntiPlanning`
     )

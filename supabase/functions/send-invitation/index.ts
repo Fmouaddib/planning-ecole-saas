@@ -13,6 +13,7 @@ interface InvitationRequest {
   email: string;
   userName: string;
   centerName: string;
+  centerId?: string;
   role: string;
   redirectTo: string;
   customSubject?: string;
@@ -83,7 +84,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { email, userName, centerName, role, redirectTo, customSubject, customHtmlContent } =
+    const { email, userName, centerName, centerId, role, redirectTo, customSubject, customHtmlContent } =
       (await req.json()) as InvitationRequest;
 
     if (!email || !redirectTo) {
@@ -198,13 +199,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Log in email_logs
+    // Log in email_logs (include center_id so it appears in admin's email list)
     await adminClient.from("email_logs").insert({
       participant_email: email,
       email_type: "center_invitation",
       status: "sent",
       rendered_subject: subject,
       rendered_html: htmlContent,
+      ...(centerId ? { center_id: centerId } : {}),
     });
 
     return new Response(
