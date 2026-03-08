@@ -107,11 +107,11 @@ export const SASettingsPage = () => {
   }
 
   const handleSaveBlog = async () => {
+    if (savingBlog) return // prevent double-click
     setSavingBlog(true)
     setSavedBlog(false)
     try {
-      // Filter out undefined values to avoid Supabase rejecting the update
-      const patch: Record<string, any> = {
+      const patch: Partial<BlogSettings> = {
         provider: blogForm.provider ?? 'gemini',
         auto_generate: blogForm.auto_generate ?? false,
         generation_frequency: blogForm.generation_frequency ?? 'weekly',
@@ -132,12 +132,14 @@ export const SASettingsPage = () => {
         tavily_api_key: blogForm.tavily_api_key ?? null,
         research_enabled: blogForm.research_enabled ?? true,
       }
-      await SABlogService.updateSettings(patch as Partial<BlogSettings>)
+      const result = await SABlogService.updateSettings(patch)
+      setBlogForm(result) // sync form with saved data
       setSavedBlog(true)
       toast.success('Paramètres blog sauvegardés')
       setTimeout(() => setSavedBlog(false), 3000)
     } catch (err: any) {
-      toast.error(err.message || 'Erreur sauvegarde blog')
+      console.error('Blog save error:', err)
+      toast.error(err?.message || 'Erreur sauvegarde blog')
     } finally {
       setSavingBlog(false)
     }

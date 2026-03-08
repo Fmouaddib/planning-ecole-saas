@@ -117,14 +117,19 @@ export class SABlogService {
   }
 
   static async updateSettings(patch: Partial<BlogSettings>): Promise<BlogSettings> {
+    // Remove undefined values that Supabase may reject
+    const cleanPatch: Record<string, any> = {}
+    for (const [key, value] of Object.entries(patch)) {
+      if (value !== undefined) cleanPatch[key] = value
+    }
     const { data, error } = await supabase
       .from('blog_settings')
-      .update(patch)
+      .update(cleanPatch)
       .eq('id', 1)
       .select()
-      .single()
     if (error) throw error
-    return data as BlogSettings
+    if (!data || data.length === 0) throw new Error('Échec mise à jour paramètres blog (vérifiez vos permissions)')
+    return data[0] as BlogSettings
   }
 
   // Topics
