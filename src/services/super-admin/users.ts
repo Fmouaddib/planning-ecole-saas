@@ -186,26 +186,18 @@ export class SAUsersService {
   static async resetPassword(userId: string, newPassword: string): Promise<void> {
     if (isDemoMode) { console.log(`Demo: reset password for ${userId}`); return; }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Non authentifié');
+    const { data, error } = await supabase.functions.invoke('admin-update-user', {
+      body: { user_id: userId, password: newPassword },
+    });
 
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-user`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({ user_id: userId, password: newPassword }),
-      }
-    );
+    if (error) {
+      console.error('[SAUsers] resetPassword error:', error);
+      throw new Error(error.message || 'Erreur lors du changement de mot de passe');
+    }
 
-    const result = await res.json();
-    if (!res.ok) {
-      console.error('[SAUsers] resetPassword error:', result.error);
-      throw new Error(result.error || 'Erreur lors du changement de mot de passe');
+    if (data?.error) {
+      console.error('[SAUsers] resetPassword API error:', data.error);
+      throw new Error(data.error);
     }
   }
 }

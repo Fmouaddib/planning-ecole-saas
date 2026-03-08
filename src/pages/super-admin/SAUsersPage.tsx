@@ -691,12 +691,10 @@ export const SAUsersPage = () => {
                 <label className="sa-form-label">Email</label>
                 <input name="email" type="email" className="sa-form-input" required defaultValue={editingUser?.email || ''} readOnly={!!editingUser} />
               </div>
-              {!editingUser && (
-                <div className="sa-form-group">
-                  <label className="sa-form-label">Mot de passe</label>
-                  <input name="password" type="password" className="sa-form-input" placeholder="Minimum 8 caracteres" />
-                </div>
-              )}
+              <div className="sa-form-group">
+                <label className="sa-form-label">Mot de passe {editingUser && <span style={{ fontWeight: 400, color: 'var(--sa-text-secondary)', fontSize: '0.75rem' }}>(laisser vide pour ne pas changer)</span>}</label>
+                <input name="password" type="password" className="sa-form-input" placeholder={editingUser ? 'Nouveau mot de passe (optionnel)' : 'Minimum 8 caracteres'} minLength={8} />
+              </div>
               <div className="sa-form-group">
                 <label className="sa-form-label">Role</label>
                 <select
