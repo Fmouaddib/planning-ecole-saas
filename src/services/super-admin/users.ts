@@ -1,4 +1,4 @@
-import { supabase, isolatedClient, isDemoMode } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 import { MockStore } from './mock-store';
 import type { SuperAdminUserProfile, CreateUserData } from '@/types/super-admin';
 
@@ -24,111 +24,46 @@ export class SAUsersService {
   }
 
   /**
-   * Fallback : création via signUp (isolatedClient) si la RPC n'existe pas ou échoue.
-   * Utilise un mot de passe aléatoire — l'admin devra faire "mot de passe oublié".
+   * Crée un utilisateur via l'Edge Function create-user-for-center.
+   * Utilise le service_role côté serveur pour bypasser la confirmation d'email.
    */
-  private static async createUserViaSignUp(userData: CreateUserData): Promise<SuperAdminUserProfile> {
-    const password = userData.password || (crypto.randomUUID() + '!Aa1');
-
-    // Sauvegarder la session admin avant signUp
-    const { data: { session: adminSession } } = await supabase.auth.getSession();
-
-    const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
-      email: userData.email,
-      password,
-      options: {
-        data: {
-          full_name: userData.full_name,
-          role: userData.role,
-        },
-      },
-    });
-
-    if (signUpError) {
-      console.error('[SAUsers] signUp fallback error:', signUpError.message);
-      throw signUpError;
-    }
-    if (!signUpData.user) throw new Error('Échec de la création du compte (signUp)');
-
-    // Restaurer la session admin si elle a été perturbée
-    if (adminSession) {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession || currentSession.user.id !== adminSession.user.id) {
-        console.warn('[SAUsers] Session principale perturbee, restauration...');
-        await supabase.auth.setSession({
-          access_token: adminSession.access_token,
-          refresh_token: adminSession.refresh_token,
-        });
-      }
-    }
-
-    const newId = signUpData.user.id;
-
-    // Attendre un court instant pour que le trigger handle_new_user s'exécute
-    await new Promise(r => setTimeout(r, 500));
-
-    // Mettre à jour le profil avec les bonnes infos
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: newId,
-        email: userData.email,
-        full_name: userData.full_name,
-        role: userData.role,
-        center_id: userData.center_id,
-        phone: userData.phone || null,
-        is_active: true,
-      }, { onConflict: 'id' })
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error('[SAUsers] signUp fallback profile error:', profileError.message);
-      throw profileError;
-    }
-
-    return profile as SuperAdminUserProfile;
-  }
-
   static async createUser(userData: CreateUserData): Promise<SuperAdminUserProfile> {
     if (isDemoMode) return MockStore.addUser({
       email: userData.email, full_name: userData.full_name, role: userData.role,
       phone: userData.phone, center_id: userData.center_id, is_active: true,
     });
 
-    let profile: SuperAdminUserProfile;
-
-    if (userData.password) {
-      // Mot de passe fourni → signUp direct avec ce mot de passe
-      profile = await this.createUserViaSignUp(userData);
-    } else {
-      // 1. Tenter la RPC create_user_for_center
-      const { data, error } = await supabase.rpc('create_user_for_center', {
-        p_email: userData.email,
-        p_full_name: userData.full_name,
-        p_role: userData.role,
-        p_center_id: userData.center_id,
-        p_phone: userData.phone || null,
-      });
-
-      if (error) {
-        console.warn('[SAUsers] RPC create_user_for_center echouee, fallback signUp:', error.message);
-        // 2. Fallback signUp via isolatedClient
-        profile = await this.createUserViaSignUp(userData);
-      } else {
-        profile = (typeof data === 'string' ? JSON.parse(data) : data) as SuperAdminUserProfile;
-      }
+    // Get current session for authorization
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('Non authentifié');
     }
 
-    // Envoyer un email d'invitation (reset password) si demande
-    if (userData.send_invitation !== false) {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(userData.email);
-      if (resetError) {
-        console.warn('[SAUsers] resetPasswordForEmail warning:', resetError.message);
-      }
+    // Call the Edge Function
+    const response = await supabase.functions.invoke('create-user-for-center', {
+      body: {
+        email: userData.email,
+        full_name: userData.full_name,
+        role: userData.role,
+        center_id: userData.center_id,
+        phone: userData.phone || null,
+        password: userData.password || null,
+        send_invitation: userData.send_invitation !== false && !userData.password,
+      },
+    });
+
+    if (response.error) {
+      console.error('[SAUsers] create-user-for-center error:', response.error);
+      throw new Error(response.error.message || 'Erreur lors de la création de l\'utilisateur');
     }
 
-    return profile;
+    const result = response.data;
+    if (!result?.success || !result?.user) {
+      const errMsg = result?.error || 'Erreur inconnue lors de la création';
+      throw new Error(errMsg);
+    }
+
+    return result.user as SuperAdminUserProfile;
   }
 
   static async updateUser(id: string, data: Partial<CreateUserData>): Promise<SuperAdminUserProfile> {

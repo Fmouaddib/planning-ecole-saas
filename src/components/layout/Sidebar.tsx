@@ -18,6 +18,7 @@ import {
   ChevronDown,
   MessageCircle,
   ArrowLeftRight,
+  Globe,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
@@ -28,6 +29,7 @@ import { useChatUnread } from '@/hooks/useChat'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { getActiveContext } from '@/utils/userContext'
 import { isDemoMode } from '@/lib/supabase'
+import { getLandingUrl } from '@/utils/subdomain'
 
 interface NavigationItem {
   icon: React.ComponentType<any>
@@ -66,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { plan } = useSubscriptionInfo()
   const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
-  const { hasAttendance, hasGrades } = useFeatureGate()
+  const { hasAttendance, hasGrades, hasTeacherCollab } = useFeatureGate()
   const chatUnread = useChatUnread()
   const { contexts, switchContext } = useAuthContext()
   const activeCtx = getActiveContext()
@@ -125,14 +127,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           group: 'enseignement',
         }]
     ),
-    {
+    ...((hasTeacherCollab || isDemoMode || (!isTeacherRole(userRole))) ? [{
       icon: UserCog,
       label: isTeacherRole(userRole) ? 'Collaboration' : 'Collaboration profs',
       href: '/teacher-collab',
       active: currentPath === '/teacher-collab',
       roles: ['admin', 'staff', 'teacher'] as UserRole[],
       group: 'enseignement',
-    },
+    }] : []),
     // --- Gestion ---
     ...(!isOnlineSchool
       ? [{
@@ -162,16 +164,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       group: 'gestion',
     },
     // --- Fonctionnalités (refermé par défaut) ---
-    // Présences : visible pour admin/staff toujours, pour teacher/student seulement si addon actif
-    ...((hasAttendance || isDemoMode || (!isTeacherRole(userRole) && !isStudentRole(userRole))) ? [{
+    // Présences : visible seulement si addon actif (ou mode démo)
+    ...((hasAttendance || isDemoMode) ? [{
       icon: ClipboardCheck,
       label: isStudentRole(userRole) ? 'Mes présences' : isTeacherRole(userRole) ? 'Appel' : 'Présences',
       href: '/attendance',
       active: currentPath === '/attendance',
       group: 'fonctionnalites',
     }] : []),
-    // Notes : visible pour admin/staff toujours, pour teacher/student seulement si addon actif
-    ...((hasGrades || isDemoMode || (!isTeacherRole(userRole) && !isStudentRole(userRole))) ? [{
+    // Notes : visible seulement si addon actif (ou mode démo)
+    ...((hasGrades || isDemoMode) ? [{
       icon: FileBarChart,
       label: isStudentRole(userRole) ? 'Mon bulletin' : isTeacherRole(userRole) ? 'Mes notes' : 'Notes',
       href: '/grades',
@@ -394,7 +396,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {/* Footer */}
-        <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+        <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
+          {(userRole === 'admin' || userRole === 'super_admin') && (
+            <a
+              href={getLandingUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            >
+              <Globe size={14} />
+              <span>Voir le site vitrine</span>
+            </a>
+          )}
           <div className="text-xs text-neutral-500 dark:text-neutral-400">
             <p className="font-medium">AntiPlanning v1.0</p>
             <p>Gestion premium pour établissements</p>

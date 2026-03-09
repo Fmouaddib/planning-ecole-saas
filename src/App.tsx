@@ -13,7 +13,7 @@ import { OnboardingService } from '@/services/onboardingService'
 import { clearImpersonation, getImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
 import { useAnalyticsScript } from '@/hooks/useAnalyticsScript'
 import { ImpersonationBanner } from '@/components/ui/ImpersonationBanner'
-import { getSubdomainContext, resolveCenterSlug, navigateToCenter, navigateToAdmin, getLandingUrl, type SubdomainContext } from '@/utils/subdomain'
+import { getSubdomainContext, resolveCenterSlug, navigateToAdmin, getLandingUrl, type SubdomainContext } from '@/utils/subdomain'
 import toast, { Toaster } from 'react-hot-toast'
 
 const LandingPage = lazy(() => import('@/components/landing/LandingPage'))
@@ -29,6 +29,9 @@ const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage'))
 const CheckoutSuccessPage = lazy(() => import('@/pages/checkout/CheckoutSuccessPage'))
 const BlogListPage = lazy(() => import('@/pages/landing/BlogListPage'))
 const BlogPostPage = lazy(() => import('@/pages/landing/BlogPostPage'))
+const ContactPage = lazy(() => import('@/pages/landing/ContactPage'))
+const TermsPage = lazy(() => import('@/pages/landing/TermsPage'))
+const PrivacyPage = lazy(() => import('@/pages/landing/PrivacyPage'))
 
 // Lazy-loaded pages
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'))
@@ -354,19 +357,9 @@ export default function App() {
           return
         }
 
-        // If on generic login (app.*) or landing, redirect to center subdomain
-        if (profile.center_id && (subdomainCtx.type === 'app' || subdomainCtx.type === 'landing')) {
-          const { data: center } = await supabase
-            .from('training_centers')
-            .select('slug')
-            .eq('id', profile.center_id)
-            .single()
-
-          if (center?.slug) {
-            navigateToCenter(center.slug)
-            return
-          }
-        }
+        // Note: We no longer redirect to center subdomain after login.
+        // Cross-subdomain redirects lose the session (localStorage is origin-isolated).
+        // The user stays on the current domain and uses the app normally.
 
         const { firstName, lastName } = parseFullName(profile.full_name)
         setUser({
@@ -658,6 +651,9 @@ export default function App() {
     if (hash === '#/pricing') return landingSuspense(PricingPage)
     if (hash === '#/blog') return landingSuspense(BlogListPage)
     if (hash.startsWith('#/blog/')) return landingSuspense(BlogPostPage)
+    if (hash === '#/contact') return landingSuspense(ContactPage)
+    if (hash === '#/terms') return landingSuspense(TermsPage)
+    if (hash === '#/privacy') return landingSuspense(PrivacyPage)
 
     // Default: show landing page
     return landingSuspense(LandingPage)
@@ -699,6 +695,21 @@ export default function App() {
     )
   }
 
+  // Pages légales & contact accessibles aux utilisateurs authentifiés aussi
+  if (hash === '#/contact' || hash === '#/terms' || hash === '#/privacy') {
+    const PageMap: Record<string, React.LazyExoticComponent<() => JSX.Element>> = {
+      '#/contact': ContactPage,
+      '#/terms': TermsPage,
+      '#/privacy': PrivacyPage,
+    }
+    const PageComponent = PageMap[hash]!
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center"><LoadingState size="lg" text="Chargement..." /></div>}>
+        <PageComponent />
+      </Suspense>
+    )
+  }
+
   // Pricing accessible aux utilisateurs authentifiés (upgrade depuis ProfilePage)
   if (hash === '#/pricing' || hash.startsWith('#/pricing?')) {
     return (
@@ -714,8 +725,12 @@ export default function App() {
     )
   }
 
-  // Super Admin space
+  // Super Admin space — restricted to super_admin role only
   if (hash.startsWith('#/super-admin')) {
+    if (_user?.role !== 'super_admin') {
+      window.location.hash = '#/'
+      return null
+    }
     return (
       <Suspense
         fallback={
