@@ -77,6 +77,7 @@ export function useAcademicData() {
   const [teachers, setTeachers] = useState<User[]>([])
   const [classSubjects, setClassSubjects] = useState<ClassSubjectLink[]>([])
   const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubjectLink[]>([])
+  const [centerTeachersMap, setCenterTeachersMap] = useState<Map<string, boolean>>(new Map())
   const [classStudents, setClassStudents] = useState<ClassStudentLink[]>([])
   const [studentSubjects, setStudentSubjects] = useState<StudentSubjectLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -199,7 +200,23 @@ export function useAcademicData() {
       setAcademicYears(transformedAcademicYears)
       setClasses(transformedClasses)
       setSubjects(transformedSubjects)
-      setTeachers((teachersRes.data || []).map(transformUser))
+
+      // Merge direct teachers + linked via center_teachers
+      const directTeachers = (teachersRes.data || []).map(transformUser)
+      const { data: linkedRows } = await supabase
+        .from('center_teachers')
+        .select('profile_id, role, is_active, profiles:profile_id(*)')
+        .eq('center_id', user.establishmentId)
+      const linkedTeachers = (linkedRows || [])
+        .filter((ct: any) => ct.profiles && !directTeachers.some(t => t.id === ct.profiles.id))
+        .map((ct: any) => transformUser(ct.profiles))
+      setTeachers([...directTeachers, ...linkedTeachers].sort((a, b) =>
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+      ))
+      // Stocker les infos center_teachers pour toggle accès
+      setCenterTeachersMap(new Map(
+        (linkedRows || []).filter((ct: any) => ct.profiles).map((ct: any) => [ct.profile_id, ct.is_active !== false])
+      ))
 
       // Charger les liens class_subjects si on a des classes
       const classIds = transformedClasses.map(c => c.id)
@@ -217,7 +234,10 @@ export function useAcademicData() {
       }
 
       // Charger les liens teacher_subjects si on a des professeurs
-      const teacherIds = (teachersRes.data || []).map((t: any) => t.id)
+      // Filtrer par les matières du centre courant pour ne pas afficher celles d'autres centres
+      const allTeacherRows = [...(teachersRes.data || []), ...(linkedRows || []).filter((ct: any) => ct.profiles).map((ct: any) => ct.profiles)]
+      const teacherIds = allTeacherRows.map((t: any) => t.id)
+      const centerSubjectIds = new Set(transformedSubjects.map(s => s.id))
       if (teacherIds.length > 0) {
         const { data: tsData, error: tsError } = await supabase
           .from('teacher_subjects')
@@ -225,7 +245,8 @@ export function useAcademicData() {
           .in('teacher_id', teacherIds)
 
         if (!tsError && tsData) {
-          setTeacherSubjects(tsData)
+          // Ne garder que les liens vers les matières de CE centre
+          setTeacherSubjects(tsData.filter(ts => centerSubjectIds.has(ts.subject_id)))
         }
       } else {
         setTeacherSubjects([])
@@ -267,9 +288,19 @@ export function useAcademicData() {
     }
   }, [user?.establishmentId, fetchAll])
 
+  // ==================== Role guard for academic mutations ====================
+
+  const assertAcademicWriteRole = useCallback(() => {
+    const allowed = ['admin', 'super_admin', 'staff']
+    if (!user?.role || !allowed.includes(user.role)) {
+      throw new Error('Permission refusée : rôle insuffisant pour modifier les données académiques')
+    }
+  }, [user?.role])
+
   // ==================== CRUD Programs ====================
 
   const createProgram = useCallback(async (data: { name: string; code?: string; description?: string; durationHours?: number; maxParticipants?: number; color?: string; diplomaId?: string }) => {
+    assertAcademicWriteRole()
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('programs')
@@ -294,6 +325,7 @@ export function useAcademicData() {
   }, [user?.establishmentId])
 
   const updateProgram = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; durationHours?: number; maxParticipants?: number; color?: string; diplomaId?: string }) => {
+    assertAcademicWriteRole()
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.code !== undefined) payload.code = data.code || null
@@ -312,6 +344,7 @@ export function useAcademicData() {
   }, [user])
 
   const deleteProgram = useCallback(async (id: string) => {
+    assertAcademicWriteRole()
     const { error } = await supabase.from('programs').delete().eq('id', id)
     if (error) { toast.error('Erreur suppression programme: ' + error.message); throw error }
     setPrograms(prev => prev.filter(p => p.id !== id))
@@ -324,6 +357,7 @@ export function useAcademicData() {
   // ==================== CRUD Diplomas ====================
 
   const createDiploma = useCallback(async (data: { title: string; description?: string; durationYears?: number }) => {
+    assertAcademicWriteRole()
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('diplomas')
@@ -348,6 +382,7 @@ export function useAcademicData() {
   }, [user?.establishmentId])
 
   const updateDiploma = useCallback(async (id: string, data: { title?: string; description?: string; durationYears?: number }) => {
+    assertAcademicWriteRole()
     const payload: any = {}
     if (data.title !== undefined) payload.title = data.title
     if (data.description !== undefined) payload.description = data.description || null
@@ -367,6 +402,7 @@ export function useAcademicData() {
   }, [user])
 
   const deleteDiploma = useCallback(async (id: string) => {
+    assertAcademicWriteRole()
     const { error } = await supabase.from('diplomas').delete().eq('id', id)
     if (error) { toast.error('Erreur suppression diplôme: ' + error.message); throw error }
     setDiplomas(prev => prev.filter(d => d.id !== id))
@@ -379,6 +415,7 @@ export function useAcademicData() {
   // ==================== CRUD Classes ====================
 
   const createClass = useCallback(async (data: { name: string; diplomaId: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string }; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] }; examPeriods?: { name: string; startDate: string; endDate: string }[] }) => {
+    assertAcademicWriteRole()
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('classes')
@@ -419,6 +456,7 @@ export function useAcademicData() {
   }, [user?.establishmentId])
 
   const updateClass = useCallback(async (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string } | null; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] } | null; examPeriods?: { name: string; startDate: string; endDate: string }[] | null }) => {
+    assertAcademicWriteRole()
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId
@@ -454,6 +492,7 @@ export function useAcademicData() {
   }, [user])
 
   const deleteClass = useCallback(async (id: string) => {
+    assertAcademicWriteRole()
     const { error } = await supabase.from('classes').delete().eq('id', id)
     if (error) { toast.error('Erreur suppression classe: ' + error.message); throw error }
     setClasses(prev => prev.filter(c => c.id !== id))
@@ -465,6 +504,7 @@ export function useAcademicData() {
   // ==================== CRUD Subjects ====================
 
   const createSubject = useCallback(async (data: { name: string; code?: string; description?: string; category?: string; programId?: string; color?: string; whatsappLink?: string; webLink?: string; slideLink?: string }) => {
+    assertAcademicWriteRole()
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
       .from('subjects')
@@ -499,6 +539,7 @@ export function useAcademicData() {
   }, [user?.establishmentId])
 
   const updateSubject = useCallback(async (id: string, data: { name?: string; code?: string; description?: string; category?: string; programId?: string; color?: string; whatsappLink?: string; webLink?: string; slideLink?: string }) => {
+    assertAcademicWriteRole()
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.code !== undefined) payload.code = data.code || null
@@ -528,6 +569,7 @@ export function useAcademicData() {
   }, [user])
 
   const deleteSubject = useCallback(async (id: string) => {
+    assertAcademicWriteRole()
     const { error } = await supabase.from('subjects').delete().eq('id', id)
     if (error) { toast.error('Erreur suppression matière: ' + error.message); throw error }
     setSubjects(prev => prev.filter(s => s.id !== id))
@@ -601,6 +643,43 @@ export function useAcademicData() {
     throw rpcError || new Error('Erreur inconnue')
   }, [user?.establishmentId])
 
+  // Vérifier si un email existe déjà dans un autre centre
+  const checkTeacherEmail = useCallback(async (email: string): Promise<{ exists: boolean; alreadyInCenter?: boolean; profileId?: string; fullName?: string; email?: string; role?: string }> => {
+    const { data, error } = await supabase.rpc('check_teacher_email', { p_email: email })
+    if (error) { console.error('check_teacher_email error:', error); return { exists: false } }
+    const result = typeof data === 'string' ? JSON.parse(data) : data
+    return {
+      exists: result.exists,
+      alreadyInCenter: result.already_in_center,
+      profileId: result.profile_id,
+      fullName: result.full_name,
+      email: result.email,
+      role: result.role,
+    }
+  }, [])
+
+  // Lier un profil existant (autre centre) à ce centre via center_teachers
+  const linkExistingTeacher = useCallback(async (profileId: string): Promise<User> => {
+    if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
+    // Insert into center_teachers
+    const { error: linkError } = await supabase.from('center_teachers').insert({
+      center_id: user.establishmentId,
+      profile_id: profileId,
+      role: 'teacher',
+    })
+    if (linkError) { toast.error('Erreur liaison professeur: ' + linkError.message); throw linkError }
+    // Fetch the profile
+    const { data: row, error } = await supabase.from('profiles').select('*').eq('id', profileId).single()
+    if (error) { toast.error('Erreur récupération profil: ' + error.message); throw error }
+    const linked = transformUser(row)
+    setTeachers(prev => [...prev, linked].sort((a, b) =>
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+    ))
+    toast.success(`${linked.firstName} ${linked.lastName} ajouté comme professeur`)
+    if (user) AuditService.logCrud('created', 'teacher_link', profileId, user.id, user.establishmentId, { name: `${linked.firstName} ${linked.lastName}`, email: linked.email })
+    return linked
+  }, [user?.establishmentId])
+
   const updateTeacher = useCallback(async (id: string, data: { firstName?: string; lastName?: string; email?: string; role?: 'teacher' | 'staff' }) => {
     const current = teachers.find(t => t.id === id)
     const fn = data.firstName ?? current?.firstName ?? ''
@@ -627,6 +706,39 @@ export function useAcademicData() {
     toast.success('Professeur retiré')
     if (user) AuditService.logCrud('deleted', 'teacher', id, user.id, user.establishmentId)
   }, [user])
+
+  // Toggle accès pour les professeurs liés via center_teachers (super_admin, admin, etc.)
+  const isLinkedTeacher = useCallback((teacherId: string) => {
+    return centerTeachersMap.has(teacherId)
+  }, [centerTeachersMap])
+
+  const getLinkedTeacherActive = useCallback((teacherId: string) => {
+    return centerTeachersMap.get(teacherId) ?? true
+  }, [centerTeachersMap])
+
+  const toggleLinkedTeacherAccess = useCallback(async (teacherId: string) => {
+    if (!user?.establishmentId) return
+    const currentActive = centerTeachersMap.get(teacherId) ?? true
+    const newActive = !currentActive
+
+    const { error } = await supabase
+      .from('center_teachers')
+      .update({ is_active: newActive })
+      .eq('center_id', user.establishmentId)
+      .eq('profile_id', teacherId)
+
+    if (error) {
+      toast.error('Erreur modification accès: ' + error.message)
+      throw error
+    }
+
+    setCenterTeachersMap(prev => {
+      const next = new Map(prev)
+      next.set(teacherId, newActive)
+      return next
+    })
+    toast.success(newActive ? 'Accès professeur activé' : 'Accès professeur désactivé')
+  }, [user?.establishmentId, centerTeachersMap])
 
   // ==================== Liens class_subjects ====================
 
@@ -1318,8 +1430,13 @@ export function useAcademicData() {
     deleteSubject,
     // CRUD Teachers
     createTeacher,
+    checkTeacherEmail,
+    linkExistingTeacher,
     updateTeacher,
     deleteTeacher,
+    isLinkedTeacher,
+    getLinkedTeacherActive,
+    toggleLinkedTeacherAccess,
     // Class-Subject links
     linkSubjectToClass,
     unlinkSubjectFromClass,

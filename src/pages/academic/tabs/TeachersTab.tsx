@@ -2,9 +2,10 @@ import { useState, useMemo, useCallback } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { filterBySearch } from '@/utils/helpers'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, MultiSelect } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, UserCheck, Send, Linkedin, Mail, Phone, ExternalLink } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, UserCheck, Send, Linkedin, Mail, Phone, ExternalLink, UserPlus, Settings2, Save } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { useCenterSettings } from '@/hooks/useCenterSettings'
 import type { Subject, User } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -40,26 +41,39 @@ export function TeachersTab({
   subjectOptions,
   getSubjectIdsForTeacher,
   createTeacher,
+  checkTeacherEmail,
+  linkExistingTeacher,
   updateTeacher,
   deleteTeacher,
   setTeacherSubjectLinks,
+  isLinkedTeacher: isLinkedTeacherFn,
+  getLinkedTeacherActive,
+  toggleLinkedTeacherAccess,
 }: {
   teachers: User[]
   subjects: Subject[]
   subjectOptions: { value: string; label: string }[]
   getSubjectIdsForTeacher: (teacherId: string) => string[]
   createTeacher: (data: { firstName: string; lastName: string; email: string; role: 'teacher' | 'staff' }) => Promise<User>
+  checkTeacherEmail: (email: string) => Promise<{ exists: boolean; alreadyInCenter?: boolean; profileId?: string; fullName?: string; email?: string; role?: string }>
+  linkExistingTeacher: (profileId: string) => Promise<User>
   updateTeacher: (id: string, data: { firstName?: string; lastName?: string; email?: string; role?: 'teacher' | 'staff' }) => Promise<User>
   deleteTeacher: (id: string) => Promise<void>
   setTeacherSubjectLinks: (teacherId: string, subjectIds: string[]) => Promise<void>
+  isLinkedTeacher: (teacherId: string) => boolean
+  getLinkedTeacherActive: (teacherId: string) => boolean
+  toggleLinkedTeacherAccess: (teacherId: string) => Promise<void>
 }) {
   const { user } = useAuthContext()
+  const { settings, updateSettings } = useCenterSettings()
   const [search, setSearch] = useState('')
   const [accessFilter, setAccessFilter] = useState<'' | 'active' | 'inactive'>('')
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
   const [selected, setSelected] = useState<User | null>(null)
   const [form, setForm] = useState<TeacherForm>(emptyTeacherForm)
   const [submitting, setSubmitting] = useState(false)
+  const [existingUser, setExistingUser] = useState<{ profileId: string; fullName: string; email: string; role: string } | null>(null)
+  const [checkingEmail, setCheckingEmail] = useState(false)
 
   // View detail state
   const [viewTarget, setViewTarget] = useState<User | null>(null)
@@ -70,6 +84,10 @@ export function TeachersTab({
   const [inviteBody, setInviteBody] = useState('')
   const [inviteSending, setInviteSending] = useState(false)
   const [centerName, setCenterName] = useState('')
+  const [editingTemplate, setEditingTemplate] = useState(false)
+  const [templateSubject, setTemplateSubject] = useState('')
+  const [templateBody, setTemplateBody] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   const filtered = useMemo(() => {
     let result = teachers
@@ -84,21 +102,43 @@ export function TeachersTab({
   const openCreate = () => { setForm(emptyTeacherForm); setSelected(null); setModalMode('create') }
   const openEdit = (t: User) => {
     setSelected(t)
+    const linked = isLinkedTeacherFn(t.id)
     setForm({
       firstName: t.firstName, lastName: t.lastName,
       email: t.email,
-      hasAccess: t.role === 'teacher',
+      hasAccess: linked ? getLinkedTeacherActive(t.id) : t.role === 'teacher',
       subjectIds: getSubjectIdsForTeacher(t.id),
     })
     setModalMode('edit')
   }
   const openDelete = (t: User) => { setSelected(t); setModalMode('delete') }
-  const closeModal = () => { setModalMode(null); setSelected(null) }
+  const closeModal = () => { setModalMode(null); setSelected(null); setExistingUser(null) }
 
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
       if (modalMode === 'create') {
+        // Check if email already exists (autre centre)
+        if (!existingUser && form.email.trim()) {
+          setCheckingEmail(true)
+          const check = await checkTeacherEmail(form.email.trim())
+          setCheckingEmail(false)
+          if (check.exists) {
+            if (check.alreadyInCenter) {
+              toast.error('Ce professeur est déjà dans votre centre')
+              return
+            }
+            // Show confirmation — don't create yet
+            setExistingUser({
+              profileId: check.profileId!,
+              fullName: check.fullName || '',
+              email: check.email || form.email,
+              role: check.role || 'teacher',
+            })
+            return
+          }
+        }
+
         const created = await createTeacher({
           firstName: form.firstName,
           lastName: form.lastName,
@@ -109,14 +149,40 @@ export function TeachersTab({
           await setTeacherSubjectLinks(created.id, form.subjectIds)
         }
       } else if (modalMode === 'edit' && selected) {
-        await updateTeacher(selected.id, {
-          firstName: form.firstName,
-          lastName: form.lastName,
-          email: form.email,
-          role: form.hasAccess ? 'teacher' : 'staff',
-        })
+        const linked = isLinkedTeacherFn(selected.id)
+        const isProtected = isProtectedTeacher(selected)
+
+        if (linked) {
+          // Toggle accès via center_teachers.is_active si changé
+          const currentActive = getLinkedTeacherActive(selected.id)
+          if (form.hasAccess !== currentActive) {
+            await toggleLinkedTeacherAccess(selected.id)
+          }
+        } else if (!isProtected) {
+          // Profil local modifiable : on peut tout modifier
+          await updateTeacher(selected.id, {
+            firstName: form.firstName,
+            lastName: form.lastName,
+            email: form.email,
+            role: form.hasAccess ? 'teacher' : 'staff',
+          })
+        }
+        // Matières : toujours modifiable (lien local)
         await setTeacherSubjectLinks(selected.id, form.subjectIds)
       }
+      closeModal()
+    } catch { /* toast in hook */ } finally { setSubmitting(false) }
+  }
+
+  const handleConfirmLink = async () => {
+    if (!existingUser) return
+    setSubmitting(true)
+    try {
+      const linked = await linkExistingTeacher(existingUser.profileId)
+      if (form.subjectIds.length > 0) {
+        await setTeacherSubjectLinks(linked.id, form.subjectIds)
+      }
+      setExistingUser(null)
       closeModal()
     } catch { /* toast in hook */ } finally { setSubmitting(false) }
   }
@@ -133,7 +199,27 @@ export function TeachersTab({
     return subjects.filter(s => ids.includes(s.id)).map(s => s.name)
   }
 
+  // Un professeur est "protégé" (profil non modifiable) s'il vient d'un autre centre OU si son rôle n'est pas teacher/staff
+  const isProtectedTeacher = useCallback((t: User) => {
+    const isLinked = isLinkedTeacherFn(t.id)
+    const isPrivilegedRole = !!t.role && !['teacher', 'staff'].includes(t.role)
+    return isLinked || isPrivilegedRole
+  }, [isLinkedTeacherFn])
+
   const toggleAccess = async (t: User) => {
+    // Pour les professeurs liés (center_teachers) : toggle is_active
+    if (isLinkedTeacherFn(t.id)) {
+      try {
+        await toggleLinkedTeacherAccess(t.id)
+      } catch { /* toast in hook */ }
+      return
+    }
+    // Pour les profils privilégiés locaux (super_admin local) : pas de toggle
+    if (t.role && !['teacher', 'staff'].includes(t.role)) {
+      toast.error('Impossible de modifier le rôle de ce compte')
+      return
+    }
+    // Pour les profils locaux teacher/staff : toggle role
     try {
       await updateTeacher(t.id, {
         role: t.role === 'teacher' ? 'staff' : 'teacher',
@@ -142,35 +228,42 @@ export function TeachersTab({
   }
 
   // -- Invitation --
-  const openInvite = useCallback(async (t: User) => {
-    // Fetch center name
-    let cName = centerName
-    if (!cName && user?.establishmentId) {
-      const { data } = await supabase
-        .from('training_centers')
-        .select('name')
-        .eq('id', user.establishmentId)
-        .single()
-      cName = data?.name || 'Notre centre'
-      setCenterName(cName)
-    }
+  const getResolvedCenterName = useCallback(async () => {
+    if (centerName) return centerName
+    if (!user?.establishmentId) return 'Notre centre'
+    const { data } = await supabase
+      .from('training_centers')
+      .select('name')
+      .eq('id', user.establishmentId)
+      .single()
+    const cName = data?.name || 'Notre centre'
+    setCenterName(cName)
+    return cName
+  }, [centerName, user?.establishmentId])
 
+  const replacePlaceholders = useCallback((text: string, teacherName: string, teacherEmail: string, cName: string) => {
     const senderName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'L\'administration'
+    return text
+      .replace(/\{\{teacher_name\}\}/g, teacherName)
+      .replace(/\{\{teacher_email\}\}/g, teacherEmail)
+      .replace(/\{\{center_name\}\}/g, cName)
+      .replace(/\{\{sender_name\}\}/g, senderName)
+      .replace(/\{\{app_url\}\}/g, window.location.origin)
+  }, [user])
+
+  const openInvite = useCallback(async (t: User) => {
+    const cName = await getResolvedCenterName()
     const teacherName = `${t.firstName} ${t.lastName}`.trim()
-    const appUrl = window.location.origin
 
-    const replacePlaceholders = (text: string) =>
-      text
-        .replace(/\{\{teacher_name\}\}/g, teacherName)
-        .replace(/\{\{teacher_email\}\}/g, t.email)
-        .replace(/\{\{center_name\}\}/g, cName)
-        .replace(/\{\{sender_name\}\}/g, senderName)
-        .replace(/\{\{app_url\}\}/g, appUrl)
+    // Use custom template from settings if available, else default
+    const subjectTpl = settings.invite_teacher_subject || DEFAULT_INVITE_SUBJECT
+    const bodyTpl = settings.invite_teacher_body || DEFAULT_INVITE_BODY
 
-    setInviteSubject(replacePlaceholders(DEFAULT_INVITE_SUBJECT))
-    setInviteBody(replacePlaceholders(DEFAULT_INVITE_BODY))
+    setInviteSubject(replacePlaceholders(subjectTpl, teacherName, t.email, cName))
+    setInviteBody(replacePlaceholders(bodyTpl, teacherName, t.email, cName))
+    setEditingTemplate(false)
     setInviteTarget(t)
-  }, [centerName, user])
+  }, [settings, getResolvedCenterName, replacePlaceholders])
 
   const sendInvite = async () => {
     if (!inviteTarget) return
@@ -287,17 +380,38 @@ export function TeachersTab({
                         )}
                       </td>
                       <td className="hidden md:table-cell px-4 py-3">
-                        <button
-                          onClick={() => toggleAccess(t)}
-                          className="focus:outline-none"
-                          title={t.role === 'teacher' ? 'Desactiver l\'acces professeur' : 'Activer l\'acces professeur'}
-                        >
-                          {t.role === 'teacher' ? (
-                            <Badge variant="success" size="sm">Actif</Badge>
-                          ) : (
-                            <Badge variant="neutral" size="sm">Desactive</Badge>
-                          )}
-                        </button>
+                        {isLinkedTeacherFn(t.id) ? (
+                          <button
+                            onClick={() => toggleAccess(t)}
+                            className="focus:outline-none"
+                            title={getLinkedTeacherActive(t.id) ? 'Désactiver l\'accès professeur' : 'Activer l\'accès professeur'}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              {getLinkedTeacherActive(t.id) ? (
+                                <Badge variant="success" size="sm">Actif</Badge>
+                              ) : (
+                                <Badge variant="neutral" size="sm">Désactivé</Badge>
+                              )}
+                              {t.role && !['teacher', 'staff'].includes(t.role) && (
+                                <Badge variant="info" size="sm">
+                                  {t.role === 'super_admin' ? 'SA' : t.role === 'admin' ? 'Admin' : t.role}
+                                </Badge>
+                              )}
+                            </div>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => toggleAccess(t)}
+                            className="focus:outline-none"
+                            title={t.role === 'teacher' ? 'Désactiver l\'accès professeur' : 'Activer l\'accès professeur'}
+                          >
+                            {t.role === 'teacher' ? (
+                              <Badge variant="success" size="sm">Actif</Badge>
+                            ) : (
+                              <Badge variant="neutral" size="sm">Désactivé</Badge>
+                            )}
+                          </button>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -330,53 +444,131 @@ export function TeachersTab({
       {/* Create/Edit Modal */}
       <Modal isOpen={modalMode === 'create' || modalMode === 'edit'} onClose={closeModal}
         title={modalMode === 'create' ? 'Ajouter un professeur' : 'Modifier le professeur'} size="md">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Prenom" placeholder="Ex: Jean" value={form.firstName}
-              onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} required />
-            <Input label="Nom" placeholder="Ex: Dupont" value={form.lastName}
-              onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} required />
-          </div>
-          <Input label="Email" type="email" placeholder="jean.dupont@ecole.fr" value={form.email}
-            onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-            required />
 
-          {/* Toggle acces professeur */}
-          <div className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700">
-            <div>
-              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Acces professeur</p>
-              <p className="text-xs text-neutral-500">Permet au professeur de se connecter et consulter son planning</p>
+        {/* Confirmation step: existing user found */}
+        {existingUser ? (
+          <>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 bg-primary-50 dark:bg-primary-950/30 rounded-lg border border-primary-200 dark:border-primary-800">
+                <UserPlus size={20} className="text-primary-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-primary-900 dark:text-primary-200">
+                    Un compte existe déjà avec cet email
+                  </p>
+                  <p className="text-sm text-primary-700 dark:text-primary-400 mt-1">
+                    Voulez-vous ajouter cette personne comme professeur dans votre centre ?
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold text-lg">
+                  {existingUser.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-neutral-900 dark:text-neutral-100">{existingUser.fullName}</p>
+                  <p className="text-sm text-neutral-500">{existingUser.email}</p>
+                </div>
+              </div>
+
+              {subjectOptions.length > 0 && (
+                <MultiSelect
+                  label="Matières enseignées"
+                  placeholder="Sélectionner les matières..."
+                  options={subjectOptions}
+                  value={form.subjectIds}
+                  onChange={ids => setForm(f => ({ ...f, subjectIds: ids }))}
+                />
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => setForm(f => ({ ...f, hasAccess: !f.hasAccess }))}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                form.hasAccess ? 'bg-primary-600' : 'bg-neutral-300'
-              }`}
-            >
-              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                form.hasAccess ? 'translate-x-5' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setExistingUser(null)}>Retour</Button>
+              <Button leftIcon={UserPlus} onClick={handleConfirmLink} isLoading={submitting}>
+                Confirmer l'ajout
+              </Button>
+            </ModalFooter>
+          </>
+        ) : (() => {
+          const isProtected = modalMode === 'edit' && selected && isProtectedTeacher(selected)
+          const isLinked = modalMode === 'edit' && selected && isLinkedTeacherFn(selected.id)
+          const protectedReason = isProtected && selected
+            ? isLinked
+              ? 'Ce professeur est rattaché depuis un autre centre.'
+              : `Ce professeur a un rôle privilégié (${selected.role}).`
+            : ''
+          return (
+          <>
+            <div className="space-y-4">
+              {isProtected && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <UserPlus size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {protectedReason} Vous pouvez modifier ses matières enseignées{isLinked ? ' et son accès professeur' : ''} mais pas ses informations personnelles.
+                  </p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Prénom" placeholder="Ex: Jean" value={form.firstName}
+                  onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} required
+                  disabled={!!isProtected} />
+                <Input label="Nom" placeholder="Ex: Dupont" value={form.lastName}
+                  onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} required
+                  disabled={!!isProtected} />
+              </div>
+              <Input label="Email" type="email" placeholder="jean.dupont@ecole.fr" value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                required disabled={!!isProtected} />
 
-          {subjectOptions.length > 0 && (
-            <MultiSelect
-              label="Matieres enseignees"
-              placeholder="Selectionner les matieres..."
-              options={subjectOptions}
-              value={form.subjectIds}
-              onChange={ids => setForm(f => ({ ...f, subjectIds: ids }))}
-            />
-          )}
-        </div>
-        <ModalFooter>
-          <Button variant="secondary" onClick={closeModal}>Annuler</Button>
-          <Button onClick={handleSubmit} isLoading={submitting}
-            disabled={!form.firstName.trim() || !form.lastName.trim() || (modalMode === 'create' && !form.email.trim())}>
-            {modalMode === 'create' ? 'Creer' : 'Enregistrer'}
-          </Button>
-        </ModalFooter>
+              {/* Toggle acces professeur */}
+              {(() => {
+                // Blocked only for local privileged roles (super_admin in own center, not linked)
+                const toggleBlocked = isProtected && !isLinked
+                return (
+                <div className={`flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 ${toggleBlocked ? 'opacity-50' : ''}`}>
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Accès professeur</p>
+                    <p className="text-xs text-neutral-500">
+                      {toggleBlocked ? 'Non modifiable pour ce profil' : isLinked ? 'Active/désactive l\'accès de ce professeur dans votre centre' : 'Permet au professeur de se connecter et consulter son planning'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!!toggleBlocked}
+                    onClick={() => !toggleBlocked && setForm(f => ({ ...f, hasAccess: !f.hasAccess }))}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+                      toggleBlocked ? 'cursor-not-allowed' : 'cursor-pointer'
+                    } ${
+                      form.hasAccess ? 'bg-primary-600' : 'bg-neutral-300'
+                    }`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      form.hasAccess ? 'translate-x-5' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+                )
+              })()}
+
+              {subjectOptions.length > 0 && (
+                <MultiSelect
+                  label="Matières enseignées"
+                  placeholder="Sélectionner les matières..."
+                  options={subjectOptions}
+                  value={form.subjectIds}
+                  onChange={ids => setForm(f => ({ ...f, subjectIds: ids }))}
+                />
+              )}
+            </div>
+            <ModalFooter>
+              <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+              <Button onClick={handleSubmit} isLoading={submitting || checkingEmail}
+                disabled={!form.firstName.trim() || !form.lastName.trim() || (modalMode === 'create' && !form.email.trim())}>
+                {modalMode === 'create' ? 'Créer' : 'Enregistrer'}
+              </Button>
+            </ModalFooter>
+          </>
+          )
+        })()}
       </Modal>
 
       {/* Delete Modal */}
@@ -422,28 +614,99 @@ export function TeachersTab({
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (!inviteTarget) return
-              const senderName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'L\'administration'
-              const teacherName = `${inviteTarget.firstName} ${inviteTarget.lastName}`.trim()
-              const appUrl = window.location.origin
-              const cName = centerName || 'Notre centre'
-              const replacePlaceholders = (text: string) =>
-                text
-                  .replace(/\{\{teacher_name\}\}/g, teacherName)
-                  .replace(/\{\{teacher_email\}\}/g, inviteTarget.email)
-                  .replace(/\{\{center_name\}\}/g, cName)
-                  .replace(/\{\{sender_name\}\}/g, senderName)
-                  .replace(/\{\{app_url\}\}/g, appUrl)
-              setInviteSubject(replacePlaceholders(DEFAULT_INVITE_SUBJECT))
-              setInviteBody(replacePlaceholders(DEFAULT_INVITE_BODY))
-            }}
-            className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
-          >
-            Reinitialiser le message par defaut
-          </button>
+          {/* Template editing toggle */}
+          {editingTemplate ? (
+            <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings2 size={14} className="text-amber-600" />
+                  <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">Modifier le modèle d'invitation</span>
+                </div>
+                <button type="button" onClick={() => setEditingTemplate(false)} className="text-xs text-neutral-500 hover:underline">Fermer</button>
+              </div>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                Variables disponibles : <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">{'{{teacher_name}}'}</code>{' '}
+                <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">{'{{teacher_email}}'}</code>{' '}
+                <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">{'{{center_name}}'}</code>{' '}
+                <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">{'{{sender_name}}'}</code>{' '}
+                <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">{'{{app_url}}'}</code>
+              </p>
+              <Input
+                label="Objet du modèle"
+                value={templateSubject}
+                onChange={e => setTemplateSubject(e.target.value)}
+              />
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">Corps du modèle</label>
+                <textarea
+                  className="w-full min-h-[200px] px-3 py-2 text-sm rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-y font-mono"
+                  value={templateBody}
+                  onChange={e => setTemplateBody(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" leftIcon={Save} isLoading={savingTemplate} onClick={async () => {
+                  setSavingTemplate(true)
+                  try {
+                    await updateSettings({
+                      invite_teacher_subject: templateSubject,
+                      invite_teacher_body: templateBody,
+                    })
+                    toast.success('Modèle sauvegardé')
+                    // Re-render the current invite with new template
+                    if (inviteTarget) {
+                      const cName = centerName || 'Notre centre'
+                      const teacherName = `${inviteTarget.firstName} ${inviteTarget.lastName}`.trim()
+                      setInviteSubject(replacePlaceholders(templateSubject, teacherName, inviteTarget.email, cName))
+                      setInviteBody(replacePlaceholders(templateBody, teacherName, inviteTarget.email, cName))
+                    }
+                    setEditingTemplate(false)
+                  } catch {
+                    toast.error('Erreur lors de la sauvegarde')
+                  } finally {
+                    setSavingTemplate(false)
+                  }
+                }}>
+                  Sauvegarder le modèle
+                </Button>
+                <button type="button" onClick={() => {
+                  setTemplateSubject(DEFAULT_INVITE_SUBJECT)
+                  setTemplateBody(DEFAULT_INVITE_BODY)
+                }} className="text-xs text-neutral-500 hover:underline">
+                  Réinitialiser par défaut
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setTemplateSubject(settings.invite_teacher_subject || DEFAULT_INVITE_SUBJECT)
+                  setTemplateBody(settings.invite_teacher_body || DEFAULT_INVITE_BODY)
+                  setEditingTemplate(true)
+                }}
+                className="text-xs text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+              >
+                <Settings2 size={12} />
+                Modifier le modèle
+              </button>
+              <span className="text-neutral-300 dark:text-neutral-600">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!inviteTarget) return
+                  const cName = centerName || 'Notre centre'
+                  const teacherName = `${inviteTarget.firstName} ${inviteTarget.lastName}`.trim()
+                  setInviteSubject(replacePlaceholders(DEFAULT_INVITE_SUBJECT, teacherName, inviteTarget.email, cName))
+                  setInviteBody(replacePlaceholders(DEFAULT_INVITE_BODY, teacherName, inviteTarget.email, cName))
+                }}
+                className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                Réinitialiser le message par défaut
+              </button>
+            </div>
+          )}
         </div>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setInviteTarget(null)}>Annuler</Button>

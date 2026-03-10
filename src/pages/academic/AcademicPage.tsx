@@ -18,20 +18,20 @@ import type { ImportType } from '@/utils/import-validators'
 type Tab = 'programs' | 'diplomas' | 'classes' | 'subjects' | 'teachers' | 'cours' | 'academic-years'
 
 const normalTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
+  { key: 'academic-years', label: 'Années', icon: Calendar },
   { key: 'diplomas', label: 'Diplômes', icon: GraduationCap },
   { key: 'programs', label: 'Programmes', icon: FolderOpen },
-  { key: 'classes', label: 'Classes', icon: Layers },
   { key: 'subjects', label: 'Matières', icon: BookOpen },
   { key: 'teachers', label: 'Professeurs', icon: UserCheck },
-  { key: 'academic-years', label: 'Années', icon: Calendar },
+  { key: 'classes', label: 'Classes', icon: Layers },
 ]
 
 const mergedTabs: { key: Tab; label: string; icon: React.ComponentType<any> }[] = [
+  { key: 'academic-years', label: 'Années', icon: Calendar },
   { key: 'diplomas', label: 'Diplômes', icon: GraduationCap },
   { key: 'programs', label: 'Programmes', icon: FolderOpen },
   { key: 'cours', label: 'Cours', icon: BookOpen },
   { key: 'teachers', label: 'Professeurs', icon: UserCheck },
-  { key: 'academic-years', label: 'Années', icon: Calendar },
 ]
 
 const TAB_IMPORT_TYPE: Partial<Record<Tab, ImportType>> = {
@@ -41,7 +41,7 @@ const TAB_IMPORT_TYPE: Partial<Record<Tab, ImportType>> = {
 }
 
 function AcademicPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('diplomas')
+  const [activeTab, setActiveTab] = useState<Tab>('academic-years')
   const [showImport, setShowImport] = useState(false)
   const { settings } = useCenterSettings()
   const { plan } = useSubscriptionInfo()
@@ -57,7 +57,8 @@ function AcademicPage() {
     createDiploma, updateDiploma, deleteDiploma,
     createClass, updateClass, deleteClass,
     createSubject, updateSubject, deleteSubject,
-    createTeacher, updateTeacher, deleteTeacher,
+    createTeacher, checkTeacherEmail, linkExistingTeacher, updateTeacher, deleteTeacher,
+    isLinkedTeacher, getLinkedTeacherActive, toggleLinkedTeacherAccess,
     setClassSubjectLinks,
     setTeacherSubjectLinks,
     getSubjectIdsForTeacher,
@@ -140,7 +141,7 @@ function AcademicPage() {
 
       {/* Tabs */}
       <div className="border-b border-neutral-200 dark:border-neutral-800 mb-6">
-        <nav className="flex space-x-1 -mb-px">
+        <nav className="flex space-x-1 -mb-px overflow-x-auto">
           {tabs.map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.key
@@ -197,6 +198,7 @@ function AcademicPage() {
           classStudents={classStudents}
           toggleDispensation={toggleDispensation}
           getStudentSubjectsForClass={getStudentSubjectsForClass}
+          academicYears={academicYears}
         />
       )}
       {activeTab === 'subjects' && (
@@ -245,9 +247,14 @@ function AcademicPage() {
           subjectOptions={subjectOptions}
           getSubjectIdsForTeacher={getSubjectIdsForTeacher}
           createTeacher={createTeacher}
+          checkTeacherEmail={checkTeacherEmail}
+          linkExistingTeacher={linkExistingTeacher}
           updateTeacher={updateTeacher}
           deleteTeacher={deleteTeacher}
           setTeacherSubjectLinks={setTeacherSubjectLinks}
+          isLinkedTeacher={isLinkedTeacher}
+          getLinkedTeacherActive={getLinkedTeacherActive}
+          toggleLinkedTeacherAccess={toggleLinkedTeacherAccess}
         />
       )}
 
