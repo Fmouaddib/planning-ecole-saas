@@ -8,7 +8,7 @@ import { Button, Input, Modal, ModalFooter, HelpBanner } from '@/components/ui'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType } from '@/types'
 import { priceTTC, formatPrice } from '@/utils/pricing'
-import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell, MailCheck, Linkedin, ExternalLink, HelpCircle, Download } from 'lucide-react'
+import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell, MailCheck, Linkedin, ExternalLink, HelpCircle, Download, Trash2, AlertTriangle } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import { SAAddonsService } from '@/services/super-admin/addons'
 import { useEmailPreferences, type EmailPreferences } from '@/hooks/useEmailPreferences'
@@ -89,6 +89,9 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const tierConfig = plan?.tier ? PLAN_TIER_CONFIG[plan.tier] : null
   const statusConfig = subscription?.status ? STATUS_CONFIG[subscription.status] : null
@@ -149,6 +152,40 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
       toast.error(msg)
     } finally {
       setPasswordSaving(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'SUPPRIMER') return
+    setDeleting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        toast.error('Session expirée, veuillez vous reconnecter')
+        return
+      }
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || 'Erreur lors de la suppression du compte')
+      }
+      await supabase.auth.signOut()
+      toast.success('Votre compte a été supprimé')
+      navigateTo('/')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur lors de la suppression du compte'
+      toast.error(msg)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -444,6 +481,79 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
           </Button>
         </div>
       </div>
+
+      {/* Zone de danger — suppression de compte (non super_admin) */}
+      {user?.role !== 'super_admin' && (
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border-2 border-red-300 dark:border-red-800 shadow-soft p-4 sm:p-6 mt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg shrink-0">
+              <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-700 dark:text-red-400">Zone de danger</h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                Actions irreversibles
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+            La suppression de votre compte est definitive. Toutes vos donnees personnelles seront effacees et cette action ne peut pas etre annulee.
+          </p>
+          <Button
+            variant="danger"
+            leftIcon={Trash2}
+            onClick={() => { setDeleteModalOpen(true); setDeleteConfirmText('') }}
+          >
+            Supprimer mon compte
+          </Button>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Supprimer mon compte"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+            <div className="flex gap-3">
+              <AlertTriangle size={20} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                  Cette action est irreversible
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                  Votre compte, vos donnees personnelles et votre historique seront definitivement supprimes. Vous ne pourrez plus acceder a la plateforme avec cet identifiant.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">
+              Tapez <span className="font-bold text-red-600">SUPPRIMER</span> pour confirmer
+            </label>
+            <Input
+              placeholder="SUPPRIMER"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+            />
+          </div>
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>Annuler</Button>
+          <Button
+            variant="danger"
+            leftIcon={Trash2}
+            onClick={handleDeleteAccount}
+            isLoading={deleting}
+            disabled={deleteConfirmText !== 'SUPPRIMER'}
+          >
+            Supprimer definitivement
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {/* Edit Profile Modal */}
       <Modal
