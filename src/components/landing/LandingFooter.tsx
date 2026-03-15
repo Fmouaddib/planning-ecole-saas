@@ -44,6 +44,7 @@ export default function LandingFooter() {
           <h4>{t('footer.legal')}</h4>
           <a href="#/terms">{t('footer.terms')}</a>
           <a href="#/privacy">{t('footer.privacy')}</a>
+          <a href="#/mentions-legales">Mentions légales</a>
           <a href="#/about">{t('nav.about')}</a>
         </div>
       </div>

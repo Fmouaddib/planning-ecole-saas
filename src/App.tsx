@@ -33,6 +33,7 @@ const BlogPostPage = lazy(() => import('@/pages/landing/BlogPostPage'))
 const ContactPage = lazy(() => import('@/pages/landing/ContactPage'))
 const TermsPage = lazy(() => import('@/pages/landing/TermsPage'))
 const PrivacyPage = lazy(() => import('@/pages/landing/PrivacyPage'))
+const MentionsLegalesPage = lazy(() => import('@/pages/landing/MentionsLegalesPage'))
 const ApiDocsPage = lazy(() => import('@/pages/landing/ApiDocsPage'))
 const ParentPortalPage = lazy(() => import('@/pages/parent/ParentPortalPage'))
 
@@ -668,6 +669,7 @@ export default function App() {
     if (hash === '#/contact') return landingSuspense(ContactPage)
     if (hash === '#/terms') return landingSuspense(TermsPage)
     if (hash === '#/privacy') return landingSuspense(PrivacyPage)
+    if (hash === '#/mentions-legales') return landingSuspense(MentionsLegalesPage)
     if (hash === '#/api-docs') return landingSuspense(ApiDocsPage)
 
     // Default: show landing page
@@ -716,6 +718,7 @@ export default function App() {
       '#/contact': ContactPage,
       '#/terms': TermsPage,
       '#/privacy': PrivacyPage,
+      '#/mentions-legales': MentionsLegalesPage,
       '#/api-docs': ApiDocsPage,
     }
     const PageComponent = PageMap[hash]!
