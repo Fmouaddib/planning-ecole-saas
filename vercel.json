@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://rfmaombcwjxeiwanchdh.supabase.co/functions/v1/dynamic-sitemap"
+    }
+  ]
+}
