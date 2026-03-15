@@ -285,7 +285,7 @@ Deno.serve(async (req: Request) => {
 
     // Send via Brevo
     const senderEmail =
-      Deno.env.get("BREVO_SENDER_EMAIL") || "fahd.mouaddib@gmail.com";
+      Deno.env.get("BREVO_SENDER_EMAIL") || "contact@anti-planning.com";
 
     const brevoPayload = {
       sender: { name: "AntiPlanning", email: senderEmail },

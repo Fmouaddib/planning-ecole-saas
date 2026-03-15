@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const senderEmail =
-      Deno.env.get("BREVO_SENDER_EMAIL") || "fahd.mouaddib@gmail.com";
+      Deno.env.get("BREVO_SENDER_EMAIL") || "contact@anti-planning.com";
     const senderName = Deno.env.get("BREVO_SENDER_NAME") || "AntiPlanning";
 
     const body: SendEmailRequest = await req.json();

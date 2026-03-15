@@ -5,9 +5,10 @@ import { useRooms } from '@/hooks/useRooms'
 import { useUsers } from '@/hooks/useUsers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useGrades } from '@/hooks/useGrades'
+import { useAttendance } from '@/hooks/useAttendance'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingSpinner, BarChart, DonutChart, HeatmapGrid, HelpBanner } from '@/components/ui'
-import { CalendarCheck, Gauge, GraduationCap, Users, Award, School, BookOpen, Monitor, Download, ChevronDown } from 'lucide-react'
+import { CalendarCheck, Gauge, GraduationCap, Users, Award, School, BookOpen, Monitor, Download, ChevronDown, ClipboardCheck, TrendingUp } from 'lucide-react'
 import { getScheduleTypeLabel } from '@/utils/scheduleUtils'
 import { navigateTo } from '@/utils/navigation'
 import type { AnalyticsExportData } from '@/utils/export-analytics'
@@ -192,6 +193,61 @@ const DEMO_CLASS_AVERAGES_CHART = [
   { label: 'LP Web 1', value: 11.8, color: '#60a5fa' },
   { label: 'M1 RH', value: 14.2, color: '#3b82f6' },
   { label: 'BTS MCO 1', value: 10.5, color: '#2563eb' },
+]
+
+// ==================== DONNÉES DÉMO — PRÉSENCES ====================
+
+const DEMO_ATTENDANCE_STATUS_DONUT = [
+  { label: 'Présent', value: 892, color: '#22c55e' },
+  { label: 'Absent', value: 67, color: '#ef4444' },
+  { label: 'En retard', value: 45, color: '#f59e0b' },
+  { label: 'Excusé', value: 28, color: '#3b82f6' },
+]
+
+const DEMO_ATTENDANCE_BY_CLASS = [
+  { label: 'BTS SIO 1', value: 94, color: '#22c55e' },
+  { label: 'BTS SIO 2', value: 91, color: '#3b82f6' },
+  { label: 'LP Web 1', value: 88, color: '#22c55e' },
+  { label: 'M1 RH', value: 85, color: '#3b82f6' },
+  { label: 'BTS MCO 1', value: 82, color: '#22c55e' },
+  { label: 'BTS MCO 2', value: 79, color: '#3b82f6' },
+]
+
+const DEMO_ABSENCE_TRENDS = [
+  { label: 'S-8', value: 12, color: '#ef4444' },
+  { label: 'S-7', value: 9, color: '#f87171' },
+  { label: 'S-6', value: 15, color: '#ef4444' },
+  { label: 'S-5', value: 8, color: '#f87171' },
+  { label: 'S-4', value: 11, color: '#ef4444' },
+  { label: 'S-3', value: 14, color: '#f87171' },
+  { label: 'S-2', value: 10, color: '#ef4444' },
+  { label: 'S-1', value: 7, color: '#f87171' },
+]
+
+// ==================== DONNÉES DÉMO — NOTES AVANCÉES ====================
+
+const DEMO_SUBJECT_PERFORMANCE = [
+  { label: 'Mathématiques', value: 13.5, color: '#3b82f6' },
+  { label: 'Français', value: 12.8, color: '#2563eb' },
+  { label: 'Anglais', value: 14.2, color: '#60a5fa' },
+  { label: 'Informatique', value: 15.1, color: '#3b82f6' },
+  { label: 'Économie', value: 11.9, color: '#2563eb' },
+  { label: 'Droit', value: 12.3, color: '#60a5fa' },
+  { label: 'Marketing', value: 13.0, color: '#3b82f6' },
+  { label: 'Gestion', value: 11.5, color: '#2563eb' },
+]
+
+const DEMO_TOP_STUDENTS = [
+  { rank: 1, name: 'Marie Dupont', average: 17.2, className: 'BTS SIO 1' },
+  { rank: 2, name: 'Lucas Martin', average: 16.8, className: 'LP Web 1' },
+  { rank: 3, name: 'Sophie Bernard', average: 16.5, className: 'BTS SIO 2' },
+  { rank: 4, name: 'Antoine Leroy', average: 16.1, className: 'M1 RH' },
+  { rank: 5, name: 'Camille Moreau', average: 15.9, className: 'BTS SIO 1' },
+  { rank: 6, name: 'Pierre Thomas', average: 15.7, className: 'BTS MCO 1' },
+  { rank: 7, name: 'Léa Petit', average: 15.4, className: 'LP Web 1' },
+  { rank: 8, name: 'Hugo Robert', average: 15.2, className: 'BTS SIO 2' },
+  { rank: 9, name: 'Emma Richard', average: 14.9, className: 'M1 RH' },
+  { rank: 10, name: 'Nathan Dubois', average: 14.7, className: 'BTS MCO 1' },
 ]
 
 // ==================== SECTION HEADER ====================
@@ -700,6 +756,164 @@ function AnalyticsPage() {
     fetchGradeData()
   }, [classes.length, students.length, classStudents.length])
 
+  // ==================== SECTION 6 — PRÉSENCES ====================
+
+  const { getAttendanceForClass } = useAttendance()
+
+  const [attendanceStatusData, setAttendanceStatusData] = useState(DEMO_ATTENDANCE_STATUS_DONUT)
+  const [attendanceByClassData, setAttendanceByClassData] = useState(DEMO_ATTENDANCE_BY_CLASS)
+  const [absenceTrendsData, setAbsenceTrendsData] = useState(DEMO_ABSENCE_TRENDS)
+  const [attendanceGlobalRate, setAttendanceGlobalRate] = useState<number>(87)
+
+  useEffect(() => {
+    if (isDemoMode || classes.length === 0) return
+
+    async function fetchAttendanceData() {
+      const allRecords: any[] = []
+      const classRates: { label: string; value: number; color: string }[] = []
+      const barColors = ['#22c55e', '#3b82f6', '#22c55e', '#3b82f6', '#22c55e', '#3b82f6']
+
+      for (const cls of classes.slice(0, 10)) {
+        const records = await getAttendanceForClass(cls.id)
+        if (records.length === 0) continue
+        allRecords.push(...records)
+        const totalSess = records.length
+        const presentOrLate = records.filter(r => r.status === 'present' || r.status === 'late').length
+        const rate = totalSess > 0 ? Math.round((presentOrLate / totalSess) * 100) : 0
+        classRates.push({
+          label: cls.name.length > 14 ? cls.name.slice(0, 12) + '…' : cls.name,
+          value: rate,
+          color: barColors[classRates.length % barColors.length],
+        })
+      }
+
+      if (allRecords.length > 0) {
+        // Global rate
+        const totalRec = allRecords.length
+        const presentOrLateAll = allRecords.filter(r => r.status === 'present' || r.status === 'late').length
+        setAttendanceGlobalRate(totalRec > 0 ? Math.round((presentOrLateAll / totalRec) * 100) : 0)
+
+        // Status donut
+        const statusCounts = { present: 0, absent: 0, late: 0, excused: 0 }
+        for (const r of allRecords) {
+          if (r.status in statusCounts) statusCounts[r.status as keyof typeof statusCounts]++
+        }
+        setAttendanceStatusData([
+          { label: 'Présent', value: statusCounts.present, color: '#22c55e' },
+          { label: 'Absent', value: statusCounts.absent, color: '#ef4444' },
+          { label: 'En retard', value: statusCounts.late, color: '#f59e0b' },
+          { label: 'Excusé', value: statusCounts.excused, color: '#3b82f6' },
+        ])
+
+        // By class
+        if (classRates.length > 0) {
+          setAttendanceByClassData(classRates.sort((a, b) => b.value - a.value))
+        }
+
+        // Absence trends (last 8 weeks)
+        const now = new Date()
+        const weekBuckets: { label: string; count: number }[] = []
+        for (let w = 8; w >= 1; w--) {
+          const wStart = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), w)
+          const wEnd = endOfWeek(wStart, { weekStartsOn: 1 })
+          const absences = allRecords.filter(r => {
+            const d = new Date(r.markedAt || '')
+            return r.status === 'absent' && d >= wStart && d <= wEnd
+          }).length
+          weekBuckets.push({ label: `S-${w}`, count: absences })
+        }
+        setAbsenceTrendsData(weekBuckets.map((b, i) => ({
+          label: b.label,
+          value: b.count,
+          color: i % 2 === 0 ? '#ef4444' : '#f87171',
+        })))
+      }
+    }
+
+    fetchAttendanceData()
+  }, [classes.length])
+
+  // ==================== SECTION 7 — NOTES AVANCÉES ====================
+
+  const [subjectPerformanceData, setSubjectPerformanceData] = useState(DEMO_SUBJECT_PERFORMANCE)
+  const [topStudentsData, setTopStudentsData] = useState(DEMO_TOP_STUDENTS)
+  const [overallAverage, setOverallAverage] = useState<number | null>(isDemoMode ? 13.2 : null)
+
+  useEffect(() => {
+    if (isDemoMode || classes.length === 0 || students.length === 0) return
+
+    async function fetchAdvancedGradeData() {
+      const subjectTotals = new Map<string, { name: string; sum: number; count: number }>()
+      const studentAvgList: { name: string; average: number; className: string }[] = []
+      const allAvgs: number[] = []
+
+      for (const cls of classes.slice(0, 10)) {
+        const classStudentIds = classStudents
+          .filter(cs => cs.class_id === cls.id)
+          .map(cs => cs.student_id)
+
+        for (const sid of classStudentIds.slice(0, 30)) {
+          const student = students.find(s => s.id === sid)
+          if (!student) continue
+          const bul = await computeBulletin(sid, cls.id, `${student.firstName} ${student.lastName}`, cls.name)
+          if (!bul) continue
+
+          if (bul.generalAverage != null) {
+            allAvgs.push(bul.generalAverage)
+            studentAvgList.push({
+              name: `${student.firstName} ${student.lastName}`,
+              average: bul.generalAverage,
+              className: cls.name,
+            })
+          }
+
+          for (const subj of bul.subjects) {
+            if (subj.average == null) continue
+            const existing = subjectTotals.get(subj.subjectId)
+            if (existing) {
+              existing.sum += subj.average
+              existing.count++
+            } else {
+              subjectTotals.set(subj.subjectId, { name: subj.subjectName, sum: subj.average, count: 1 })
+            }
+          }
+        }
+      }
+
+      // Overall average
+      if (allAvgs.length > 0) {
+        setOverallAverage(Math.round((allAvgs.reduce((s, v) => s + v, 0) / allAvgs.length) * 100) / 100)
+      }
+
+      // Subject performance
+      const barColors = ['#3b82f6', '#2563eb', '#60a5fa', '#3b82f6', '#2563eb', '#60a5fa', '#3b82f6', '#2563eb']
+      const subjPerf = Array.from(subjectTotals.values())
+        .map(s => ({ name: s.name, avg: Math.round((s.sum / s.count) * 100) / 100 }))
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 10)
+        .map((s, i) => ({
+          label: s.name.length > 14 ? s.name.slice(0, 12) + '…' : s.name,
+          value: s.avg,
+          color: barColors[i % barColors.length],
+        }))
+      if (subjPerf.length > 0) setSubjectPerformanceData(subjPerf)
+
+      // Top students
+      const topSt = studentAvgList
+        .sort((a, b) => b.average - a.average)
+        .slice(0, 10)
+        .map((s, i) => ({
+          rank: i + 1,
+          name: s.name.length > 20 ? s.name.slice(0, 18) + '…' : s.name,
+          average: s.average,
+          className: s.className,
+        }))
+      if (topSt.length > 0) setTopStudentsData(topSt)
+    }
+
+    fetchAdvancedGradeData()
+  }, [classes.length, students.length, classStudents.length])
+
   // ==================== RENDU ====================
 
   if (isLoading && !isDemoMode) {
@@ -941,6 +1155,156 @@ function AnalyticsPage() {
           <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Comparaison entre les classes</p>
           {classAveragesData.length > 0 ? (
             <BarChart data={classAveragesData} horizontal showValues />
+          ) : (
+            <p className="text-sm text-neutral-400 text-center py-6">Aucune donnée de notes</p>
+          )}
+        </div>
+      </div>
+
+      {/* ==================== SECTION 6 — Présences ==================== */}
+      <SectionHeader title="Présences et absences" description="Taux de présence, répartition par statut et tendances" />
+
+      {/* KPI Taux de présence global */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Taux de présence global</p>
+              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{attendanceGlobalRate}%</p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">Présent + en retard / total</p>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+              <ClipboardCheck size={22} className="text-emerald-600 dark:text-emerald-400" />
+            </div>
+          </div>
+        </div>
+        {attendanceStatusData.map(s => (
+          <div key={s.label} className="card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{s.label}s</p>
+                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{s.value}</p>
+                <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                  {attendanceStatusData.reduce((acc, d) => acc + d.value, 0) > 0
+                    ? `${Math.round((s.value / attendanceStatusData.reduce((acc, d) => acc + d.value, 0)) * 100)}% du total`
+                    : '—'}
+                </p>
+              </div>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Répartition par statut</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Présent / Absent / En retard / Excusé</p>
+          <DonutChart data={attendanceStatusData} size={140} thickness={22} />
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Taux de présence par classe</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Top 10 — pourcentage de présence</p>
+          {attendanceByClassData.length > 0 ? (
+            <BarChart data={attendanceByClassData} horizontal showValues />
+          ) : (
+            <p className="text-sm text-neutral-400 text-center py-6">Aucune donnée</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Tendance des absences</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Absences par semaine (8 dernières semaines)</p>
+          <BarChart data={absenceTrendsData} height={55} showValues />
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Synthèse</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Indicateurs clés de présence</p>
+          <div className="space-y-3">
+            {[
+              { label: 'Total marquages', value: attendanceStatusData.reduce((acc, d) => acc + d.value, 0), color: 'text-neutral-700 dark:text-neutral-300' },
+              { label: 'Absences non excusées', value: attendanceStatusData.find(d => d.label === 'Absent')?.value || 0, color: 'text-red-600 dark:text-red-400' },
+              { label: 'Retards', value: attendanceStatusData.find(d => d.label === 'En retard')?.value || 0, color: 'text-amber-600 dark:text-amber-400' },
+              { label: 'Taux global', value: `${attendanceGlobalRate}%`, color: attendanceGlobalRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' },
+            ].map(item => (
+              <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                <span className="text-sm text-neutral-600 dark:text-neutral-400">{item.label}</span>
+                <span className={`text-sm font-semibold ${item.color}`}>{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ==================== SECTION 7 — Performance notes ==================== */}
+      <SectionHeader title="Performance par matière et classement" description="Moyennes par matière et meilleurs étudiants" />
+
+      {/* KPI Moyenne générale */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Moyenne générale</p>
+              <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">
+                {overallAverage != null ? `${overallAverage}/20` : '—'}
+              </p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">Toutes classes confondues</p>
+            </div>
+            <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+              <TrendingUp size={22} className="text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Moyenne par matière</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Top 10 — moyenne sur 20</p>
+          {subjectPerformanceData.length > 0 ? (
+            <BarChart data={subjectPerformanceData} horizontal showValues />
+          ) : (
+            <p className="text-sm text-neutral-400 text-center py-6">Aucune donnée de notes</p>
+          )}
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Top 10 étudiants</h3>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">Classement par moyenne générale</p>
+          {topStudentsData.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                    <th className="text-left py-2 pr-2 text-neutral-500 dark:text-neutral-400 font-medium">#</th>
+                    <th className="text-left py-2 pr-2 text-neutral-500 dark:text-neutral-400 font-medium">Étudiant</th>
+                    <th className="text-left py-2 pr-2 text-neutral-500 dark:text-neutral-400 font-medium">Classe</th>
+                    <th className="text-right py-2 text-neutral-500 dark:text-neutral-400 font-medium">Moyenne</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topStudentsData.map(s => (
+                    <tr key={s.rank} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                      <td className="py-1.5 pr-2">
+                        {s.rank <= 3 ? (
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                            s.rank === 1 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                            s.rank === 2 ? 'bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300' :
+                            'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                          }`}>{s.rank}</span>
+                        ) : (
+                          <span className="text-neutral-400 dark:text-neutral-500 pl-1.5">{s.rank}</span>
+                        )}
+                      </td>
+                      <td className="py-1.5 pr-2 font-medium text-neutral-800 dark:text-neutral-200">{s.name}</td>
+                      <td className="py-1.5 pr-2 text-neutral-500 dark:text-neutral-400">{s.className}</td>
+                      <td className="py-1.5 text-right font-semibold text-neutral-900 dark:text-neutral-100">{s.average}/20</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <p className="text-sm text-neutral-400 text-center py-6">Aucune donnée de notes</p>
           )}

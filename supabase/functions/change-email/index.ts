@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const brevoKey = Deno.env.get("BREVO_API_KEY");
-    const senderEmail = Deno.env.get("BREVO_SENDER_EMAIL") || "fahd.mouaddib@gmail.com";
+    const senderEmail = Deno.env.get("BREVO_SENDER_EMAIL") || "contact@anti-planning.com";
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
