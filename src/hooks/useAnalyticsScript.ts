@@ -1,11 +1,16 @@
 import { useEffect } from 'react'
 import { supabase, isDemoMode } from '@/lib/supabase'
+import { hasAnalyticsConsent } from '@/components/CookieBanner'
 
 const SCRIPT_ID = 'sa-analytics-script'
+const DEFAULT_TRACKING_ID = 'G-7RFZEEHTCC'
 
 function injectGtagScript(trackingId: string) {
   // Validate tracking ID format to prevent injection
   if (!/^[A-Z0-9\-_]+$/i.test(trackingId)) return
+
+  // Don't inject twice
+  if (document.getElementById(SCRIPT_ID)) return
 
   const container = document.createElement('div')
   container.id = SCRIPT_ID
@@ -22,6 +27,12 @@ function injectGtagScript(trackingId: string) {
   document.head.appendChild(container)
 }
 
+function removeAnalytics() {
+  document.getElementById(SCRIPT_ID)?.remove()
+  // Remove gtag scripts
+  document.querySelectorAll('script[src*="googletagmanager.com"]').forEach(el => el.remove())
+}
+
 export function useAnalyticsScript() {
   useEffect(() => {
     if (isDemoMode) return
@@ -29,6 +40,9 @@ export function useAnalyticsScript() {
     let cancelled = false
 
     const inject = async () => {
+      // Check cookie consent first
+      if (!hasAnalyticsConsent()) return
+
       try {
         const { data } = await supabase
           .from('platform_settings')
@@ -36,41 +50,54 @@ export function useAnalyticsScript() {
           .eq('key', 'analytics')
           .single()
 
-        if (cancelled || !data?.value) return
+        if (cancelled) return
 
-        const settings = data.value as { enabled: boolean; tracking_id: string; custom_code?: string }
-        if (!settings.enabled) return
+        if (data?.value) {
+          const settings = data.value as { enabled: boolean; tracking_id: string; custom_code?: string }
+          if (!settings.enabled) return
 
-        // Remove old injection
-        document.getElementById(SCRIPT_ID)?.remove()
-
-        // If custom_code is provided, only allow known safe analytics patterns
-        // (no innerHTML to prevent XSS from super-admin input)
-        if (settings.custom_code) {
-          // Only allow custom_code that looks like a tracking ID (alphanumeric + dashes)
-          // This prevents arbitrary script injection
-          const safeIdPattern = /^[A-Z0-9\-_]+$/i
-          if (safeIdPattern.test(settings.custom_code.trim())) {
-            // Treat as a Google Analytics tracking ID
-            injectGtagScript(settings.custom_code.trim())
+          if (settings.custom_code) {
+            const safeIdPattern = /^[A-Z0-9\-_]+$/i
+            if (safeIdPattern.test(settings.custom_code.trim())) {
+              injectGtagScript(settings.custom_code.trim())
+            }
+            return
           }
-          // Otherwise, silently ignore unsafe custom_code
-          return
+
+          if (settings.tracking_id) {
+            injectGtagScript(settings.tracking_id)
+            return
+          }
         }
 
-        if (settings.tracking_id) {
-          injectGtagScript(settings.tracking_id)
+        // Fallback: use default tracking ID if platform_settings not available
+        if (!cancelled) {
+          injectGtagScript(DEFAULT_TRACKING_ID)
         }
       } catch {
-        // Silently fail — analytics is non-critical
+        // Fallback to default tracking ID on error
+        if (!cancelled && hasAnalyticsConsent()) {
+          injectGtagScript(DEFAULT_TRACKING_ID)
+        }
       }
     }
 
     inject()
 
+    // Listen for consent changes
+    const handleConsentChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail === 'accepted') {
+        inject()
+      } else {
+        removeAnalytics()
+      }
+    }
+    window.addEventListener('cookie-consent-changed', handleConsentChange)
+
     return () => {
       cancelled = true
-      document.getElementById(SCRIPT_ID)?.remove()
+      window.removeEventListener('cookie-consent-changed', handleConsentChange)
     }
   }, [])
 }

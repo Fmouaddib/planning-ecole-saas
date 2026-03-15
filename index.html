@@ -92,14 +92,7 @@
     <script>
       (function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')})();
     </script>
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-7RFZEEHTCC"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-7RFZEEHTCC');
-    </script>
+    <!-- Google Analytics: loaded dynamically after cookie consent (see CookieBanner + useAnalyticsScript) -->
   </head>
   <body>
     <div id="root"></div>
