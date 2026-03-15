@@ -7,6 +7,7 @@ import { useAuthContext } from '@/contexts/AuthContext'
 import { transformEvaluation, transformGrade } from '@/utils/transforms'
 import type { Evaluation, Grade, EvaluationType, StudentBulletin, SubjectAverage } from '@/types'
 import toast from 'react-hot-toast'
+import { logError } from '@/services/errorLogger'
 
 export function useGrades() {
   const { user } = useAuthContext()
@@ -66,6 +67,7 @@ export function useGrades() {
       return transformEvaluation(result)
     } catch (err) {
       console.error('Error creating evaluation:', err)
+      logError(err, { component: 'useGrades', action: 'createEvaluation' })
       toast.error('Erreur lors de la création')
       return null
     } finally {

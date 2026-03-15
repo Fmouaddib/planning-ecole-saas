@@ -13,6 +13,7 @@ import { AuditService } from '@/services/auditService'
 import { getImpersonation, clearImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
 import { getActiveContext, setActiveContext, clearActiveContext, USER_CONTEXT_EVENT } from '@/utils/userContext'
 import toast from 'react-hot-toast'
+import { logError } from '@/services/errorLogger'
 
 export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -32,6 +33,7 @@ export function useAuth(): UseAuthReturn {
     const message = getUserFriendlyError(error)
     setError(message)
     console.error('Auth Error:', error)
+    logError(error, { component: 'useAuth', action: 'auth operation' })
     return message
   }, [])
 

@@ -96,7 +96,7 @@ Deno.serve(async (req: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "Anti-Planning Contact", email: "fahd.mouaddib@gmail.com" },
+        sender: { name: "Anti-Planning Contact", email: "contact@anti-planning.com" },
         to: [{ email: recipientEmail, name: "Anti-Planning" }],
         replyTo: { email: email.trim(), name: name.trim() },
         subject: `[Contact] ${subjectLine} — ${name}`,
@@ -138,7 +138,7 @@ Deno.serve(async (req: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "Anti-Planning", email: "fahd.mouaddib@gmail.com" },
+        sender: { name: "Anti-Planning", email: "contact@anti-planning.com" },
         to: [{ email: email.trim(), name: name.trim() }],
         subject: "Confirmation : nous avons reçu votre message",
         htmlContent: confirmHtml,

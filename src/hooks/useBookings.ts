@@ -28,6 +28,7 @@ import { getAutoSubjectColor } from '@/utils/constants'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
 import toast from 'react-hot-toast'
+import { logError } from '@/services/errorLogger'
 
 export function useBookings(): UseBookingsReturn {
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -50,6 +51,7 @@ export function useBookings(): UseBookingsReturn {
     const message = getUserFriendlyError(error)
     setError(message)
     console.error('Bookings Error:', error)
+    logError(error, { component: 'useBookings', action: message })
     return message
   }, [])
 

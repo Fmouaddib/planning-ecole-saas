@@ -13,6 +13,7 @@ import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
 import { getActiveContext } from '@/utils/userContext'
 import toast from 'react-hot-toast'
+import { logError } from '@/services/errorLogger'
 
 export function useUsers(): UseUsersReturn {
   const [users, setUsers] = useState<User[]>([])
@@ -30,6 +31,7 @@ export function useUsers(): UseUsersReturn {
     const message = getUserFriendlyError(error)
     setError(message)
     console.error('Users Error:', error)
+    logError(error, { component: 'useUsers', action: 'user operation' })
     return message
   }, [])
 

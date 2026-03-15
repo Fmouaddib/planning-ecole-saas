@@ -7,6 +7,7 @@ import { useAuthContext } from '@/contexts/AuthContext'
 import { transformAttendance } from '@/utils/transforms'
 import type { SessionAttendance, AttendanceStatus } from '@/types'
 import toast from 'react-hot-toast'
+import { logError } from '@/services/errorLogger'
 
 export function useAttendance() {
   const { user } = useAuthContext()
@@ -88,6 +89,7 @@ export function useAttendance() {
       toast.success('Présences enregistrées')
     } catch (err) {
       console.error('Error marking attendance:', err)
+      logError(err, { component: 'useAttendance', action: 'markAttendance' })
       toast.error('Erreur lors de l\'enregistrement des présences')
     } finally {
       setIsLoading(false)
