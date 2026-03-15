@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anti-planning.com",
@@ -25,6 +26,11 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: cors });
   }
+
+  // Rate limit: 10 checkout sessions per minute per IP
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`checkout:${ip}`, { maxRequests: 10, windowMs: 60_000 });
+  if (rl.limited) return rateLimitResponse(rl.retryAfter, cors);
 
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");

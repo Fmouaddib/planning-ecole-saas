@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
@@ -62,6 +63,11 @@ Deno.serve(async (req: Request) => {
       { status: 405, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
+
+  // Rate limit: 2 deletions per hour per IP
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`delete-account:${ip}`, { maxRequests: 2, windowMs: 3600_000 });
+  if (rl.limited) return rateLimitResponse(rl.retryAfter, cors);
 
   try {
     // 1. Verify JWT — get caller

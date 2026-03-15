@@ -3,6 +3,25 @@ import { supabase, isDemoMode } from '@/lib/supabase'
 
 const SCRIPT_ID = 'sa-analytics-script'
 
+function injectGtagScript(trackingId: string) {
+  // Validate tracking ID format to prevent injection
+  if (!/^[A-Z0-9\-_]+$/i.test(trackingId)) return
+
+  const container = document.createElement('div')
+  container.id = SCRIPT_ID
+
+  const gtagLoader = document.createElement('script')
+  gtagLoader.async = true
+  gtagLoader.src = `https://www.googletagmanager.com/gtag/js?id=${trackingId}`
+  document.head.appendChild(gtagLoader)
+
+  const gtagInit = document.createElement('script')
+  gtagInit.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${trackingId}');`
+  document.head.appendChild(gtagInit)
+
+  document.head.appendChild(container)
+}
+
 export function useAnalyticsScript() {
   useEffect(() => {
     if (isDemoMode) return
@@ -22,30 +41,26 @@ export function useAnalyticsScript() {
         const settings = data.value as { enabled: boolean; tracking_id: string; custom_code?: string }
         if (!settings.enabled) return
 
-        const code = settings.custom_code || (settings.tracking_id
-          ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${settings.tracking_id}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${settings.tracking_id}');</script>`
-          : '')
-
-        if (!code) return
-
         // Remove old injection
         document.getElementById(SCRIPT_ID)?.remove()
 
-        // Inject into head
-        const container = document.createElement('div')
-        container.id = SCRIPT_ID
-        container.innerHTML = code
-        // Move scripts to head so they execute
-        const scripts = container.querySelectorAll('script')
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script')
-          Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
-          if (oldScript.textContent) newScript.textContent = oldScript.textContent
-          document.head.appendChild(newScript)
-        })
-        // Also append non-script elements (noscript, img pixels, etc.)
-        const nonScripts = Array.from(container.children).filter(el => el.tagName !== 'SCRIPT')
-        nonScripts.forEach(el => document.head.appendChild(el))
+        // If custom_code is provided, only allow known safe analytics patterns
+        // (no innerHTML to prevent XSS from super-admin input)
+        if (settings.custom_code) {
+          // Only allow custom_code that looks like a tracking ID (alphanumeric + dashes)
+          // This prevents arbitrary script injection
+          const safeIdPattern = /^[A-Z0-9\-_]+$/i
+          if (safeIdPattern.test(settings.custom_code.trim())) {
+            // Treat as a Google Analytics tracking ID
+            injectGtagScript(settings.custom_code.trim())
+          }
+          // Otherwise, silently ignore unsafe custom_code
+          return
+        }
+
+        if (settings.tracking_id) {
+          injectGtagScript(settings.tracking_id)
+        }
       } catch {
         // Silently fail — analytics is non-critical
       }

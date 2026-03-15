@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const ALLOWED_ORIGINS = [
   "https://anti-planning.com",
@@ -34,6 +35,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: cors });
   }
+
+  // Rate limit: 20 user creations per minute per IP
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`create-user:${ip}`, { maxRequests: 20, windowMs: 60_000 });
+  if (rl.limited) return rateLimitResponse(rl.retryAfter, cors);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

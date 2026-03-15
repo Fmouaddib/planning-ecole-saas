@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 /**
  * Generic email sender via Brevo API
@@ -43,6 +44,11 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: cors });
   }
+
+  // Rate limit: 30 emails per minute per IP
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(`send-email:${ip}`, { maxRequests: 30, windowMs: 60_000 });
+  if (rl.limited) return rateLimitResponse(rl.retryAfter, cors);
 
   try {
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
