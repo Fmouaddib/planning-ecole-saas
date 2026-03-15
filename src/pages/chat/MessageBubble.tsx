@@ -145,6 +145,7 @@ export function MessageBubble({ message, isOwn, onEdit, onDelete, onReact, curre
                       <img
                         src={att.url}
                         alt={att.fileName}
+                        loading="lazy"
                         className="max-w-xs max-h-48 rounded-lg border border-neutral-200 dark:border-neutral-700 object-cover"
                       />
                     </a>

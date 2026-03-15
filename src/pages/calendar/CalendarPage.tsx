@@ -17,7 +17,7 @@ import { useBookings } from '@/hooks/useBookings'
 import { useRooms } from '@/hooks/useRooms'
 import { useAuth } from '@/hooks/useAuth'
 import { Button, Select, Modal, ModalFooter, Badge, LoadingSpinner, MultiSelect, Input, Textarea, HelpBanner } from '@/components/ui'
-import { formatTimeRange, isTeacherRole, isStudentRole } from '@/utils/helpers'
+import { formatTimeRange, isTeacherRole, isStudentRole, localToISO } from '@/utils/helpers'
 import { useAcademicData } from '@/hooks/useAcademicData'
 import { useVisio } from '@/hooks/useVisio'
 import { navigateTo } from '@/utils/navigation'
@@ -28,12 +28,16 @@ import { isDemoMode } from '@/lib/supabase'
 import { mockCalendarData } from '@/data/mock-calendar-data'
 import { mockBuildingRooms } from '@/data/mock-room-buildings'
 import { ColorLegend } from './ColorLegend'
+import { CalendarIntegrationModal } from '@/components/calendar/CalendarIntegrationModal'
+import { ImportModal } from '@/components/import/ImportModal'
+import { printWeekSchedule } from '@/utils/export-print'
 import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
   Filter,
   Download,
+  Upload,
   ChevronDown,
   X,
   Printer,
@@ -49,6 +53,7 @@ import {
   Check,
   MessageCircle,
   RotateCcw,
+  CalendarPlus,
 } from 'lucide-react'
 
 // Lazy-loaded views & modals
@@ -167,7 +172,10 @@ function CalendarPage() {
   const [activeTypes, setActiveTypes] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showPrintMenu, setShowPrintMenu] = useState(false)
+  const [showCalendarIntegration, setShowCalendarIntegration] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+  const printMenuRef = useRef<HTMLDivElement>(null)
   const pendingSessionRef = useRef<string | null>(null)
 
   // Create booking modal state
@@ -199,6 +207,8 @@ function CalendarPage() {
 
   // Batch create modal state
   const [showBatchModal, setShowBatchModal] = useState(false)
+  // Import sessions modal state
+  const [showImportModal, setShowImportModal] = useState(false)
   const { user } = useAuth()
   const isTeacher = isTeacherRole(user?.role)
   const isStudent = isStudentRole(user?.role)
@@ -220,6 +230,46 @@ function CalendarPage() {
     () => teachers.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}`.trim() })),
     [teachers],
   )
+
+  // Import context maps for session import
+  const importContext = useMemo(() => {
+    const roomMap = new Map<string, string>()
+    rooms.forEach(r => roomMap.set(r.name.toLowerCase(), r.id))
+
+    const teacherEmailMap = new Map<string, string>()
+    teachers.forEach(t => { if (t.email) teacherEmailMap.set(t.email.toLowerCase(), t.id) })
+
+    const classMap = new Map<string, string>()
+    const classNames: string[] = []
+    allClassOptions.forEach(c => { classMap.set(c.label.toLowerCase(), c.value); classNames.push(c.label) })
+
+    const subjectMap = new Map<string, string>()
+    const subjectNames: string[] = []
+    allSubjectOptions.forEach(s => { subjectMap.set(s.label.toLowerCase(), s.value); subjectNames.push(s.label) })
+
+    return {
+      roomNames: rooms.map(r => r.name),
+      teacherEmails: teachers.map(t => t.email).filter(Boolean) as string[],
+      classNames,
+      subjectNames,
+      sessionTypeValues: typeOptions.map(t => t.value),
+      roomMap,
+      teacherEmailMap,
+      classMap,
+      subjectMap,
+    }
+  }, [rooms, teachers, allClassOptions, allSubjectOptions, typeOptions])
+
+  // Reference data for session template (onglet Données)
+  const importReferenceData = useMemo(() => ({
+    rooms: rooms.map(r => r.name),
+    teachers: teachers.map(t => ({
+      name: `${t.firstName} ${t.lastName}`.trim(),
+      email: t.email || '',
+    })).filter(t => t.email),
+    classes: allClassOptions.map(c => c.label),
+    subjects: allSubjectOptions.map(s => s.label),
+  }), [rooms, teachers, allClassOptions, allSubjectOptions])
 
   // Pending move confirmation state (drag & drop)
   const [pendingMove, setPendingMove] = useState<{
@@ -252,12 +302,18 @@ function CalendarPage() {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
         setShowExportMenu(false)
       }
+      if (printMenuRef.current && !printMenuRef.current.contains(event.target as Node)) {
+        setShowPrintMenu(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const roomOptions = rooms.map(r => ({ value: r.id, label: r.name }))
+  const roomOptions = rooms.map(r => ({
+    value: r.id,
+    label: r.building ? `${r.name} (${r.building.name})` : r.name,
+  }))
 
   // F1 - Extract unique teachers
   const allEvents = useMemo(
@@ -482,8 +538,8 @@ function CalendarPage() {
   // Confirmation du déplacement après validation modale
   const confirmMove = async () => {
     if (!pendingMove || !moveDate || !moveStartTime || !moveEndTime || moveTimeError) return
-    const startDateTime = `${moveDate}T${moveStartTime}:00`
-    const endDateTime = `${moveDate}T${moveEndTime}:00`
+    const startDateTime = localToISO(moveDate, moveStartTime)
+    const endDateTime = localToISO(moveDate, moveEndTime)
     const updateData: { id: string; startDateTime: string; endDateTime: string; roomId?: string } = {
       id: pendingMove.eventId,
       startDateTime,
@@ -560,8 +616,8 @@ function CalendarPage() {
         roomId: editRoomId || undefined,
         additionalRoomIds: editAdditionalRoomIds,
         bookingType: editType,
-        startDateTime: `${editDate}T${editStartTime}:00`,
-        endDateTime: `${editDate}T${editEndTime}:00`,
+        startDateTime: localToISO(editDate, editStartTime),
+        endDateTime: localToISO(editDate, editEndTime),
         description: editDescription.trim(),
         subjectId: editSubjectId || undefined,
         classId: editClassId || undefined,
@@ -820,27 +876,77 @@ function CalendarPage() {
             <ChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Print button */}
+          {/* Print button with dropdown */}
+          <div className="relative" ref={printMenuRef}>
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              onClick={() => setShowPrintMenu(!showPrintMenu)}
+              title="Imprimer"
+            >
+              <Printer size={16} />
+              Imprimer
+              <ChevronDown size={14} className={`transition-transform ${showPrintMenu ? 'rotate-180' : ''}`} />
+            </button>
+            {showPrintMenu && (
+              <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-50">
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                  onClick={() => { handlePrint(); setShowPrintMenu(false) }}
+                >
+                  Imprimer la page
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                  onClick={() => {
+                    printWeekSchedule({
+                      title: selectedNiveaux.length === 1
+                        ? (allClassOptions.find(c => c.label === selectedNiveaux[0])?.label || 'Planning')
+                        : selectedTeachers.length === 1
+                          ? selectedTeachers[0]
+                          : 'Planning general',
+                      centerName: 'Mon Centre',
+                      weekStart: currentDate,
+                      events: filteredEvents,
+                    })
+                    setShowPrintMenu(false)
+                  }}
+                >
+                  Emploi du temps PDF (semaine)
+                </button>
+              </div>
+            )}
+          </div>
+
+
+          {/* Batch create & Import buttons — admin/super_admin */}
+          {(user?.role === 'admin' || user?.role === 'super_admin') && (
+            <>
+              <button
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+                onClick={() => setShowBatchModal(true)}
+              >
+                <Repeat size={16} />
+                Saisie en lot
+              </button>
+              <button
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+                onClick={() => setShowImportModal(true)}
+              >
+                <Upload size={16} />
+                Importer
+              </button>
+            </>
+          )}
+
+          {/* Subscribe to calendar feed */}
           <button
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-            onClick={handlePrint}
-            title="Imprimer"
+            onClick={() => setShowCalendarIntegration(true)}
+            title="Intégrer dans Google Calendar, Outlook, Apple..."
           >
-            <Printer size={16} />
-            Imprimer
+            <CalendarPlus size={16} />
+            S'abonner
           </button>
-
-
-          {/* Batch create button — admin uniquement */}
-          {user?.role === 'admin' && (
-            <button
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
-              onClick={() => setShowBatchModal(true)}
-            >
-              <Repeat size={16} />
-              Saisie en lot
-            </button>
-          )}
 
           {/* Export dropdown */}
           <div className="relative" ref={exportMenuRef}>
@@ -1041,7 +1147,7 @@ function CalendarPage() {
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {!isOnlineSchool && (
                 <div>
                   <label className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Salle</label>
@@ -1173,7 +1279,7 @@ function CalendarPage() {
                 <Share2 size={14} className="text-neutral-400" />
                 <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Partager</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {/* Email */}
                 <div className="flex flex-col gap-1.5">
                   <button
@@ -1283,7 +1389,7 @@ function CalendarPage() {
               error={editErrors.title}
             />
 
-            <div className={`grid ${isOnlineSchool ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+            <div className={`grid ${isOnlineSchool ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'} gap-4`}>
               {!isOnlineSchool && (
                 <Select
                   label={centerSettings.room_optional ? 'Salle (facultative)' : 'Salle'}
@@ -1310,7 +1416,7 @@ function CalendarPage() {
               />
             )}
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
                 label="Date"
                 type="date"
@@ -1480,6 +1586,18 @@ function CalendarPage() {
         </Suspense>
       )}
 
+      {/* Import Sessions Modal */}
+      {showImportModal && (
+        <ImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          type="sessions"
+          context={importContext}
+          referenceData={importReferenceData}
+          onComplete={() => refreshBookings()}
+        />
+      )}
+
       {/* Move Confirmation Modal */}
       <Modal
         isOpen={!!pendingMove}
@@ -1512,7 +1630,7 @@ function CalendarPage() {
                     className="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Début</label>
                     <input
@@ -1558,6 +1676,10 @@ function CalendarPage() {
           </Button>
         </ModalFooter>
       </Modal>
+      <CalendarIntegrationModal
+        isOpen={showCalendarIntegration}
+        onClose={() => setShowCalendarIntegration(false)}
+      />
     </div>
   )
 }

@@ -58,6 +58,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
 
   const monitoringItems = [
     { id: 'sa-audit', label: "Journal d'audit", icon: '📝' },
+    { id: 'sa-errors', label: "Erreurs", icon: '🔴' },
     { id: 'sa-settings', label: 'Paramètres', icon: '⚙️' },
   ];
 

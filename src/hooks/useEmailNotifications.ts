@@ -10,6 +10,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { EMAIL_POLICY_DEFAULTS } from '@/hooks/useCenterSettings'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
+import { isRateLimitError, getUserFriendlyError } from '@/utils/error-messages'
+import toast from 'react-hot-toast'
 
 type EmailType = 'session_created' | 'session_updated' | 'session_cancelled'
 
@@ -306,9 +308,15 @@ export function useEmailNotifications() {
 
       if (error) {
         console.error(`Email notification "${type}" failed:`, error)
+        if (isRateLimitError(error)) {
+          toast.error(getUserFriendlyError(error))
+        }
       }
     } catch (err) {
       console.error('Email notification error:', err)
+      if (isRateLimitError(err)) {
+        toast.error(getUserFriendlyError(err))
+      }
     }
   }, [])
 
@@ -374,9 +382,17 @@ export function useEmailNotifications() {
       }))
       await supabase.from('email_logs').insert(logs)
 
-      if (error) console.error(`Collab email "${templateName}" failed:`, error)
+      if (error) {
+        console.error(`Collab email "${templateName}" failed:`, error)
+        if (isRateLimitError(error)) {
+          toast.error(getUserFriendlyError(error))
+        }
+      }
     } catch (err) {
       console.error('Collab email error:', err)
+      if (isRateLimitError(err)) {
+        toast.error(getUserFriendlyError(err))
+      }
     }
   }, [])
 

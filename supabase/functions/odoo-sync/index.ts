@@ -6,17 +6,42 @@ import type { OdooConfig } from "./xmlrpc.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://anti-planning.com",
+  "https://planning-ecole-saas.vercel.app",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin)
+    || origin.endsWith(".anti-planning.com") && origin.startsWith("https://")
+    || origin.startsWith("http://localhost");
+  return {
+    "Access-Control-Allow-Origin": allowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+  };
+}
+
+// ─── SSRF Protection ────────────────────────────────────────────────────────────
+
+function isValidOdooUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    const host = parsed.hostname;
+    if (host === "localhost" || host.startsWith("127.") || host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.") || host.includes("metadata")) return false;
+    if (host.match(/^172\.(1[6-9]|2\d|3[01])\./)) return false;
+    return true;
+  } catch { return false; }
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, req?: Request) {
+  const cors = req ? getCorsHeaders(req) : { "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret" };
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...cors, "Content-Type": "application/json" },
   });
 }
 
@@ -323,15 +348,17 @@ async function syncEnrollments(
 // ─── Main handler ───────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: cors });
   }
 
   try {
     const { action, center_id: bodyCenterId } = await req.json();
     const supabaseAdmin = getSupabaseAdmin();
 
-    // Resolve center_id: from JWT if present, otherwise from body (cron)
+    // Resolve center_id: from JWT if present, otherwise from body (cron with secret)
     let centerId = bodyCenterId as string | undefined;
 
     const authHeader = req.headers.get("Authorization");
@@ -351,22 +378,39 @@ Deno.serve(async (req: Request) => {
           .single();
         if (profile) centerId = profile.center_id;
       }
+    } else {
+      // If no auth header, check for cron secret
+      const cronSecret = Deno.env.get("CRON_SECRET");
+      const requestSecret = req.headers.get("x-cron-secret");
+      if (!cronSecret || !requestSecret || cronSecret !== requestSecret) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      // Cron mode: center_id from body is allowed only with valid cron secret
     }
 
     if (!centerId) {
-      return json({ error: "center_id required" }, 400);
+      return json({ error: "center_id required" }, 400, req);
     }
 
     // ─── ACTION: test ─────────────────────────────────────────────────
     if (action === "test") {
       const config = await getOdooConfig(supabaseAdmin, centerId);
+      if (!isValidOdooUrl(config.url)) {
+        return json({ error: "Invalid Odoo URL: must be HTTPS and not target private networks" }, 400, req);
+      }
       const uid = await odooAuthenticate(config);
-      return json({ success: true, uid, message: `Connected as UID ${uid}` });
+      return json({ success: true, uid, message: `Connected as UID ${uid}` }, 200, req);
     }
 
     // ─── ACTION: sync ─────────────────────────────────────────────────
     if (action === "sync") {
       const config = await getOdooConfig(supabaseAdmin, centerId);
+      if (!isValidOdooUrl(config.url)) {
+        return json({ error: "Invalid Odoo URL: must be HTTPS and not target private networks" }, 400, req);
+      }
       const uid = await odooAuthenticate(config);
 
       // Create log entry
@@ -426,9 +470,10 @@ Deno.serve(async (req: Request) => {
             .eq("id", centerId);
         }
 
-        return json({ success: true, stats });
+        return json({ success: true, stats }, 200, req);
       } catch (e) {
-        // Update log with error
+        // Update log with error (full detail server-side only)
+        console.error("Odoo sync error:", (e as Error).message);
         if (logEntry) {
           await supabaseAdmin
             .from("odoo_sync_logs")
@@ -440,12 +485,13 @@ Deno.serve(async (req: Request) => {
             })
             .eq("id", logEntry.id);
         }
-        return json({ success: false, error: (e as Error).message, stats }, 500);
+        return json({ success: false, error: "Sync failed — check sync logs for details", stats }, 500, req);
       }
     }
 
-    return json({ error: `Unknown action: ${action}` }, 400);
+    return json({ error: "Unknown action" }, 400, req);
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    console.error("odoo-sync unhandled error:", (e as Error).message);
+    return json({ error: "Internal server error" }, 500, req);
   }
 });

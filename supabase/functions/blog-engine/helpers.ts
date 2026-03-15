@@ -129,7 +129,8 @@ export function buildArticleSystemPrompt(settings: BlogSettings, researchContext
   const manualLinks = settings.internal_links?.length > 0
     ? settings.internal_links.map((l) => `- [${l.title}](${l.url})`)
     : [];
-  const articleLinks = (publishedArticles || []).map((a) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`);
+  const blogBase = settings.blog_base_url || 'https://anti-planning.com/#/blog';
+  const articleLinks = (publishedArticles || []).map((a) => `- [${a.title}](${blogBase}/${a.slug})`);
   const allLinks = [...manualLinks, ...articleLinks];
   const internalLinksText = allLinks.length > 0
     ? `\nLIENS INTERNES \u00C0 INT\u00C9GRER NATURELLEMENT (ins\u00E8re 3-5 liens pertinents dans le corps de l'article) :\n${allLinks.join("\n")}`

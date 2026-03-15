@@ -3,17 +3,34 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // ==================== CORS ====================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://anti-planning.com",
+  "https://planning-ecole-saas.vercel.app",
+];
 
-function json(data: unknown, status = 200) {
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin)
+    || (origin.endsWith(".anti-planning.com") && origin.startsWith("https://"))
+    || origin.startsWith("http://localhost");
+  return {
+    "Access-Control-Allow-Origin": allowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
+
+function json(data: unknown, status = 200, req?: Request) {
+  const corsHeaders = req ? getCorsHeaders(req) : { "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+// ==================== VALIDATION ====================
+
+function isValidMeetingId(id: string): boolean {
+  return /^[a-zA-Z0-9_\-=+.]+$/.test(id) && id.length < 512;
 }
 
 // ==================== SUPABASE ====================
@@ -153,7 +170,7 @@ async function zoomUpdateMeeting(
   if (params.timezone) body.timezone = params.timezone;
 
   const res = await fetch(
-    `https://api.zoom.us/v2/meetings/${meetingId}`,
+    `https://api.zoom.us/v2/meetings/${encodeURIComponent(meetingId)}`,
     {
       method: "PATCH",
       headers: {
@@ -177,7 +194,7 @@ async function zoomDeleteMeeting(
   meetingId: string
 ): Promise<void> {
   const res = await fetch(
-    `https://api.zoom.us/v2/meetings/${meetingId}`,
+    `https://api.zoom.us/v2/meetings/${encodeURIComponent(meetingId)}`,
     {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
@@ -197,13 +214,12 @@ async function zoomDeleteMeeting(
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
   }
 
   try {
     const {
       action,
-      center_id: bodyCenterId,
       meeting_id: meetingId,
       topic,
       start_time: startTime,
@@ -213,8 +229,8 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = getSupabaseAdmin();
 
-    // Resolve center_id from JWT → profile
-    let centerId = bodyCenterId as string | undefined;
+    // ALWAYS resolve center_id from JWT → profile (ignore body-supplied center_id)
+    let centerId: string | null = null;
     const authHeader = req.headers.get("Authorization");
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
@@ -236,7 +252,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!centerId) {
-      return json({ error: "center_id required" }, 400);
+      return json({ error: "Non authentifié — veuillez vous reconnecter" }, 401, req);
     }
 
     const config = await getZoomConfig(supabaseAdmin, centerId);
@@ -257,7 +273,7 @@ Deno.serve(async (req: Request) => {
       return json({
         success: true,
         message: `Connexion Zoom OK — ${userData.first_name} ${userData.last_name} (${userData.email})`,
-      });
+      }, 200, req);
     }
 
     // ---- CREATE ----
@@ -265,7 +281,7 @@ Deno.serve(async (req: Request) => {
       if (!topic || !startTime || !duration) {
         return json(
           { error: "topic, start_time, duration are required" },
-          400
+          400, req
         );
       }
       const token = await getZoomAccessToken(config);
@@ -280,13 +296,18 @@ Deno.serve(async (req: Request) => {
         meeting_id: String(result.id),
         join_url: result.join_url,
         password: result.password,
-      });
+      }, 200, req);
+    }
+
+    // Validate meetingId format for update/delete actions
+    if ((action === "update" || action === "delete") && meetingId && !isValidMeetingId(meetingId)) {
+      return json({ error: "meeting_id format invalide" }, 400, req);
     }
 
     // ---- UPDATE ----
     if (action === "update") {
       if (!meetingId) {
-        return json({ error: "meeting_id is required" }, 400);
+        return json({ error: "meeting_id is required" }, 400, req);
       }
       const token = await getZoomAccessToken(config);
       await zoomUpdateMeeting(token, meetingId, {
@@ -295,22 +316,22 @@ Deno.serve(async (req: Request) => {
         duration,
         timezone,
       });
-      return json({ success: true });
+      return json({ success: true }, 200, req);
     }
 
     // ---- DELETE ----
     if (action === "delete") {
       if (!meetingId) {
-        return json({ error: "meeting_id is required" }, 400);
+        return json({ error: "meeting_id is required" }, 400, req);
       }
       const token = await getZoomAccessToken(config);
       await zoomDeleteMeeting(token, meetingId);
-      return json({ success: true });
+      return json({ success: true }, 200, req);
     }
 
-    return json({ error: `Unknown action: ${action}` }, 400);
+    return json({ error: `Unknown action: ${action}` }, 400, req);
   } catch (e) {
     console.error("[zoom-meetings]", e);
-    return json({ error: (e as Error).message }, 500);
+    return json({ error: (e as Error).message }, 500, req);
   }
 });

@@ -273,7 +273,13 @@ export class SABlogService {
     const { data, error } = await supabase.functions.invoke('blog-engine', {
       body: { action: 'generate-article', topicId },
     })
-    if (error) throw error
+    if (error) {
+      const msg = typeof error === 'object' && 'context' in error
+        ? await (error as any).context?.json?.()?.then((d: any) => d?.error).catch(() => null) || error.message
+        : error.message
+      throw new Error(msg || 'Erreur lors de la génération de l\'article')
+    }
+    if (data?.error) throw new Error(data.error)
     return data?.post as BlogPost
   }
 
@@ -281,7 +287,13 @@ export class SABlogService {
     const { data, error } = await supabase.functions.invoke('blog-engine', {
       body: { action: 'batch-generate', limit },
     })
-    if (error) throw error
+    if (error) {
+      const msg = typeof error === 'object' && 'context' in error
+        ? await (error as any).context?.json?.()?.then((d: any) => d?.error).catch(() => null) || error.message
+        : error.message
+      throw new Error(msg || 'Erreur lors de la génération batch')
+    }
+    if (data?.error) throw new Error(data.error)
     return data
   }
 
@@ -289,7 +301,13 @@ export class SABlogService {
     const { data, error } = await supabase.functions.invoke('blog-engine', {
       body: { action: 'analyze-seo', postId },
     })
-    if (error) throw error
+    if (error) {
+      const msg = typeof error === 'object' && 'context' in error
+        ? await (error as any).context?.json?.()?.then((d: any) => d?.error).catch(() => null) || error.message
+        : error.message
+      throw new Error(msg || 'Erreur lors de l\'analyse SEO')
+    }
+    if (data?.error) throw new Error(data.error)
     return data?.audit as SeoAudit
   }
 
@@ -297,7 +315,13 @@ export class SABlogService {
     const { data, error } = await supabase.functions.invoke('blog-engine', {
       body: { action: 'improve-article', postId, audit },
     })
-    if (error) throw error
+    if (error) {
+      const msg = typeof error === 'object' && 'context' in error
+        ? await (error as any).context?.json?.()?.then((d: any) => d?.error).catch(() => null) || error.message
+        : error.message
+      throw new Error(msg || 'Erreur lors de l\'amélioration de l\'article')
+    }
+    if (data?.error) throw new Error(data.error)
     return data?.post as BlogPost
   }
 
@@ -323,7 +347,13 @@ export class SABlogService {
     const { data, error } = await supabase.functions.invoke('blog-engine', {
       body: { action: 'update-links', postId },
     })
-    if (error) throw error
+    if (error) {
+      const msg = typeof error === 'object' && 'context' in error
+        ? await (error as any).context?.json?.()?.then((d: any) => d?.error).catch(() => null) || error.message
+        : error.message
+      throw new Error(msg || 'Erreur lors de la mise à jour des liens')
+    }
+    if (data?.error) throw new Error(data.error)
     return data as { post: BlogPost; linksAdded: number; message?: string }
   }
 

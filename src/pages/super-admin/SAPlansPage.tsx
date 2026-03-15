@@ -221,7 +221,7 @@ export const SAPlansPage = () => {
                   <input name="price_yearly" type="number" step="0.01" className="sa-form-input" defaultValue={editingPlan?.price_yearly || ''} />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px' }}>
                 <div className="sa-form-group">
                   <label className="sa-form-label">Max users</label>
                   <input name="max_users" type="number" className="sa-form-input" defaultValue={editingPlan?.max_users || 5} />

@@ -6,6 +6,8 @@ import { Calendar, Clock, ArrowLeft, Tag, Share2 } from 'lucide-react'
 import LandingLayout from '@/components/landing/LandingLayout'
 import { MarkdownWithMermaid } from '@/components/ui/MermaidRenderer'
 import { supabase } from '@/lib/supabase'
+import { updatePageMeta } from '@/utils/seo'
+import { useLang } from '@/hooks/useLang'
 
 interface FullPost {
   id: string
@@ -33,17 +35,6 @@ interface RelatedPost {
   published_at: string
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  'gestion-centre': 'Gestion de centre',
-  'planning-pedagogique': 'Planning pedagogique',
-  'digitalisation': 'Digitalisation',
-  'reglementation-formation': 'Reglementation',
-  'conseils-pratiques': 'Conseils pratiques',
-  'ia-education': 'IA & Education',
-  'temoignages': 'Temoignages',
-  'productivite': 'Productivite',
-}
-
 const CATEGORY_COLORS: Record<string, string> = {
   'gestion-centre': '#3b82f6',
   'planning-pedagogique': '#8b5cf6',
@@ -56,6 +47,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 export default function BlogPostPage() {
+  const { t, lang } = useLang()
   const [post, setPost] = useState<FullPost | null>(null)
   const [related, setRelated] = useState<RelatedPost[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +55,8 @@ export default function BlogPostPage() {
 
   // Extract slug from hash: #/blog/my-slug
   const slug = window.location.hash.replace('#/blog/', '').split('?')[0]
+
+  const dateLocale = lang === 'en' ? 'en-US' : 'fr-FR'
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -86,9 +80,13 @@ export default function BlogPostPage() {
       supabase.rpc('increment_blog_view', { post_slug: slug }).then(() => {}, () => {})
 
       // Update meta tags for SEO
-      if (data.meta_title) document.title = data.meta_title
-      const metaDesc = document.querySelector('meta[name="description"]')
-      if (metaDesc && data.meta_description) metaDesc.setAttribute('content', data.meta_description)
+      updatePageMeta({
+        title: data.meta_title || data.title,
+        description: data.meta_description || data.excerpt || 'Article du blog Anti-Planning sur la gestion de centres de formation.',
+        path: `/blog/${data.slug}`,
+        keywords: data.keywords ? data.keywords.join(', ') : 'blog formation, centre de formation, planning ecole',
+        ogType: 'article',
+      })
 
       // Fetch related posts (same category, exclude current)
       const { data: relatedData } = await supabase
@@ -114,8 +112,14 @@ export default function BlogPostPage() {
       await navigator.share({ title: post?.title, url })
     } else {
       await navigator.clipboard.writeText(url)
-      alert('Lien copie !')
+      alert(t('blog.linkCopied'))
     }
+  }
+
+  const getCategoryLabel = (category: string) => {
+    const key = `blog.category.${category}`
+    const translated = t(key)
+    return translated !== key ? translated : category
   }
 
   if (loading) {
@@ -132,10 +136,10 @@ export default function BlogPostPage() {
     return (
       <LandingLayout isDetailPage>
         <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 80, textAlign: 'center' }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>Article introuvable</h1>
-          <p style={{ color: '#64748b', marginBottom: 24 }}>Cet article n'existe pas ou n'est plus disponible.</p>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>{t('blog.notFound.title')}</h1>
+          <p style={{ color: '#64748b', marginBottom: 24 }}>{t('blog.notFound.desc')}</p>
           <a href="#/blog" style={{ color: '#FF5B46', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <ArrowLeft size={16} /> Retour au blog
+            <ArrowLeft size={16} /> {t('blog.backToBlog')}
           </a>
         </div>
       </LandingLayout>
@@ -147,76 +151,78 @@ export default function BlogPostPage() {
   return (
     <LandingLayout isDetailPage>
       {/* Article header */}
-      <article style={{ paddingTop: 100 }}>
+      <article>
         <header style={{
-          maxWidth: 800,
-          margin: '0 auto',
-          padding: '0 24px 40px',
+          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          padding: '120px 24px 60px',
           textAlign: 'center',
         }}>
-          <a href="#/blog" style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 13,
-            color: '#64748b',
-            textDecoration: 'none',
-            marginBottom: 24,
-          }}>
-            <ArrowLeft size={14} /> Retour au blog
-          </a>
-
-          <div style={{ marginBottom: 16 }}>
-            <span style={{
-              padding: '4px 14px',
-              borderRadius: 20,
-              fontSize: 12,
-              fontWeight: 600,
-              background: `${catColor}15`,
-              color: catColor,
+          <div style={{ maxWidth: 800, margin: '0 auto' }}>
+            <a href="#/blog" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              color: '#94a3b8',
+              textDecoration: 'none',
+              marginBottom: 24,
             }}>
-              {CATEGORY_LABELS[post.category] || post.category}
-            </span>
-          </div>
+              <ArrowLeft size={14} /> {t('blog.backToBlog')}
+            </a>
 
-          <h1 style={{
-            fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
-            fontWeight: 800,
-            color: '#0f172a',
-            lineHeight: 1.25,
-            marginBottom: 16,
-          }}>
-            {post.title}
-          </h1>
+            <div style={{ marginBottom: 16 }}>
+              <span style={{
+                padding: '4px 14px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 600,
+                background: `${catColor}30`,
+                color: catColor,
+              }}>
+                {getCategoryLabel(post.category)}
+              </span>
+            </div>
 
-          {post.excerpt && (
-            <p style={{ fontSize: 18, color: '#64748b', lineHeight: 1.6, maxWidth: 600, margin: '0 auto 20px' }}>
-              {post.excerpt}
-            </p>
-          )}
+            <h1 style={{
+              fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
+              fontWeight: 800,
+              color: '#ffffff',
+              lineHeight: 1.25,
+              marginBottom: 16,
+            }}>
+              {post.title}
+            </h1>
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 20,
-            fontSize: 14,
-            color: '#94a3b8',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Calendar size={15} />
-              {new Date(post.published_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Clock size={15} />
-              {post.reading_time_min} min de lecture
-            </span>
-            <button
-              onClick={handleShare}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}
-            >
-              <Share2 size={15} /> Partager
-            </button>
+            {post.excerpt && (
+              <p style={{ fontSize: 18, color: '#cbd5e1', lineHeight: 1.6, maxWidth: 600, margin: '0 auto 20px' }}>
+                {post.excerpt}
+              </p>
+            )}
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 16,
+              fontSize: 14,
+              color: '#94a3b8',
+              flexWrap: 'wrap',
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Calendar size={15} />
+                {new Date(post.published_at).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Clock size={15} />
+                {post.reading_time_min} {t('blog.readingTime')}
+              </span>
+              <button
+                onClick={handleShare}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}
+              >
+                <Share2 size={15} /> {t('blog.share')}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -226,6 +232,7 @@ export default function BlogPostPage() {
             <img
               src={post.featured_image_url}
               alt={post.title}
+              loading="lazy"
               style={{
                 width: '100%',
                 height: 'auto',
@@ -289,10 +296,10 @@ export default function BlogPostPage() {
             color: '#fff',
           }}>
             <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-              Simplifiez la gestion de votre centre de formation
+              {t('blog.cta.title')}
             </h3>
             <p style={{ fontSize: 15, opacity: 0.9, marginBottom: 20 }}>
-              Decouvrez AntiPlanning, le logiciel de planning intelligent pour centres de formation.
+              {t('blog.cta.desc')}
             </p>
             <a
               href="#/signup"
@@ -307,7 +314,7 @@ export default function BlogPostPage() {
                 textDecoration: 'none',
               }}
             >
-              Essayer gratuitement
+              {t('blog.cta.button')}
             </a>
           </div>
         </div>
@@ -315,7 +322,7 @@ export default function BlogPostPage() {
         {/* Related articles */}
         {related.length > 0 && (
           <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 24px 80px' }}>
-            <h3 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>Articles similaires</h3>
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>{t('blog.related')}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
               {related.map(r => (
                 <a
@@ -347,7 +354,7 @@ export default function BlogPostPage() {
                   </h4>
                   <div style={{ fontSize: 12, color: '#94a3b8', display: 'flex', gap: 8 }}>
                     <span>{r.reading_time_min} min</span>
-                    <span>{new Date(r.published_at).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}</span>
+                    <span>{new Date(r.published_at).toLocaleDateString(dateLocale, { month: 'short', year: 'numeric' })}</span>
                   </div>
                 </a>
               ))}

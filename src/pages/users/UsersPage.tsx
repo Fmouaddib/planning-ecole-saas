@@ -7,9 +7,10 @@ import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSp
 import { USER_ROLES } from '@/utils/constants'
 import { filterBySearch, formatDate } from '@/utils/helpers'
 import type { User, UserRole, ContactRelationship } from '@/types'
-import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle, Linkedin, Send } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Users as UsersIcon, RefreshCw, X, BookOpen, Upload, Phone, Mail, UserPlus, MessageCircle, Linkedin, Send, ShieldOff, ShieldCheck, KeyRound, Printer, Link2, Check } from 'lucide-react'
 import { navigateTo, navigateToDM } from '@/utils/navigation'
 import { ImportModal } from '@/components/import/ImportModal'
+import { printClassList } from '@/utils/export-print'
 
 const roleLabels: Record<string, string> = {
   admin: 'Administrateur',
@@ -64,6 +65,7 @@ function UsersPage() {
   const {
     users, isLoading, error, createUser, updateUser, deleteUser, sendInvitationToUser, refreshUsers,
     canCreateUsers, canUpdateUser, canDeleteUser,
+    blockUser, unblockUser, sendPasswordReset,
   } = useUsers()
   const {
     classes, subjects, getClassIdForStudent, setStudentClass,
@@ -77,6 +79,7 @@ function UsersPage() {
   )
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'blocked'>('active')
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [form, setForm] = useState<UserFormData>(emptyForm)
@@ -89,16 +92,31 @@ function UsersPage() {
   const [contactForm, setContactForm] = useState({ firstName: '', lastName: '', email: '', phone: '', relationship: 'parent' as ContactRelationship, receiveBulletins: true, receiveAbsences: true })
   const [editingContactId, setEditingContactId] = useState<string | null>(null)
   const [showContactForm, setShowContactForm] = useState(false)
+  const [blockTarget, setBlockTarget] = useState<User | null>(null)
+  const [resetTarget, setResetTarget] = useState<User | null>(null)
   const [inviteUser, setInviteUser] = useState<User | null>(null)
   const [inviteSubject, setInviteSubject] = useState('')
   const [inviteBody, setInviteBody] = useState('')
   const [sendingInvite, setSendingInvite] = useState(false)
   const [inviteResult, setInviteResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null)
+  const [copiedContactId, setCopiedContactId] = useState<string | null>(null)
+
+  const handleCopyParentLink = (contactId: string, accessToken?: string) => {
+    if (!accessToken) return
+    const baseUrl = window.location.origin
+    const link = `${baseUrl}/#/parent/${accessToken}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedContactId(contactId)
+      setTimeout(() => setCopiedContactId(null), 2000)
+    })
+  }
 
   useEffect(() => { fetchContacts() }, [fetchContacts])
 
   const filtered = useMemo(() => {
     let result = users
+    if (statusFilter === 'active') result = result.filter(u => u.isActive)
+    else if (statusFilter === 'blocked') result = result.filter(u => !u.isActive)
     if (search) {
       result = filterBySearch(result, search, ['firstName', 'lastName', 'email'])
     }
@@ -106,7 +124,9 @@ function UsersPage() {
       result = result.filter(u => u.role === roleFilter)
     }
     return result
-  }, [users, search, roleFilter])
+  }, [users, search, roleFilter, statusFilter])
+
+  const blockedCount = useMemo(() => users.filter(u => !u.isActive).length, [users])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
@@ -354,6 +374,38 @@ function UsersPage() {
             </Button>
           )}
           {canCreateUsers && (
+            <Button
+              variant="secondary"
+              leftIcon={Printer}
+              onClick={() => {
+                // Filter students only for class list
+                const studentList = filtered.filter(u => u.role === 'student')
+                if (studentList.length === 0) {
+                  import('react-hot-toast').then(m => m.default.error('Aucun etudiant a afficher'))
+                  return
+                }
+                // Find the class name if filtering by role=student
+                const cls = classes.find(c => studentList.some(s => {
+                  const sid = getClassIdForStudent(s.id)
+                  return sid === c.id
+                }))
+                printClassList({
+                  centerName: 'Mon Centre',
+                  className: cls?.name || 'Tous les etudiants',
+                  academicYear: cls?.academicYear || formatDate(new Date(), 'yyyy'),
+                  students: studentList.map(s => ({
+                    firstName: s.firstName,
+                    lastName: s.lastName,
+                    email: s.email,
+                    enrollmentDate: s.createdAt ? formatDate(s.createdAt) : undefined,
+                  })),
+                })
+              }}
+            >
+              Liste de classe
+            </Button>
+          )}
+          {canCreateUsers && (
             <Button leftIcon={Plus} onClick={openCreate}>
               Ajouter un utilisateur
             </Button>
@@ -368,6 +420,36 @@ function UsersPage() {
           <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Planning →</button>
         </span>
       </HelpBanner>
+
+      {/* Status tabs */}
+      <div className="flex items-center gap-1 mb-4 border-b border-neutral-200 dark:border-neutral-800">
+        {([
+          { key: 'active', label: 'Actifs', count: users.filter(u => u.isActive).length },
+          { key: 'blocked', label: 'Bloqués', count: blockedCount },
+          { key: 'all', label: 'Tous', count: users.length },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setStatusFilter(tab.key)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              statusFilter === tab.key
+                ? 'border-primary-500 text-primary-700 dark:text-primary-400'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+            }`}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
+                statusFilter === tab.key
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'
+              }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -414,10 +496,10 @@ function UsersPage() {
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {paginatedData.map(u => (
-                    <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                    <tr key={u.id} className={`hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors ${!u.isActive ? 'opacity-60' : ''}`}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-neutral-900 dark:text-neutral-100">{u.firstName} {u.lastName}</span>
+                          <span className={`font-medium ${u.isActive ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 dark:text-neutral-400 line-through'}`}>{u.firstName} {u.lastName}</span>
                           {u.linkedin && (
                             <a href={u.linkedin} target="_blank" rel="noopener noreferrer" title="LinkedIn" className="text-blue-500 hover:text-blue-700 shrink-0">
                               <Linkedin size={14} />
@@ -440,8 +522,8 @@ function UsersPage() {
                         }
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={u.isActive ? 'success' : 'neutral'} size="sm">
-                          {u.isActive ? 'Actif' : 'Inactif'}
+                        <Badge variant={u.isActive ? 'success' : 'error'} size="sm">
+                          {u.isActive ? 'Actif' : 'Bloqué'}
                         </Badge>
                       </td>
                       <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
@@ -452,18 +534,31 @@ function UsersPage() {
                           <Button variant="ghost" size="sm" onClick={() => navigateToDM(u.id)} title="Envoyer un message">
                             <MessageCircle size={14} className="text-primary-500" />
                           </Button>
-                          {canUpdateUser(u.id) && (
+                          {canUpdateUser(u.id) && u.isActive && (
                             <Button variant="ghost" size="sm" onClick={() => openInvite(u)} title="Envoyer une invitation">
                               <Send size={14} className="text-green-600" />
                             </Button>
                           )}
+                          {canUpdateUser(u.id) && u.isActive && (
+                            <Button variant="ghost" size="sm" onClick={() => setResetTarget(u)} title="Réinitialiser le mot de passe">
+                              <KeyRound size={14} className="text-amber-600" />
+                            </Button>
+                          )}
                           {canUpdateUser(u.id) && (
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(u)} title="Modifier">
                               <Pencil size={14} />
                             </Button>
                           )}
                           {canDeleteUser(u.id) && (
-                            <Button variant="ghost" size="sm" onClick={() => openDelete(u)}>
+                            <Button variant="ghost" size="sm" onClick={() => setBlockTarget(u)} title={u.isActive ? 'Bloquer' : 'Débloquer'}>
+                              {u.isActive
+                                ? <ShieldOff size={14} className="text-orange-500" />
+                                : <ShieldCheck size={14} className="text-green-600" />
+                              }
+                            </Button>
+                          )}
+                          {canDeleteUser(u.id) && u.isActive && (
+                            <Button variant="ghost" size="sm" onClick={() => openDelete(u)} title="Supprimer">
                               <Trash2 size={14} className="text-error-600" />
                             </Button>
                           )}
@@ -503,14 +598,40 @@ function UsersPage() {
       >
         <div className="space-y-4">
           {modalMode === 'edit' && selectedUser && (
-            <button
-              type="button"
-              onClick={() => { closeModal(); navigateToDM(selectedUser.id) }}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
-            >
-              <MessageCircle size={15} />
-              Envoyer un message
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => { closeModal(); navigateToDM(selectedUser.id) }}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-400 text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+              >
+                <MessageCircle size={15} />
+                Message
+              </button>
+              {selectedUser.isActive && (
+                <button
+                  type="button"
+                  onClick={() => { closeModal(); setResetTarget(selectedUser) }}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-sm font-medium hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors"
+                >
+                  <KeyRound size={15} />
+                  Reset MDP
+                </button>
+              )}
+              {canDeleteUser(selectedUser.id) && (
+                <button
+                  type="button"
+                  onClick={() => { closeModal(); setBlockTarget(selectedUser) }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    selectedUser.isActive
+                      ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900'
+                      : 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900'
+                  }`}
+                >
+                  {selectedUser.isActive ? <ShieldOff size={15} /> : <ShieldCheck size={15} />}
+                  {selectedUser.isActive ? 'Bloquer' : 'Débloquer'}
+                </button>
+              )}
+            </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
@@ -783,6 +904,18 @@ function UsersPage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    {c.accessToken && (
+                      <button
+                        onClick={() => handleCopyParentLink(c.id, c.accessToken)}
+                        className="p-1.5 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded"
+                        title="Copier le lien d'acces parent"
+                      >
+                        {copiedContactId === c.id
+                          ? <Check size={14} className="text-green-500" />
+                          : <Link2 size={14} className="text-primary-500" />
+                        }
+                      </button>
+                    )}
                     <button onClick={() => {
                       setContactForm({
                         firstName: c.firstName, lastName: c.lastName, email: c.email,
@@ -820,7 +953,7 @@ function UsersPage() {
                       onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))}
                       className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900" />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <select value={contactForm.relationship}
                       onChange={e => setContactForm(f => ({ ...f, relationship: e.target.value as ContactRelationship }))}
                       className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-1.5 bg-white dark:bg-neutral-900">
@@ -864,7 +997,7 @@ function UsersPage() {
           <Button
             onClick={handleSubmit}
             isLoading={submitting}
-            disabled={!form.firstName || !form.lastName || !form.email || (modalMode === 'create' && !form.password)}
+            disabled={!form.firstName || !form.lastName || !form.email || (modalMode === 'create' && form.authMode === 'password' && !form.password)}
           >
             {modalMode === 'create' ? 'Créer' : 'Enregistrer'}
           </Button>
@@ -989,6 +1122,102 @@ function UsersPage() {
               {inviteResult?.status === 'error' ? 'Réessayer' : 'Envoyer l\'invitation'}
             </Button>
           )}
+        </ModalFooter>
+      </Modal>
+
+      {/* Block/Unblock Modal */}
+      <Modal
+        isOpen={!!blockTarget}
+        onClose={() => setBlockTarget(null)}
+        title={blockTarget?.isActive ? 'Bloquer l\'utilisateur' : 'Débloquer l\'utilisateur'}
+        size="sm"
+      >
+        {blockTarget?.isActive ? (
+          <div className="space-y-3">
+            <p className="text-neutral-600 dark:text-neutral-400">
+              Êtes-vous sûr de vouloir bloquer <strong>{blockTarget?.firstName} {blockTarget?.lastName}</strong> ?
+            </p>
+            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg px-4 py-3">
+              <p className="text-sm text-orange-800 dark:text-orange-300 font-medium mb-1">Conséquences du blocage :</p>
+              <ul className="text-sm text-orange-700 dark:text-orange-400 list-disc ml-4 space-y-0.5">
+                <li>L'utilisateur ne pourra plus se connecter</li>
+                <li>Son accès à la plateforme sera immédiatement coupé</li>
+                <li>Ses données (notes, présences, messages) seront conservées</li>
+                <li>Vous pourrez le débloquer à tout moment</li>
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-neutral-600 dark:text-neutral-400">
+              Voulez-vous débloquer <strong>{blockTarget?.firstName} {blockTarget?.lastName}</strong> ?
+            </p>
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
+              <p className="text-sm text-green-800 dark:text-green-300">
+                L'utilisateur retrouvera immédiatement l'accès à la plateforme avec son compte existant.
+              </p>
+            </div>
+          </div>
+        )}
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setBlockTarget(null)}>Annuler</Button>
+          <Button
+            variant={blockTarget?.isActive ? 'danger' : 'primary'}
+            isLoading={submitting}
+            leftIcon={blockTarget?.isActive ? ShieldOff : ShieldCheck}
+            onClick={async () => {
+              if (!blockTarget) return
+              setSubmitting(true)
+              try {
+                if (blockTarget.isActive) {
+                  await blockUser(blockTarget.id)
+                } else {
+                  await unblockUser(blockTarget.id)
+                }
+                setBlockTarget(null)
+              } catch { /* handled by hook */ }
+              finally { setSubmitting(false) }
+            }}
+          >
+            {blockTarget?.isActive ? 'Bloquer' : 'Débloquer'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        isOpen={!!resetTarget}
+        onClose={() => setResetTarget(null)}
+        title="Réinitialiser le mot de passe"
+        size="sm"
+      >
+        <div className="space-y-3">
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Un email sera envoyé à <strong>{resetTarget?.email}</strong> avec un lien pour définir un nouveau mot de passe.
+          </p>
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              L'utilisateur recevra un email avec un lien valable 24h pour créer un nouveau mot de passe. Son mot de passe actuel reste actif tant qu'il n'a pas été changé.
+            </p>
+          </div>
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setResetTarget(null)}>Annuler</Button>
+          <Button
+            leftIcon={KeyRound}
+            isLoading={submitting}
+            onClick={async () => {
+              if (!resetTarget) return
+              setSubmitting(true)
+              try {
+                await sendPasswordReset(resetTarget.id)
+                setResetTarget(null)
+              } catch { /* handled by hook */ }
+              finally { setSubmitting(false) }
+            }}
+          >
+            Envoyer le lien
+          </Button>
         </ModalFooter>
       </Modal>
 

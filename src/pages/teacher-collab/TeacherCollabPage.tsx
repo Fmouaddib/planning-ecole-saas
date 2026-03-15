@@ -739,7 +739,7 @@ function TeacherDemandCard({ request, hasResponded, responseType, onRespond }: {
                 )}
 
                 {/* Add slot form */}
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
                   <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
                     min={request.periodStart} max={request.periodEnd}
                     className="px-2 py-1.5 border border-neutral-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-sm" />

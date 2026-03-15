@@ -538,7 +538,7 @@ export default function EmailsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
             Suivi des emails

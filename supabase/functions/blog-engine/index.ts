@@ -13,26 +13,70 @@ import {
   doResearch,
 } from "./helpers.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://anti-planning.com",
+  "https://planning-ecole-saas.vercel.app",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin)
+    || (origin.endsWith(".anti-planning.com") && origin.startsWith("https://"))
+    || origin.startsWith("http://localhost");
+  return {
+    "Access-Control-Allow-Origin": allowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 // ── Main handler ─────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: cors });
   }
 
   const startTime = Date.now();
 
   try {
+    // ── Auth: verify JWT and role ──────────────────────────────
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const db = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: caller }, error: authError } = await db.auth.getUser(token);
+    if (authError || !caller) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { data: callerProfile } = await db
+      .from("profiles")
+      .select("role")
+      .eq("id", caller.id)
+      .single();
+
+    const allowedRoles = ["admin", "super_admin"];
+    if (!callerProfile || !allowedRoles.includes(callerProfile.role)) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: admin or super_admin role required" }),
+        { status: 403, headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
 
     const body = await req.json();
     const action = body.action as string;
@@ -46,7 +90,7 @@ Deno.serve(async (req: Request) => {
     if (settingsError || !settings) {
       return new Response(JSON.stringify({ error: "Blog settings not found" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -56,7 +100,7 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({
           error: "Aucune cl\u00E9 API configur\u00E9e. Ajoutez au moins une cl\u00E9 (Gemini gratuit recommand\u00E9) dans les param\u00E8tres du blog.",
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
 
@@ -94,13 +138,13 @@ Privil\u00E9gie un mix entre :
       });
 
       return new Response(JSON.stringify({ suggestions }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
-    // ── ACTION: generate-article ────────────────────────────────
-    if (action === "generate-article") {
-      const topicId = body.topicId as string;
+    // ── Helper: generate a single article (shared by generate-article and batch-generate) ──
+    async function generateArticleForTopic(topicId: string): Promise<{ post: any }> {
+      const genStart = Date.now();
 
       const { data: topic, error: topicErr } = await db
         .from("blog_topics")
@@ -109,10 +153,7 @@ Privil\u00E9gie un mix entre :
         .single();
 
       if (topicErr || !topic) {
-        return new Response(JSON.stringify({ error: "Topic not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        throw new Error("Topic not found");
       }
 
       await db.from("blog_topics").update({ status: "generating" }).eq("id", topicId);
@@ -125,8 +166,8 @@ Privil\u00E9gie un mix entre :
 
         let researchContext = "";
         for (const q of researchQueries) {
-          const results = await doResearch(settings as BlogSettings, q);
-          if (results) researchContext += results + "\n\n";
+          const r = await doResearch(settings as BlogSettings, q);
+          if (r) researchContext += r + "\n\n";
         }
 
         const { data: publishedArticles } = await db
@@ -231,26 +272,47 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
           input_tokens: result.inputTokens,
           output_tokens: result.outputTokens,
           cost_estimate: cost,
-          duration_ms: Date.now() - startTime,
+          duration_ms: Date.now() - genStart,
           status: "success",
           metadata: { wordCount, seoScore, slug, provider: result.provider, research: !!researchContext },
         });
 
-        return new Response(JSON.stringify({ post }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return { post };
       } catch (err) {
         await db.from("blog_topics").update({ status: "failed", error_message: err.message }).eq("id", topicId);
         await db.from("blog_generation_logs").insert({
           action: "generate-article",
           topic_id: topicId,
           model: `${settings.provider}/${settings.model}`,
-          duration_ms: Date.now() - startTime,
+          duration_ms: Date.now() - genStart,
           status: "error",
           error_message: err.message,
         });
         throw err;
       }
+    }
+
+    // ── ACTION: generate-article ────────────────────────────────
+    if (action === "generate-article") {
+      const topicId = body.topicId as string;
+
+      const { data: topicCheck } = await db
+        .from("blog_topics")
+        .select("id")
+        .eq("id", topicId)
+        .single();
+
+      if (!topicCheck) {
+        return new Response(JSON.stringify({ error: "Topic not found" }), {
+          status: 404,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      const result = await generateArticleForTopic(topicId);
+      return new Response(JSON.stringify(result), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
     }
 
     // ── ACTION: batch-generate ──────────────────────────────────
@@ -268,7 +330,7 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
       if (!topics?.length) {
         return new Response(
           JSON.stringify({ message: "Aucun sujet en attente", generated: 0 }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          { headers: { ...cors, "Content-Type": "application/json" } },
         );
       }
 
@@ -276,23 +338,8 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
 
       for (const t of topics) {
         try {
-          const innerRes = await fetch(`${supabaseUrl}/functions/v1/blog-engine`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""}`,
-              "Content-Type": "application/json",
-              apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
-            },
-            body: JSON.stringify({ action: "generate-article", topicId: t.id }),
-          });
-
-          if (innerRes.ok) {
-            const data = await innerRes.json();
-            results.push({ topicId: t.id, postId: data.post?.id });
-          } else {
-            const errData = await innerRes.json();
-            results.push({ topicId: t.id, error: errData.error });
-          }
+          const data = await generateArticleForTopic(t.id);
+          results.push({ topicId: t.id, postId: data.post?.id });
         } catch (err) {
           results.push({ topicId: t.id, error: err.message });
         }
@@ -300,7 +347,7 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
 
       return new Response(
         JSON.stringify({ generated: results.filter((r) => r.postId).length, results }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
 
@@ -313,7 +360,7 @@ Rappel : retourne UNIQUEMENT le JSON valide avec title, meta_title, meta_descrip
       if (!post) {
         return new Response(JSON.stringify({ error: "Post not found" }), {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -348,7 +395,7 @@ IMPORTANT: JSON uniquement.`;
       }
 
       return new Response(JSON.stringify({ audit }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -365,7 +412,7 @@ IMPORTANT: JSON uniquement.`;
       if (!post) {
         return new Response(JSON.stringify({ error: "Post not found" }), {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -378,8 +425,9 @@ IMPORTANT: JSON uniquement.`;
         .order("published_at", { ascending: false })
         .limit(50);
 
+      const blogBase = settings.blog_base_url || 'https://anti-planning.com/#/blog';
       const articleLinksText = (publishedArticles || []).length > 0
-        ? `\nARTICLES PUBLI\u00C9S DISPONIBLES POUR LE MAILLAGE INTERNE (ins\u00E8re 3-5 liens pertinents) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`).join("\n")}`
+        ? `\nARTICLES PUBLI\u00C9S DISPONIBLES POUR LE MAILLAGE INTERNE (ins\u00E8re 3-5 liens pertinents) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${blogBase}/${a.slug})`).join("\n")}`
         : "";
 
       const issuesText = (audit.issues || [])
@@ -519,7 +567,7 @@ Applique toutes les corrections et retourne l'article am\u00E9lior\u00E9 en JSON
       }).then(() => {}, (e: any) => console.error("improve-article log insert failed:", e));
 
       return new Response(JSON.stringify({ post: updatedPost }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -530,7 +578,7 @@ Applique toutes les corrections et retourne l'article am\u00E9lior\u00E9 en JSON
       const { data: post } = await db.from("blog_posts").select("*").eq("id", postId).single();
       if (!post) {
         return new Response(JSON.stringify({ error: "Post not found" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404, headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -544,7 +592,7 @@ Applique toutes les corrections et retourne l'article am\u00E9lior\u00E9 en JSON
 
       if (!publishedArticles?.length) {
         return new Response(JSON.stringify({ post, linksAdded: 0, message: "Aucun autre article publi\u00E9 pour le maillage." }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -552,12 +600,12 @@ Applique toutes les corrections et retourne l'article am\u00E9lior\u00E9 en JSON
 
       if (notLinked.length === 0) {
         return new Response(JSON.stringify({ post, linksAdded: 0, message: "Tous les articles sont d\u00E9j\u00E0 li\u00E9s." }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
       const manualLinks = (settings.internal_links || []).map((l: any) => `- [${l.title}](${l.url})`);
-      const newArticleLinks = notLinked.map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug}) [cat\u00E9gorie: ${a.category}]`);
+      const newArticleLinks = notLinked.map((a: any) => `- [${a.title}](${settings.blog_base_url || 'https://anti-planning.com/#/blog'}/${a.slug}) [cat\u00E9gorie: ${a.category}]`);
 
       const systemPrompt = `Tu es un r\u00E9dacteur SEO expert. Tu dois mettre \u00E0 jour un article existant en y int\u00E9grant NATURELLEMENT des liens internes vers de nouveaux articles du m\u00EAme blog.
 
@@ -622,7 +670,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON.`;
 
       return new Response(
         JSON.stringify({ post: updatedPost, linksAdded: updated.links_added }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
 
@@ -634,14 +682,14 @@ IMPORTANT: Retourne UNIQUEMENT le JSON.`;
 
       if (!instruction) {
         return new Response(JSON.stringify({ error: "Missing instruction" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400, headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
       const { data: post } = await db.from("blog_posts").select("*").eq("id", postId).single();
       if (!post) {
         return new Response(JSON.stringify({ error: "Post not found" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404, headers: { ...cors, "Content-Type": "application/json" },
         });
       }
 
@@ -655,7 +703,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON.`;
         .limit(30);
 
       const articlesContext = (publishedArticles || []).length > 0
-        ? `\nARTICLES PUBLI\u00C9S DU BLOG (pour maillage interne si pertinent) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${settings.blog_base_url || '#/blog'}/${a.slug})`).join("\n")}`
+        ? `\nARTICLES PUBLI\u00C9S DU BLOG (pour maillage interne si pertinent) :\n${(publishedArticles || []).map((a: any) => `- [${a.title}](${settings.blog_base_url || 'https://anti-planning.com/#/blog'}/${a.slug})`).join("\n")}`
         : "";
 
       const systemPrompt = `Tu es un assistant \u00E9ditorial SEO expert. Tu travailles sur un article de blog existant et tu ex\u00E9cutes les instructions du r\u00E9dacteur en chef.
@@ -785,19 +833,19 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, sans backticks ni texte avant/apr\u00E8s
         post: updatedPost,
         cost,
       }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
     return new Response(
       JSON.stringify({ error: `Unknown action: ${action}. Valid: suggest-topics, generate-article, batch-generate, analyze-seo, improve-article, update-links, chat-article` }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (error) {
     console.error("blog-engine error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });

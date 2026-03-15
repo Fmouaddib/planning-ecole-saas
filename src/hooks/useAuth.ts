@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AuthUser, LoginCredentials, RegisterData, User, UseAuthReturn, UserContextInfo } from '@/types'
 import { supabase } from '@/lib/supabase'
-import { getErrorMessage, parseFullName } from '@/utils'
+import { parseFullName, getUserFriendlyError } from '@/utils'
 import { AuditService } from '@/services/auditService'
 import { getImpersonation, clearImpersonation, IMPERSONATION_EVENT } from '@/utils/impersonation'
 import { getActiveContext, setActiveContext, clearActiveContext, USER_CONTEXT_EVENT } from '@/utils/userContext'
@@ -29,7 +29,7 @@ export function useAuth(): UseAuthReturn {
   }, [])
 
   const handleError = useCallback((error: unknown, _defaultMessage = 'Une erreur est survenue') => {
-    const message = getErrorMessage(error)
+    const message = getUserFriendlyError(error)
     setError(message)
     console.error('Auth Error:', error)
     return message
@@ -260,7 +260,6 @@ export function useAuth(): UseAuthReturn {
       // Mettre à jour les données dans la table profiles
       const updateFields: Record<string, unknown> = {}
       if (fullName) updateFields.full_name = fullName
-      if (updateData.email) updateFields.email = updateData.email
       if (updateData.phone !== undefined) updateFields.phone = updateData.phone || null
       if (updateData.linkedin !== undefined) updateFields.linkedin = updateData.linkedin || null
 
@@ -271,13 +270,20 @@ export function useAuth(): UseAuthReturn {
 
       if (updateError) throw updateError
 
-      // Mettre à jour l'email dans Supabase Auth si nécessaire
-      if (updateData.email && updateData.email !== user.email) {
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: updateData.email,
+      // Mettre à jour l'email via Edge Function si nécessaire
+      const emailChanged = updateData.email && updateData.email !== user.email
+      if (emailChanged) {
+        // Use change-email Edge Function for proper confirmation flow
+        const { error: emailError } = await supabase.functions.invoke('change-email', {
+          body: { user_id: user.id, new_email: updateData.email },
         })
-
-        if (emailError) throw emailError
+        if (emailError) {
+          toast.error('Impossible d\'initier le changement d\'email')
+          console.error('[useAuth] change-email error:', emailError)
+        } else {
+          toast.success('Un email de confirmation a été envoyé à la nouvelle adresse. Vérifiez votre boîte de réception.')
+        }
+        // Don't update local state for email yet — it will change after confirmation
       }
 
       // Mettre à jour l'état local
@@ -285,12 +291,16 @@ export function useAuth(): UseAuthReturn {
         ...prev,
         firstName: updateData.firstName ?? prev.firstName,
         lastName: updateData.lastName ?? prev.lastName,
-        email: updateData.email ?? prev.email,
+        // email stays unchanged until confirmed
         phone: updateData.phone !== undefined ? (updateData.phone || undefined) : prev.phone,
         linkedin: updateData.linkedin !== undefined ? (updateData.linkedin || undefined) : prev.linkedin,
       } : null)
 
-      toast.success('Profil mis à jour avec succès')
+      if (emailChanged) {
+        toast.success('Profil mis à jour. Confirmez le changement d\'email via le lien envoyé.')
+      } else {
+        toast.success('Profil mis à jour avec succès')
+      }
       return { ...updateData, id: user.id, email: updateData.email ?? user.email } as User
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la mise à jour du profil')
@@ -385,6 +395,29 @@ export function useAuth(): UseAuthReturn {
             if (session?.user) {
               const authUser = await transformUser(session.user)
               setUser(authUser)
+            }
+            break
+
+          case 'USER_UPDATED':
+            // Sync email from auth to profiles after email confirmation
+            if (session?.user) {
+              const authUser = await transformUser(session.user)
+              if (authUser) {
+                // Check if auth email differs from profile — sync if needed
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('email')
+                  .eq('id', session.user.id)
+                  .single()
+                if (profile && profile.email !== session.user.email) {
+                  await supabase
+                    .from('profiles')
+                    .update({ email: session.user.email })
+                    .eq('id', session.user.id)
+                  toast.success('Adresse email mise à jour avec succès')
+                }
+                setUser(authUser)
+              }
             }
             break
 

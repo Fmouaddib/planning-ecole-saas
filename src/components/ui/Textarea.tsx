@@ -19,6 +19,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     ...props
   }, ref) => {
     const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`
+    const errorId = error ? `${textareaId}-error` : undefined
+    const helperId = helper && !error ? `${textareaId}-helper` : undefined
+    const describedBy = [errorId, helperId].filter(Boolean).join(' ') || undefined
 
     const textareaClasses = [
       'w-full bg-white border rounded-lg px-3 py-2.5',
@@ -57,6 +60,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           id={textareaId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          aria-required={props.required || undefined}
           className={clsx(
             textareaClasses,
             errorClasses,
@@ -70,15 +76,15 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {(error || helper) && (
           <div className="mt-2">
             {error && (
-              <p className="text-sm text-error-600 flex items-center gap-1">
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <p id={errorId} role="alert" className="text-sm text-error-600 flex items-center gap-1">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 {error}
               </p>
             )}
             {helper && !error && (
-              <p className="text-sm text-neutral-500">{helper}</p>
+              <p id={helperId} className="text-sm text-neutral-500">{helper}</p>
             )}
           </div>
         )}

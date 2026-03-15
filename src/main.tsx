@@ -5,7 +5,12 @@ import { Toaster } from 'react-hot-toast'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/contexts/AuthContext'
 import App from './App.tsx'
+import ErrorBoundary from './components/ErrorBoundary.tsx'
+import { installGlobalErrorHandlers } from '@/services/errorLogger'
 import './styles/globals.css'
+
+// Install global error handlers (window.onerror, unhandledrejection)
+installGlobalErrorHandlers()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,8 +26,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
-          <Toaster position="top-right" />
+          <ErrorBoundary>
+            <App />
+            <Toaster position="top-right" />
+          </ErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

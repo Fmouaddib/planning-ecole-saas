@@ -7,6 +7,7 @@ import { LoadingState } from '@/components/ui'
 const SuperAdminApp = lazy(() => import('@/components/super-admin/SuperAdminApp').then(m => ({ default: m.SuperAdminApp })))
 import { ROUTES } from '@/utils/constants'
 import { isTeacherRole, isStudentRole } from '@/utils/helpers'
+import { getUserFriendlyError } from '@/utils/error-messages'
 import { parseFullName } from '@/utils/transforms'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
@@ -32,6 +33,8 @@ const BlogPostPage = lazy(() => import('@/pages/landing/BlogPostPage'))
 const ContactPage = lazy(() => import('@/pages/landing/ContactPage'))
 const TermsPage = lazy(() => import('@/pages/landing/TermsPage'))
 const PrivacyPage = lazy(() => import('@/pages/landing/PrivacyPage'))
+const ApiDocsPage = lazy(() => import('@/pages/landing/ApiDocsPage'))
+const ParentPortalPage = lazy(() => import('@/pages/parent/ParentPortalPage'))
 
 // Lazy-loaded pages
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'))
@@ -423,13 +426,7 @@ export default function App() {
           },
         })
         if (error) {
-          if (error.message.includes('rate') || error.status === 429) {
-            throw new Error('Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.')
-          }
-          if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-            throw new Error('Cette adresse email est déjà utilisée.')
-          }
-          throw error
+          throw new Error(getUserFriendlyError(error))
         }
         if (!authData.user) throw new Error('Échec de la création du compte')
 
@@ -505,6 +502,23 @@ export default function App() {
       >
         <Toaster position="top-center" />
         <SetupAccountPage tokenHash={tokenHash} />
+      </Suspense>
+    )
+  }
+
+  // Route parent portal: public page, no auth required
+  // URL format: /#/parent/TOKEN_UUID
+  if (hash.startsWith('#/parent/')) {
+    const parentToken = hash.replace('#/parent/', '').split('?')[0]
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
+            <LoadingState size="lg" text="Chargement du portail parent..." />
+          </div>
+        }
+      >
+        <ParentPortalPage token={parentToken} />
       </Suspense>
     )
   }
@@ -654,6 +668,7 @@ export default function App() {
     if (hash === '#/contact') return landingSuspense(ContactPage)
     if (hash === '#/terms') return landingSuspense(TermsPage)
     if (hash === '#/privacy') return landingSuspense(PrivacyPage)
+    if (hash === '#/api-docs') return landingSuspense(ApiDocsPage)
 
     // Default: show landing page
     return landingSuspense(LandingPage)
@@ -696,11 +711,12 @@ export default function App() {
   }
 
   // Pages légales & contact accessibles aux utilisateurs authentifiés aussi
-  if (hash === '#/contact' || hash === '#/terms' || hash === '#/privacy') {
+  if (hash === '#/contact' || hash === '#/terms' || hash === '#/privacy' || hash === '#/api-docs') {
     const PageMap: Record<string, React.LazyExoticComponent<() => JSX.Element>> = {
       '#/contact': ContactPage,
       '#/terms': TermsPage,
       '#/privacy': PrivacyPage,
+      '#/api-docs': ApiDocsPage,
     }
     const PageComponent = PageMap[hash]!
     return (

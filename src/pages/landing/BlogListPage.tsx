@@ -3,6 +3,7 @@
  */
 import { useState, useEffect } from 'react'
 import { Calendar, Clock, Tag, Search, ArrowRight } from 'lucide-react'
+import { updatePageMeta } from '@/utils/seo'
 import LandingLayout from '@/components/landing/LandingLayout'
 import { supabase } from '@/lib/supabase'
 
@@ -46,6 +47,16 @@ export default function BlogListPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    updatePageMeta({
+      title: 'Blog',
+      description: 'Blog Anti-Planning : articles et conseils sur la gestion de centres de formation, planning pedagogique, digitalisation et bonnes pratiques.',
+      path: '/blog',
+      keywords: 'blog formation, articles centre de formation, conseils planning ecole, digitalisation education, gestion pedagogique',
+    })
+  }, [])
 
   useEffect(() => {
     const fetchPosts = async () => {

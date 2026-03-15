@@ -47,3 +47,7 @@ vite.config.ts.timestamp-*
 
 # Vercel
 .vercel/
+
+# Build artifacts
+build_*/
+dist_*/

@@ -1,0 +1,16 @@
+UPDATE subscription_plans SET stripe_product_id = 'prod_U74wV048Bkmpsa', stripe_price_id_monthly = 'price_1T8qmSLMop3OLstUEHvyjKna', stripe_price_id_yearly = 'price_1T8qmSLMop3OLstUjG6inqWL' WHERE slug = 'pro';
+UPDATE subscription_plans SET stripe_product_id = 'prod_U74wNaugyBSXUL', stripe_price_id_monthly = 'price_1T8qmTLMop3OLstUiTktrHwu', stripe_price_id_yearly = 'price_1T8qmTLMop3OLstULfN1J3d0' WHERE slug = 'ecole-en-ligne';
+UPDATE subscription_plans SET stripe_product_id = 'prod_U74wjyBhkql4kC', stripe_price_id_monthly = 'price_1T8qmTLMop3OLstUO7Ya2b0I', stripe_price_id_yearly = 'price_1T8qmULMop3OLstU7vbbtzby' WHERE slug = 'enterprise';
+
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wGCjBS2qGq1', stripe_price_id_monthly = 'price_1T8qmULMop3OLstUYyCZzFw4', stripe_price_id_yearly = 'price_1T8qmVLMop3OLstUBPrdkoDn' WHERE slug = 'email-25';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74weA4LZjAphh', stripe_price_id_monthly = 'price_1T8qmVLMop3OLstUTLOmiRpw', stripe_price_id_yearly = 'price_1T8qmWLMop3OLstUQSAfR4dG' WHERE slug = 'email-50';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wzuOy4gYfA3', stripe_price_id_monthly = 'price_1T8qmWLMop3OLstUkGmO70HO', stripe_price_id_yearly = 'price_1T8qmWLMop3OLstUCWDdqI1o' WHERE slug = 'email-200';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wYxhnuSAOVv', stripe_price_id_monthly = 'price_1T8qmXLMop3OLstU0q2Vs9ck', stripe_price_id_yearly = 'price_1T8qmXLMop3OLstUu9LQualO' WHERE slug = 'teacher-5';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wM7I5ptjZqe', stripe_price_id_monthly = 'price_1T8qmYLMop3OLstUpt3zhP1F', stripe_price_id_yearly = 'price_1T8qmYLMop3OLstUsL7S0Snk' WHERE slug = 'teacher-15';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wxAbxyFd3xR', stripe_price_id_monthly = 'price_1T8qmZLMop3OLstUFr73tfsG', stripe_price_id_yearly = 'price_1T8qmZLMop3OLstUCLpEEM7O' WHERE slug = 'teacher-30';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wEvvBpRERHs', stripe_price_id_monthly = 'price_1T8qmaLMop3OLstU6SYCBVZh', stripe_price_id_yearly = 'price_1T8qmaLMop3OLstUJMHbodt6' WHERE slug = 'student-50';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wdXJckIyw1G', stripe_price_id_monthly = 'price_1T8qmaLMop3OLstU74aMjCZ4', stripe_price_id_yearly = 'price_1T8qmbLMop3OLstUNFaKSpMo' WHERE slug = 'student-150';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wRH9HYDQhp6', stripe_price_id_monthly = 'price_1T8qmbLMop3OLstUgRIRa7Re', stripe_price_id_yearly = 'price_1T8qmcLMop3OLstURqmwbFSr' WHERE slug = 'student-500';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74w6rL0kBU0Pk', stripe_price_id_monthly = 'price_1T8qmcLMop3OLstU1n0uX1Ax', stripe_price_id_yearly = 'price_1T8qmcLMop3OLstUiZNk4Xsn' WHERE slug = 'attendance-basic';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74wW9iN3TvpMS', stripe_price_id_monthly = 'price_1T8qmdLMop3OLstUOzpAMUyN', stripe_price_id_yearly = 'price_1T8qmdLMop3OLstU3wRlX66Z' WHERE slug = 'grades-basic';
+UPDATE addon_plans SET stripe_product_id = 'prod_U74w8UZomEEfVj', stripe_price_id_monthly = 'price_1T8qmeLMop3OLstUvVUNJhfa', stripe_price_id_yearly = 'price_1T8qmeLMop3OLstUMARmCcPy' WHERE slug = 'pedagogy-bundle';

@@ -3,6 +3,7 @@ import { Check, X, ChevronDown, ShieldCheck, Loader2, Mail, UserCog, GraduationC
 import { priceTTC, formatPrice } from '@/utils/pricing'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { updatePageMeta } from '@/utils/seo'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { supabase } from '@/lib/supabase'
@@ -47,7 +48,7 @@ interface CompareRow {
 }
 
 export default function PricingPage() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { reveal } = useScrollReveal()
   const { user } = useAuthContext()
   const { openCheckout, isLoading: checkoutLoading } = useStripeCheckout()
@@ -59,7 +60,15 @@ export default function PricingPage() {
 
   const isAuthenticated = !!user
 
-  useEffect(() => { window.scrollTo(0, 0) }, [])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    updatePageMeta({
+      title: 'Tarifs',
+      description: 'Tarifs Anti-Planning : plans gratuit, ecole en ligne, professionnel et entreprise. Essai gratuit, sans engagement.',
+      path: '/pricing',
+      keywords: 'tarifs planning ecole, prix logiciel formation, plan gratuit formation, logiciel education prix, SaaS formation tarifs',
+    })
+  }, [])
 
   // Fetch plans from subscription_plans table
   useEffect(() => {
@@ -104,7 +113,7 @@ export default function PricingPage() {
   }
 
   // Build compare rows dynamically from DB plans
-  const fmtLimit = (v: number) => v === -1 ? 'Illimité' : String(v)
+  const fmtLimit = (v: number) => v === -1 ? t('pricing.unlimited') : String(v)
   const planVal = (slugs: string[], getter: (p: DBPlan) => CellValue): CellValue[] =>
     slugs.map(s => { const p = dbPlans.find(pp => pp.slug === s); return p ? getter(p) : false })
   const planSlugs = dbPlans.map(p => p.slug)
@@ -286,7 +295,7 @@ export default function PricingPage() {
                   </div>
                   {price > 0 && (
                     <div className="text-xs text-neutral-400 -mt-1 mb-1">
-                      soit {formatPrice(priceTTC(price))}€ TTC/mois
+                      {t('pricing.ttcPrefix')} {formatPrice(priceTTC(price))}€ {t('pricing.ttcSuffix')}
                     </div>
                   )}
                   <ul className="landing-pricing-features">
@@ -304,9 +313,9 @@ export default function PricingPage() {
                       className={`landing-pricing-card-btn ${plan.btnStyle}`}
                     >
                       {loadingSlug === plan.slug ? (
-                        <><Loader2 size={16} className="animate-spin inline mr-2" />Redirection...</>
+                        <><Loader2 size={16} className="animate-spin inline mr-2" />{t('pricing.redirecting')}</>
                       ) : (
-                        plan.slug === 'free' ? 'Commencer gratuitement' : 'Souscrire maintenant'
+                        plan.slug === 'free' ? t('pricing.cta.free') : t('pricing.subscribe')
                       )}
                     </button>
                   ) : (
@@ -314,7 +323,7 @@ export default function PricingPage() {
                       href={ctaHref}
                       className={`landing-pricing-card-btn ${plan.btnStyle}`}
                     >
-                      {plan.slug === 'free' ? t('pricing.cta.free') : t('pricing.cta.pro')}
+                      {plan.slug === 'free' ? t('pricing.cta.free') : t('pricing.subscribe')}
                     </a>
                   )}
                 </div>
@@ -396,7 +405,7 @@ export default function PricingPage() {
                 <div className="landing-addon-card-options">
                   {card.options.map((opt) => (
                     <div key={opt.name} className="landing-addon-option" style={{ background: card.bgTint, border: `1px solid ${card.borderTint}` }}>
-                      <span className="landing-addon-option-name">{opt.name}</span>
+                      <span className="landing-addon-option-name">{lang === 'en' ? opt.nameEn : opt.name}</span>
                       <span className="landing-addon-option-price">{opt.price}€ HT{t('pricingPage.addon.perMonth')}</span>
                     </div>
                   ))}
@@ -459,6 +468,7 @@ export default function PricingPage() {
           <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
             {t('cta.button')}
           </a>
+          <p className="landing-cta-microcopy">{t('hero.microcopy')}</p>
         </div>
       </section>
     </LandingLayout>

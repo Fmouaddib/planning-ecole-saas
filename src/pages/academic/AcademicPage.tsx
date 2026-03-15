@@ -92,10 +92,12 @@ function AcademicPage() {
     classNames: classes.map(c => c.name),
     diplomaNames: diplomas.map(d => d.title),
     programNames: programs.map(p => p.name),
+    subjectNames: subjects.map(s => s.name),
     classMap: new Map(classes.map(c => [c.name.toLowerCase(), c.id])),
     diplomaMap: new Map(diplomas.map(d => [d.title.toLowerCase(), d.id])),
     programMap: new Map(programs.map(p => [p.name.toLowerCase(), p.id])),
-  }), [classes, diplomas, programs])
+    subjectMap: new Map(subjects.map(s => [s.name.toLowerCase(), s.id])),
+  }), [classes, diplomas, programs, subjects])
 
   if (isLoading) {
     return (
@@ -181,14 +183,17 @@ function AcademicPage() {
           createProgram={createProgram}
           updateProgram={updateProgram}
           deleteProgram={deleteProgram}
+          updateSubject={updateSubject}
         />
       )}
       {activeTab === 'classes' && (
         <ClassesTab
           classes={classes}
+          programs={programs}
           diplomas={diplomas}
           subjects={subjects}
           diplomaOptions={diplomaOptions}
+          programOptionsByDiploma={programOptionsByDiploma}
           subjectOptionsByDiploma={subjectOptionsByDiploma}
           getSubjectIdsForClass={getSubjectIdsForClass}
           createClass={createClass}

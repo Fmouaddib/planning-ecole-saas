@@ -2,16 +2,18 @@ import { useState, useMemo } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { filterBySearch } from '@/utils/helpers'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, MultiSelect, LoadingSpinner } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, Layers, CalendarDays, FileText, X, Users } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Layers, CalendarDays, FileText, X, Users, ArrowUp, ArrowDown, ArrowUpDown, Copy, Download } from 'lucide-react'
+import { exportClasses } from '@/utils/export-academic'
 import { SCHEDULE_TYPE_OPTIONS, DAY_OPTIONS, DEFAULT_DAYS_BY_TYPE, getScheduleTypeLabel, getScheduleTypeBadgeVariant, formatDaysShort } from '@/utils/scheduleUtils'
-import type { Class, Diploma, Subject, AlternanceConfig, ScheduleExceptions, ExamPeriod } from '@/types'
+import type { Class, Diploma, Subject, Program, AcademicYear, AlternanceConfig, ScheduleExceptions, ExamPeriod } from '@/types'
 import type { StudentSubjectLink } from '@/hooks/useAcademicData'
 import { supabase } from '@/lib/supabase'
 
 interface ClassForm {
   name: string
   diplomaId: string
-  academicYear: string
+  programId: string
+  academicYearId: string
   startDate: string
   endDate: string
   subjectIds: string[]
@@ -27,7 +29,7 @@ interface ClassForm {
 }
 
 const emptyClassForm: ClassForm = {
-  name: '', diplomaId: '', academicYear: '', startDate: '', endDate: '', subjectIds: [],
+  name: '', diplomaId: '', programId: '', academicYearId: '', startDate: '', endDate: '', subjectIds: [],
   scheduleType: 'initial', attendanceDays: [1, 2, 3, 4, 5],
   hasAlternanceCycle: false,
   alternanceSchoolWeeks: 1, alternanceCompanyWeeks: 2, alternanceRefDate: '',
@@ -35,11 +37,22 @@ const emptyClassForm: ClassForm = {
   examPeriods: [],
 }
 
+interface DuplicateOptions {
+  name: string
+  academicYearId: string
+  copyAttendanceDays: boolean
+  copySubjects: boolean
+  copyScheduleConfig: boolean
+  copyExamPeriods: boolean
+}
+
 export function ClassesTab({
   classes,
+  programs,
   diplomas,
   subjects,
   diplomaOptions,
+  programOptionsByDiploma,
   subjectOptionsByDiploma,
   getSubjectIdsForClass,
   createClass,
@@ -49,20 +62,24 @@ export function ClassesTab({
   classStudents,
   toggleDispensation,
   getStudentSubjectsForClass,
+  academicYears,
 }: {
   classes: Class[]
+  programs: Program[]
   diplomas: Diploma[]
   subjects: Subject[]
   diplomaOptions: { value: string; label: string }[]
+  programOptionsByDiploma: (diplomaId: string) => { value: string; label: string }[]
   subjectOptionsByDiploma: (diplomaId: string) => { value: string; label: string }[]
   getSubjectIdsForClass: (classId: string) => string[]
-  createClass: (data: { name: string; diplomaId: string; academicYear?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: AlternanceConfig; scheduleExceptions?: ScheduleExceptions; examPeriods?: ExamPeriod[] }) => Promise<Class>
-  updateClass: (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: AlternanceConfig | null; scheduleExceptions?: ScheduleExceptions | null; examPeriods?: ExamPeriod[] | null }) => Promise<Class>
+  createClass: (data: { name: string; diplomaId: string; programId?: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: AlternanceConfig; scheduleExceptions?: ScheduleExceptions; examPeriods?: ExamPeriod[] }) => Promise<Class>
+  updateClass: (id: string, data: { name?: string; diplomaId?: string; programId?: string | null; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: AlternanceConfig | null; scheduleExceptions?: ScheduleExceptions | null; examPeriods?: ExamPeriod[] | null }) => Promise<Class>
   deleteClass: (id: string) => Promise<void>
   setClassSubjectLinks: (classId: string, subjectIds: string[]) => Promise<void>
   classStudents: { student_id: string; class_id: string }[]
   toggleDispensation: (id: string, dispensed: boolean, reason?: string) => Promise<void>
   getStudentSubjectsForClass: (classId: string) => StudentSubjectLink[]
+  academicYears: AcademicYear[]
 }) {
   const [search, setSearch] = useState('')
   const [diplomaFilter, setDiplomaFilter] = useState('')
@@ -74,12 +91,48 @@ export function ClassesTab({
   const [form, setForm] = useState<ClassForm>(emptyClassForm)
   const [submitting, setSubmitting] = useState(false)
 
+  // Duplicate state
+  const [duplicateSource, setDuplicateSource] = useState<Class | null>(null)
+  const [duplicateOpts, setDuplicateOpts] = useState<DuplicateOptions>({
+    name: '', academicYearId: '', copyAttendanceDays: true, copySubjects: true,
+    copyScheduleConfig: true, copyExamPeriods: false,
+  })
+
+  type SortKey = 'name' | 'diploma' | 'program' | 'profile' | 'year' | 'subjects'
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) { if (sortDir === 'asc') setSortDir('desc'); else { setSortKey(null); setSortDir('asc') } }
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const getDiplomaTitle = (diplomaId: string) => diplomas.find(d => d.id === diplomaId)?.title || '-'
+  const getProgramName = (programId?: string) => programId ? programs.find(p => p.id === programId)?.name || '-' : '-'
+
   const filtered = useMemo(() => {
     let result = classes
     if (search) result = filterBySearch(result, search, ['name'])
     if (diplomaFilter) result = result.filter(c => c.diplomaId === diplomaFilter)
+    if (sortKey) {
+      const dir = sortDir === 'asc' ? 1 : -1
+      result = [...result].sort((a, b) => {
+        switch (sortKey) {
+          case 'name': return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }) * dir
+          case 'diploma': return getDiplomaTitle(a.diplomaId).localeCompare(getDiplomaTitle(b.diplomaId), 'fr', { sensitivity: 'base' }) * dir
+          case 'program': return getProgramName(a.programId).localeCompare(getProgramName(b.programId), 'fr', { sensitivity: 'base' }) * dir
+          case 'profile': return (a.scheduleType || '').localeCompare(b.scheduleType || '', 'fr', { sensitivity: 'base' }) * dir
+          case 'year': {
+            const aYear = a.academicYearId ? (academicYears.find(y => y.id === a.academicYearId)?.name || '') : (a.academicYear || '')
+            const bYear = b.academicYearId ? (academicYears.find(y => y.id === b.academicYearId)?.name || '') : (b.academicYear || '')
+            return aYear.localeCompare(bYear, 'fr', { sensitivity: 'base' }) * dir
+          }
+          case 'subjects': return (getSubjectIdsForClass(a.id).length - getSubjectIdsForClass(b.id).length) * dir
+          default: return 0
+        }
+      })
+    }
     return result
-  }, [classes, search, diplomaFilter])
+  }, [classes, search, diplomaFilter, sortKey, sortDir, diplomas, programs, academicYears, getSubjectIdsForClass])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
@@ -88,7 +141,8 @@ export function ClassesTab({
     setSelected(c)
     setForm({
       name: c.name, diplomaId: c.diplomaId,
-      academicYear: c.academicYear,
+      programId: c.programId || '',
+      academicYearId: c.academicYearId || '',
       startDate: c.startDate || '',
       endDate: c.endDate || '',
       subjectIds: getSubjectIdsForClass(c.id),
@@ -107,10 +161,61 @@ export function ClassesTab({
   const openDelete = (c: Class) => { setSelected(c); setModalMode('delete') }
   const closeModal = () => { setModalMode(null); setSelected(null) }
 
+  const openDuplicate = (c: Class) => {
+    setDuplicateSource(c)
+    setDuplicateOpts({
+      name: `${c.name} (copie)`,
+      academicYearId: '',
+      copyAttendanceDays: true,
+      copySubjects: true,
+      copyScheduleConfig: true,
+      copyExamPeriods: false,
+    })
+  }
+
+  const handleDuplicate = async () => {
+    if (!duplicateSource) return
+    setSubmitting(true)
+    try {
+      const src = duplicateSource
+      const selectedYear = academicYears.find(y => y.id === duplicateOpts.academicYearId)
+
+      const created = await createClass({
+        name: duplicateOpts.name,
+        diplomaId: src.diplomaId,
+        programId: src.programId,
+        academicYearId: duplicateOpts.academicYearId || undefined,
+        academicYear: selectedYear?.name || undefined,
+        startDate: selectedYear?.startDate || undefined,
+        endDate: selectedYear?.endDate || undefined,
+        scheduleType: duplicateOpts.copyScheduleConfig ? src.scheduleType : 'initial',
+        attendanceDays: duplicateOpts.copyAttendanceDays ? src.attendanceDays : [1, 2, 3, 4, 5],
+        alternanceConfig: duplicateOpts.copyScheduleConfig ? (src.alternanceConfig || undefined) : undefined,
+        scheduleExceptions: duplicateOpts.copyScheduleConfig ? (src.scheduleExceptions || undefined) : undefined,
+        examPeriods: duplicateOpts.copyExamPeriods ? (src.examPeriods || undefined) : undefined,
+      })
+
+      // Copy subject links if requested
+      if (duplicateOpts.copySubjects) {
+        const srcSubjectIds = getSubjectIdsForClass(src.id)
+        if (srcSubjectIds.length > 0) {
+          await setClassSubjectLinks(created.id, srcSubjectIds)
+        }
+      } else if (src.programId) {
+        // Auto-associate subjects from the program
+        const programSubjects = subjects.filter(s => s.programId === src.programId)
+        if (programSubjects.length > 0) {
+          await setClassSubjectLinks(created.id, programSubjects.map(s => s.id))
+        }
+      }
+
+      setDuplicateSource(null)
+    } catch { /* toast in hook */ } finally { setSubmitting(false) }
+  }
+
   const openEnrollment = async (c: Class) => {
     setEnrollmentClass(c)
     setEnrollmentLoading(true)
-    // Charger les noms des étudiants de cette classe
     const studentIds = classStudents.filter(cs => cs.class_id === c.id).map(cs => cs.student_id)
     if (studentIds.length > 0) {
       const { data } = await supabase
@@ -146,6 +251,16 @@ export function ClassesTab({
     return valid.length > 0 ? valid : null
   }
 
+  // When program changes, auto-populate subjects from that program
+  const handleProgramChange = (programId: string) => {
+    setForm(f => {
+      const newSubjectIds = programId
+        ? subjects.filter(s => s.programId === programId).map(s => s.id)
+        : f.subjectIds
+      return { ...f, programId, subjectIds: newSubjectIds }
+    })
+  }
+
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
@@ -157,9 +272,12 @@ export function ClassesTab({
         examPeriods: buildExamPeriods(),
       }
       if (modalMode === 'create') {
+        const selectedYear = academicYears.find(y => y.id === form.academicYearId)
         const created = await createClass({
           name: form.name, diplomaId: form.diplomaId,
-          academicYear: form.academicYear,
+          programId: form.programId || undefined,
+          academicYearId: form.academicYearId || undefined,
+          academicYear: selectedYear?.name || undefined,
           startDate: form.startDate || undefined,
           endDate: form.endDate || undefined,
           ...schedulePayload,
@@ -171,9 +289,12 @@ export function ClassesTab({
           await setClassSubjectLinks(created.id, form.subjectIds)
         }
       } else if (modalMode === 'edit' && selected) {
+        const selectedYear = academicYears.find(y => y.id === form.academicYearId)
         await updateClass(selected.id, {
           name: form.name, diplomaId: form.diplomaId,
-          academicYear: form.academicYear,
+          programId: form.programId || null,
+          academicYearId: form.academicYearId || undefined,
+          academicYear: selectedYear?.name || undefined,
           startDate: form.startDate || undefined,
           endDate: form.endDate || undefined,
           ...schedulePayload,
@@ -190,8 +311,6 @@ export function ClassesTab({
     try { await deleteClass(selected.id); closeModal() }
     catch { /* toast in hook */ } finally { setSubmitting(false) }
   }
-
-  const getDiplomaTitle = (diplomaId: string) => diplomas.find(d => d.id === diplomaId)?.title || '-'
 
   const getClassSubjectNames = (classId: string) => {
     const ids = getSubjectIdsForClass(classId)
@@ -212,6 +331,11 @@ export function ClassesTab({
             onChange={e => setDiplomaFilter(e.target.value)}
           />
         </div>
+        {classes.length > 0 && (
+          <Button variant="secondary" leftIcon={Download} onClick={() => exportClasses(classes)}>
+            Exporter
+          </Button>
+        )}
         <Button leftIcon={Plus} onClick={openCreate}>Ajouter une classe</Button>
       </div>
 
@@ -230,11 +354,21 @@ export function ClassesTab({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Diplôme</th>
-                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Profil</th>
-                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Année</th>
-                    <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Matières</th>
+                    {([
+                      { key: 'name' as SortKey, label: 'Nom', className: '' },
+                      { key: 'diploma' as SortKey, label: 'Diplôme', className: '' },
+                      { key: 'program' as SortKey, label: 'Programme', className: 'hidden md:table-cell' },
+                      { key: 'profile' as SortKey, label: 'Profil', className: 'hidden sm:table-cell' },
+                      { key: 'year' as SortKey, label: 'Année', className: 'hidden sm:table-cell' },
+                      { key: 'subjects' as SortKey, label: 'Matières', className: 'hidden lg:table-cell' },
+                    ]).map(col => (
+                      <th key={col.key} className={`${col.className} text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors`} onClick={() => toggleSort(col.key)}>
+                        <span className="inline-flex items-center gap-1">
+                          {col.label}
+                          {sortKey === col.key ? (sortDir === 'asc' ? <ArrowUp size={12} className="text-primary-500" /> : <ArrowDown size={12} className="text-primary-500" />) : <ArrowUpDown size={12} className="opacity-30" />}
+                        </span>
+                      </th>
+                    ))}
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -248,6 +382,13 @@ export function ClassesTab({
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="success" size="sm">{getDiplomaTitle(c.diplomaId)}</Badge>
+                        </td>
+                        <td className="hidden md:table-cell px-4 py-3">
+                          {c.programId ? (
+                            <Badge variant="info" size="sm">{getProgramName(c.programId)}</Badge>
+                          ) : (
+                            <span className="text-sm text-neutral-400">-</span>
+                          )}
                         </td>
                         <td className="hidden sm:table-cell px-4 py-3">
                           <div className="flex flex-col gap-0.5">
@@ -270,7 +411,12 @@ export function ClassesTab({
                             )}
                           </div>
                         </td>
-                        <td className="hidden sm:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{c.academicYear || '-'}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                          {c.academicYearId
+                            ? academicYears.find(y => y.id === c.academicYearId)?.name || c.academicYear || '-'
+                            : c.academicYear || '-'
+                          }
+                        </td>
                         <td className="hidden lg:table-cell px-4 py-3">
                           {subjectNames.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
@@ -287,9 +433,10 @@ export function ClassesTab({
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" title="Dupliquer la classe" onClick={() => openDuplicate(c)}><Copy size={14} className="text-info-600" /></Button>
                             <Button variant="ghost" size="sm" title="Inscriptions matières" onClick={() => openEnrollment(c)}><Users size={14} className="text-primary-600" /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil size={14} /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => openDelete(c)}><Trash2 size={14} className="text-error-600" /></Button>
+                            <Button variant="ghost" size="sm" aria-label="Modifier" onClick={() => openEdit(c)}><Pencil size={14} /></Button>
+                            <Button variant="ghost" size="sm" aria-label="Supprimer" onClick={() => openDelete(c)}><Trash2 size={14} className="text-error-600" /></Button>
                           </div>
                         </td>
                       </tr>
@@ -322,14 +469,45 @@ export function ClassesTab({
               value={form.diplomaId} onChange={e => {
                 const newDiplomaId = e.target.value
                 const availableIds = new Set(subjectOptionsByDiploma(newDiplomaId).map(o => o.value))
+                const yearStillValid = !form.academicYearId || academicYears.some(y => y.id === form.academicYearId && y.diplomaId === newDiplomaId)
                 setForm(f => ({
                   ...f,
                   diplomaId: newDiplomaId,
+                  programId: '', // reset program when diploma changes
                   subjectIds: f.subjectIds.filter(id => availableIds.has(id)),
+                  academicYearId: yearStillValid ? f.academicYearId : '',
                 }))
               }} required />
-            <Input label="Année académique" placeholder="Ex: 2025-2026" value={form.academicYear}
-              onChange={e => setForm(f => ({ ...f, academicYear: e.target.value }))} />
+            <Select label="Programme"
+              options={[
+                { value: '', label: 'Aucun programme' },
+                ...programOptionsByDiploma(form.diplomaId),
+              ]}
+              value={form.programId}
+              onChange={e => handleProgramChange(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select label="Année académique"
+              options={[
+                { value: '', label: 'Sélectionner...' },
+                ...academicYears
+                  .filter(y => !form.diplomaId || y.diplomaId === form.diplomaId)
+                  .map(y => ({ value: y.id, label: `${y.name}${y.isCurrent ? ' (en cours)' : ''}` })),
+              ]}
+              value={form.academicYearId}
+              onChange={e => {
+                const yearId = e.target.value
+                const year = academicYears.find(y => y.id === yearId)
+                setForm(f => ({
+                  ...f,
+                  academicYearId: yearId,
+                  startDate: year ? year.startDate : f.startDate,
+                  endDate: year ? year.endDate : f.endDate,
+                }))
+              }}
+            />
+            <div /> {/* spacer */}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Date de début" type="date" value={form.startDate}
@@ -391,7 +569,7 @@ export function ClassesTab({
               </div>
             </div>
 
-            {/* Config alternance — cycle semaines (optionnel) */}
+            {/* Config alternance */}
             {form.scheduleType === 'alternance' && (
               <div className="mt-3 bg-warning-50 dark:bg-warning-950/30 border border-warning-200 dark:border-warning-800 rounded-lg p-3">
                 <label className="flex items-center gap-2 cursor-pointer mb-2">
@@ -448,7 +626,6 @@ export function ClassesTab({
             <div className="mt-3 bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3">
               <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">Jours exceptionnels</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Jours école exceptionnels */}
                 <div>
                   <label className="block text-[11px] font-medium text-success-700 dark:text-success-400 mb-1">
                     Jours de cours exceptionnels
@@ -488,7 +665,6 @@ export function ClassesTab({
                   </div>
                 </div>
 
-                {/* Jours entreprise exceptionnels */}
                 <div>
                   <label className="block text-[11px] font-medium text-error-700 dark:text-error-400 mb-1">
                     Jours entreprise exceptionnels
@@ -637,6 +813,105 @@ export function ClassesTab({
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={submitting}>Supprimer</Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Duplicate Modal */}
+      <Modal isOpen={!!duplicateSource} onClose={() => setDuplicateSource(null)} title="Dupliquer la classe" size="md">
+        {duplicateSource && (
+          <div className="space-y-4">
+            <div className="bg-info-50 dark:bg-info-950/30 border border-info-200 dark:border-info-800 rounded-lg p-3">
+              <p className="text-sm text-info-700 dark:text-info-300">
+                Duplication de <strong>{duplicateSource.name}</strong>
+                {duplicateSource.program && <> (programme: {duplicateSource.program.name})</>}
+              </p>
+            </div>
+
+            <Input label="Nom de la nouvelle classe" placeholder="Ex: BTS SIO 2A" value={duplicateOpts.name}
+              onChange={e => setDuplicateOpts(o => ({ ...o, name: e.target.value }))} required />
+
+            <Select label="Année académique cible"
+              options={[
+                { value: '', label: 'Aucune année sélectionnée' },
+                ...academicYears
+                  .filter(y => y.diplomaId === duplicateSource.diplomaId)
+                  .map(y => ({ value: y.id, label: `${y.name}${y.isCurrent ? ' (en cours)' : ''}` })),
+              ]}
+              value={duplicateOpts.academicYearId}
+              onChange={e => setDuplicateOpts(o => ({ ...o, academicYearId: e.target.value }))}
+            />
+
+            <div className="border-t border-neutral-100 dark:border-neutral-800 pt-4">
+              <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-3">Options de duplication</p>
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={duplicateOpts.copySubjects}
+                    onChange={e => setDuplicateOpts(o => ({ ...o, copySubjects: e.target.checked }))}
+                    className="mt-0.5 rounded border-neutral-300" />
+                  <div>
+                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Matières associées</span>
+                    <p className="text-xs text-neutral-500">
+                      {getSubjectIdsForClass(duplicateSource.id).length > 0
+                        ? `${getSubjectIdsForClass(duplicateSource.id).length} matière(s) seront copiées`
+                        : 'Aucune matière à copier'}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={duplicateOpts.copyAttendanceDays}
+                    onChange={e => setDuplicateOpts(o => ({ ...o, copyAttendanceDays: e.target.checked }))}
+                    className="mt-0.5 rounded border-neutral-300" />
+                  <div>
+                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Jours de présence</span>
+                    <p className="text-xs text-neutral-500">
+                      {formatDaysShort(duplicateSource.attendanceDays)}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={duplicateOpts.copyScheduleConfig}
+                    onChange={e => setDuplicateOpts(o => ({ ...o, copyScheduleConfig: e.target.checked }))}
+                    className="mt-0.5 rounded border-neutral-300" />
+                  <div>
+                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Configuration planification</span>
+                    <p className="text-xs text-neutral-500">
+                      Profil ({getScheduleTypeLabel(duplicateSource.scheduleType)})
+                      {duplicateSource.alternanceConfig && `, cycle ${duplicateSource.alternanceConfig.schoolWeeks}/${duplicateSource.alternanceConfig.companyWeeks} sem.`}
+                      {((duplicateSource.scheduleExceptions?.schoolDays?.length || 0) + (duplicateSource.scheduleExceptions?.companyDays?.length || 0)) > 0 && ', jours exceptionnels'}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={duplicateOpts.copyExamPeriods}
+                    onChange={e => setDuplicateOpts(o => ({ ...o, copyExamPeriods: e.target.checked }))}
+                    className="mt-0.5 rounded border-neutral-300" />
+                  <div>
+                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Périodes d'examen</span>
+                    <p className="text-xs text-neutral-500">
+                      {(duplicateSource.examPeriods?.length || 0) > 0
+                        ? `${duplicateSource.examPeriods!.length} période(s)`
+                        : 'Aucune période configurée'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <p className="text-xs text-neutral-400 italic">
+              Le diplôme ({getDiplomaTitle(duplicateSource.diplomaId)})
+              {duplicateSource.programId && ` et le programme (${getProgramName(duplicateSource.programId)})`}
+              {' '}seront automatiquement conservés.
+            </p>
+          </div>
+        )}
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setDuplicateSource(null)}>Annuler</Button>
+          <Button onClick={handleDuplicate} isLoading={submitting} disabled={!duplicateOpts.name.trim()}>
+            Dupliquer
+          </Button>
         </ModalFooter>
       </Modal>
 

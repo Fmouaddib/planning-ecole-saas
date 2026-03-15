@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Monitor, Video, Users, Calendar, Check, LayoutDashboard, Bell } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { updatePageMeta } from '@/utils/seo'
 import LandingLayout from '@/components/landing/LandingLayout'
 
 const featureBlocks = [
@@ -128,7 +129,15 @@ export default function OnlineSchoolPage() {
   const { t } = useLang()
   const { reveal } = useScrollReveal()
 
-  useEffect(() => { window.scrollTo(0, 0) }, [])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    updatePageMeta({
+      title: 'Ecole en ligne',
+      description: 'Creez votre ecole en ligne avec Anti-Planning : classes virtuelles, visioconference, suivi pedagogique a distance.',
+      path: '/ecole-en-ligne',
+      keywords: 'ecole en ligne, classes virtuelles, visioconference formation, suivi pedagogique distance, formation a distance, e-learning planning',
+    })
+  }, [])
 
   return (
     <LandingLayout isDetailPage>
@@ -178,6 +187,7 @@ export default function OnlineSchoolPage() {
           <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
             {t('cta.button')}
           </a>
+          <p className="landing-cta-microcopy">{t('hero.microcopy')}</p>
         </div>
       </section>
     </LandingLayout>

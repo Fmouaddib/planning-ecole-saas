@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { format, formatDistanceToNow, startOfWeek, endOfWeek, differenceInMinutes } from 'date-fns'
+import { format, formatDistanceToNow, startOfWeek, endOfWeek, differenceInMinutes, subWeeks } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   Building2,
@@ -8,6 +8,7 @@ import {
   Users,
   Plus,
   ArrowUpRight,
+  ArrowDownRight,
   Calendar,
   ChevronRight,
   Gauge,
@@ -21,6 +22,8 @@ import {
   FileBarChart,
   ClipboardCheck,
   CalendarPlus,
+  AlertTriangle,
+  Mail,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useBookings } from '@/hooks/useBookings'
@@ -36,6 +39,8 @@ import { navigateTo, navigateToSession } from '@/utils/navigation'
 import { isDemoMode } from '@/lib/supabase'
 import { LoadingState, HelpBanner } from '@/components/ui'
 import { CalendarIntegrationModal } from '@/components/calendar/CalendarIntegrationModal'
+import { OnboardingTour } from '@/components/OnboardingTour'
+import { useOnboardingTour } from '@/hooks/useOnboardingTour'
 import type { UsageSummary, Evaluation } from '@/types'
 
 // ==================== CONSTANTES DÉMO ====================
@@ -141,6 +146,16 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   // Calendar integration modal
   const [showCalendarModal, setShowCalendarModal] = useState(false)
 
+  // Onboarding tour
+  const tour = useOnboardingTour()
+  useEffect(() => {
+    if (user?.role === 'admin' && !tour.hasCompleted && !tour.isActive) {
+      // Auto-start for admin users who haven't completed the tour
+      const timer = setTimeout(() => tour.startTour(), 800)
+      return () => clearTimeout(timer)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Student enriched data
   const [studentAttendanceRate, setStudentAttendanceRate] = useState<number | null>(null)
   const [studentAverage, setStudentAverage] = useState<number | null>(null)
@@ -157,6 +172,43 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
   // Loading global
   const isLoading = bookingsLoading || roomsLoading || usersLoading
 
+  // ==================== TENDANCES ADMIN (semaine vs semaine précédente) ====================
+
+  const adminTrends = useMemo(() => {
+    if (isDemoMode || isTeacher || isStudent) return null
+
+    const now = new Date()
+    const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 })
+    const thisWeekEnd = endOfWeek(now, { weekStartsOn: 1 })
+    const lastWeekStart = subWeeks(thisWeekStart, 1)
+    const lastWeekEnd = subWeeks(thisWeekEnd, 1)
+
+    const inRange = (dateStr: string, start: Date, end: Date) => {
+      const d = new Date(dateStr)
+      return d >= start && d <= end
+    }
+
+    const thisWeekSessions = bookings.filter(b => b.startDateTime && inRange(b.startDateTime, thisWeekStart, thisWeekEnd) && b.status !== 'cancelled')
+    const lastWeekSessions = bookings.filter(b => b.startDateTime && inRange(b.startDateTime, lastWeekStart, lastWeekEnd) && b.status !== 'cancelled')
+
+    const sessionsDiff = thisWeekSessions.length - lastWeekSessions.length
+
+    const thisWeekHours = thisWeekSessions.reduce((acc, b) => {
+      if (!b.startDateTime || !b.endDateTime) return acc
+      return acc + differenceInMinutes(new Date(b.endDateTime), new Date(b.startDateTime))
+    }, 0)
+    const lastWeekHours = lastWeekSessions.reduce((acc, b) => {
+      if (!b.startDateTime || !b.endDateTime) return acc
+      return acc + differenceInMinutes(new Date(b.endDateTime), new Date(b.startDateTime))
+    }, 0)
+    const hoursDiff = Math.round((thisWeekHours - lastWeekHours) / 60 * 10) / 10
+
+    // Cancelled this week
+    const cancelledThisWeek = bookings.filter(b => b.startDateTime && inRange(b.startDateTime, thisWeekStart, thisWeekEnd) && b.status === 'cancelled').length
+
+    return { sessionsDiff, hoursDiff, thisWeekSessions: thisWeekSessions.length, cancelledThisWeek }
+  }, [isDemoMode, isTeacher, isStudent, bookings])
+
   // ==================== DONNÉES CALCULÉES ====================
 
   // KPI Stats
@@ -165,6 +217,13 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
 
     const inProgressCount = bookingsByStatus['in_progress']?.length ?? 0
     const scheduledCount = bookingsByStatus['scheduled']?.length ?? 0
+
+    // Trend helper
+    const trendText = (diff: number, unit: string) => {
+      if (diff === 0) return '= sem. dernière'
+      const sign = diff > 0 ? '+' : ''
+      return `${sign}${diff} ${unit} vs sem. dernière`
+    }
 
     return [
       {
@@ -177,13 +236,14 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         iconColor: 'text-primary-600',
       },
       {
-        label: 'Séances',
-        value: String(bookings.length),
-        change: `${scheduledCount} planifiées`,
-        changeType: 'success' as const,
+        label: 'Séances semaine',
+        value: String(adminTrends?.thisWeekSessions ?? scheduledCount),
+        change: adminTrends ? trendText(adminTrends.sessionsDiff, '') : `${scheduledCount} planifiées`,
+        changeType: (adminTrends && adminTrends.sessionsDiff < 0 ? 'warning' : 'success') as 'success' | 'warning',
         icon: CalendarCheck,
         iconBg: 'bg-success-100',
         iconColor: 'text-success-600',
+        trend: adminTrends?.sessionsDiff,
       },
       {
         label: 'En cours',
@@ -203,8 +263,17 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         iconBg: 'bg-error-100',
         iconColor: 'text-error-600',
       },
+      {
+        label: 'Séances total',
+        value: String(bookings.length),
+        change: `${scheduledCount} planifiées`,
+        changeType: 'success' as const,
+        icon: BarChart3,
+        iconBg: 'bg-violet-100',
+        iconColor: 'text-violet-600',
+      },
     ]
-  }, [isDemoMode, rooms.length, totalCapacity, bookings.length, bookingsByStatus, userStats.total, teachers.length])
+  }, [isDemoMode, rooms.length, totalCapacity, bookings.length, bookingsByStatus, userStats.total, teachers.length, adminTrends])
 
   // Prochaines séances
   const nextSessions = useMemo(() => {
@@ -340,6 +409,56 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
       }
     })
   }, [usageSummary])
+
+  // ==================== ALERTES ADMIN ====================
+
+  const adminAlerts = useMemo(() => {
+    if (isDemoMode || isTeacher || isStudent) return []
+
+    const alerts: { type: 'warning' | 'error' | 'info'; text: string }[] = []
+
+    // Sessions annulées cette semaine
+    if (adminTrends && adminTrends.cancelledThisWeek > 0) {
+      alerts.push({ type: 'warning', text: `${adminTrends.cancelledThisWeek} séance${adminTrends.cancelledThisWeek > 1 ? 's' : ''} annulée${adminTrends.cancelledThisWeek > 1 ? 's' : ''} cette semaine` })
+    }
+
+    // Quota warnings
+    if (quotaItems) {
+      for (const item of quotaItems) {
+        if (!item.isUnlimited && item.pct >= 90) {
+          alerts.push({ type: 'error', text: `Quota ${item.label} quasi atteint (${item.current}/${item.max})` })
+        } else if (!item.isUnlimited && item.pct >= 75) {
+          alerts.push({ type: 'warning', text: `Quota ${item.label} à ${item.pct}% (${item.current}/${item.max})` })
+        }
+      }
+    }
+
+    // Occupation rate too high
+    if (globalOccupation !== null && globalOccupation > 85) {
+      alerts.push({ type: 'warning', text: `Taux d'occupation élevé (${globalOccupation}%) — envisagez d'ajouter des salles` })
+    }
+
+    // Sessions sans salle
+    const noRoom = bookings.filter(b => !b.roomId && b.status === 'scheduled').length
+    if (noRoom > 0) {
+      alerts.push({ type: 'info', text: `${noRoom} séance${noRoom > 1 ? 's' : ''} planifiée${noRoom > 1 ? 's' : ''} sans salle assignée` })
+    }
+
+    return alerts
+  }, [isDemoMode, isTeacher, isStudent, adminTrends, quotaItems, globalOccupation, bookings])
+
+  // ==================== EMAIL QUOTA ADMIN ====================
+
+  const [emailQuota, setEmailQuota] = useState<{ sent: number; limit: number } | null>(null)
+
+  useEffect(() => {
+    if (isDemoMode || isTeacher || isStudent || !user?.establishmentId) return
+    SubscriptionLimitsService.getEffectiveQuotas(user.establishmentId).then(q => {
+      if (q.emails) {
+        setEmailQuota({ sent: q.emails.usedToday, limit: q.emails.total })
+      }
+    }).catch(() => { /* ignore */ })
+  }, [isDemoMode, isTeacher, isStudent, user?.establishmentId])
 
   // ==================== DONNÉES ÉTUDIANT ====================
 
@@ -1113,36 +1232,46 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
       </HelpBanner>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat) => (
-          <div key={stat.label} className="card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{stat.label}</p>
-                <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{stat.value}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        {stats.map((stat) => {
+          const trend = 'trend' in stat ? (stat as any).trend : undefined
+          return (
+            <div key={stat.label} className="card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{stat.label}</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">{stat.value}</p>
+                </div>
+                <div className={`p-3 rounded-xl ${stat.iconBg}`}>
+                  <stat.icon size={22} className={stat.iconColor} />
+                </div>
               </div>
-              <div className={`p-3 rounded-xl ${stat.iconBg}`}>
-                <stat.icon size={22} className={stat.iconColor} />
-              </div>
-            </div>
-            <div className="mt-3 flex items-center gap-1">
-              {stat.changeType === 'success' && (
-                <ArrowUpRight size={14} className="text-success-600" />
-              )}
-              {stat.changeType === 'warning' && (
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-warning-500" />
+              <div className="mt-3 flex items-center gap-1">
+                {trend !== undefined && trend > 0 && (
+                  <ArrowUpRight size={14} className="text-success-600" />
+                )}
+                {trend !== undefined && trend < 0 && (
+                  <ArrowDownRight size={14} className="text-error-600" />
+                )}
+                {trend === undefined && stat.changeType === 'success' && (
+                  <ArrowUpRight size={14} className="text-success-600" />
+                )}
+                {trend === undefined && stat.changeType === 'warning' && (
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-warning-500" />
+                  </span>
+                )}
+                <span className={`text-sm font-medium ${
+                  trend !== undefined && trend < 0 ? 'text-error-600' :
+                  stat.changeType === 'success' ? 'text-success-600' : 'text-warning-600'
+                }`}>
+                  {stat.change}
                 </span>
-              )}
-              <span className={`text-sm font-medium ${
-                stat.changeType === 'success' ? 'text-success-600' : 'text-warning-600'
-              }`}>
-                {stat.change}
-              </span>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Taux d'occupation moyen */}
@@ -1188,6 +1317,40 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
         </div>
       </div>
 
+      {/* Alertes */}
+      {!isDemoMode && adminAlerts.length > 0 && (
+        <div className="mb-8">
+          <div className="card border-l-4 border-l-warning-500">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-warning-50 rounded-lg">
+                <AlertTriangle size={20} className="text-warning-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Alertes</h3>
+            </div>
+            <div className="space-y-2">
+              {adminAlerts.map((alert, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                    alert.type === 'error'
+                      ? 'bg-error-50 dark:bg-error-900/20 text-error-700 dark:text-error-400'
+                      : alert.type === 'warning'
+                        ? 'bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400'
+                        : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                  }`}
+                >
+                  <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${
+                    alert.type === 'error' ? 'bg-error-500' :
+                    alert.type === 'warning' ? 'bg-warning-500' : 'bg-blue-500'
+                  }`} />
+                  {alert.text}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quotas d'utilisation (masqués en mode démo) */}
       {!isDemoMode && quotaItems && (
         <div className="mb-8">
@@ -1198,7 +1361,7 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
               </div>
               <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Quotas d'utilisation</h3>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quotaItems.map(item => (
                 <div key={item.label}>
                   <div className="flex items-center justify-between text-sm mb-1">
@@ -1215,6 +1378,28 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
                   </div>
                 </div>
               ))}
+              {emailQuota && (
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-neutral-600 dark:text-neutral-400 flex items-center gap-1">
+                      <Mail size={12} /> Emails / jour
+                    </span>
+                    <span className="font-medium text-neutral-900 dark:text-neutral-100">
+                      {emailQuota.sent} / {emailQuota.limit === -1 ? 'Illimité' : emailQuota.limit}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        emailQuota.limit === -1 ? 'bg-primary-500' :
+                        (emailQuota.sent / emailQuota.limit) > 0.9 ? 'bg-error-500' :
+                        (emailQuota.sent / emailQuota.limit) > 0.7 ? 'bg-warning-500' : 'bg-success-500'
+                      }`}
+                      style={{ width: emailQuota.limit === -1 ? '10%' : `${Math.min(Math.round((emailQuota.sent / emailQuota.limit) * 100), 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1322,6 +1507,15 @@ function DashboardPage({ onNavigate }: DashboardPageProps) {
       <CalendarIntegrationModal
         isOpen={showCalendarModal}
         onClose={() => setShowCalendarModal(false)}
+      />
+      <OnboardingTour
+        steps={tour.steps}
+        currentStep={tour.currentStep}
+        isActive={tour.isActive}
+        onNext={tour.nextStep}
+        onPrev={tour.prevStep}
+        onSkip={tour.skipTour}
+        onComplete={tour.completeTour}
       />
     </div>
   )

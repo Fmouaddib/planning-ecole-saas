@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { User, RegisterData, UseUsersReturn, UUID, UserRole } from '@/types'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
-import { getErrorMessage } from '@/utils'
+import { getUserFriendlyError } from '@/utils'
 import { transformUser } from '@/utils/transforms'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
@@ -27,7 +27,7 @@ export function useUsers(): UseUsersReturn {
   }, [])
 
   const handleError = useCallback((error: unknown, _defaultMessage = 'Une erreur est survenue') => {
-    const message = getErrorMessage(error)
+    const message = getUserFriendlyError(error)
     setError(message)
     console.error('Users Error:', error)
     return message
@@ -45,16 +45,29 @@ export function useUsers(): UseUsersReturn {
       setIsLoading(true)
       setError(null)
 
+      const centerId = currentUser.establishmentId
+
+      // 1. Profils directs du centre
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('center_id', currentUser.establishmentId)
-        .eq('is_active', true)
+        .eq('center_id', centerId)
         .order('full_name')
 
       if (fetchError) throw fetchError
 
-      setUsers((data || []).map(transformUser))
+      const directUsers = (data || []).map(transformUser)
+      const directIds = new Set(directUsers.map(u => u.id))
+
+      // 2. Utilisateurs liés via user_centers (multi-centre)
+      const { data: linkedData } = await supabase
+        .rpc('get_center_linked_users', { p_center_id: centerId })
+
+      const linkedUsers = (linkedData || [])
+        .filter((u: any) => !directIds.has(u.id))
+        .map(transformUser)
+
+      setUsers([...directUsers, ...linkedUsers])
     } catch (error) {
       handleError(error, 'Erreur lors du chargement des utilisateurs')
     } finally {
@@ -80,101 +93,168 @@ export function useUsers(): UseUsersReturn {
 
     try {
       setError(null)
+      const centerId = currentUser.establishmentId
 
       // Vérifier les limites d'abonnement
-      const limitCheck = await SubscriptionLimitsService.checkLimit(currentUser.establishmentId, 'users')
+      const limitCheck = await SubscriptionLimitsService.checkLimit(centerId, 'users')
       if (!limitCheck.allowed) {
         const message = `Limite du plan atteinte (${limitCheck.current}/${limitCheck.max} utilisateurs). Contactez votre administrateur pour upgrader.`
         toast.error(message)
         throw new Error(message)
       }
 
-      // Mode invitation : mot de passe aléatoire (l'utilisateur le définira via le lien)
-      const effectivePassword = data.sendInvitation
-        ? crypto.randomUUID() + 'Aa1!'   // Satisfait les contraintes de mot de passe
-        : data.password
+      // ========== VÉRIFICATION EMAIL EXISTANT ==========
+      // Chercher dans les profils du même centre (RLS-scoped)
+      const { data: existingInCenter } = await supabase
+        .from('profiles')
+        .select('id, is_active, role, full_name')
+        .eq('email', data.email)
+        .eq('center_id', centerId)
+        .maybeSingle()
 
-      // Sauvegarder la session admin avant de créer le compte
-      const { data: { session: adminSession } } = await supabase.auth.getSession()
+      // Cas 1 : L'email existe déjà dans ce centre et est actif
+      if (existingInCenter && existingInCenter.is_active) {
+        throw new Error(`Un utilisateur avec l'email "${data.email}" existe déjà dans votre centre`)
+      }
 
-      // Créer le compte avec signUp (admin.createUser nécessite service_role key)
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
-        password: effectivePassword,
-        options: {
-          data: {
+      // Cas 2 : L'email existe dans ce centre mais est bloqué/inactif → réactiver
+      if (existingInCenter && !existingInCenter.is_active) {
+        const { data: reactivated, error: reactivateError } = await supabase
+          .from('profiles')
+          .update({
+            is_active: true,
             full_name: `${data.firstName} ${data.lastName}`,
             role: data.role || 'student',
-          },
+          })
+          .eq('id', existingInCenter.id)
+          .select()
+          .single()
+
+        if (reactivateError) throw reactivateError
+
+        // Débloquer dans GoTrue
+        await supabase.functions.invoke('admin-update-user', {
+          body: { user_id: existingInCenter.id, action: 'unban' },
+        })
+
+        const transformed = transformUser(reactivated)
+
+        // Envoyer l'invitation si demandé
+        if (data.sendInvitation) {
+          const activeCtx = getActiveContext()
+          const centerName = activeCtx?.centerName || 'votre centre'
+          const invCenterId = activeCtx?.centerId || centerId || ''
+
+          const { error: inviteError } = await supabase.functions.invoke('send-invitation', {
+            body: {
+              email: data.email,
+              userName: `${data.firstName} ${data.lastName}`.trim(),
+              centerName,
+              centerId: invCenterId,
+              role: data.role || 'student',
+              redirectTo: window.location.origin,
+            },
+          })
+          if (inviteError) {
+            console.error('[useUsers] send-invitation error:', inviteError)
+            toast.error('Compte réactivé mais l\'email d\'invitation n\'a pas pu être envoyé')
+          }
+        }
+
+        setUsers(prev => {
+          const existing = prev.find(u => u.id === transformed.id)
+          if (existing) return prev.map(u => u.id === transformed.id ? transformed : u)
+          return [...prev, transformed]
+        })
+        toast.success(
+          data.sendInvitation
+            ? `Compte "${transformed.firstName} ${transformed.lastName}" réactivé — invitation envoyée`
+            : `Compte "${transformed.firstName} ${transformed.lastName}" réactivé avec succès`
+        )
+
+        AuditService.logCrud('updated', 'user', transformed.id, currentUser.id, centerId, {
+          email: transformed.email, action: 'reactivated',
+        })
+
+        return transformed
+      }
+
+      // ========== CRÉATION VIA EDGE FUNCTION ==========
+      // Utilise create-user-for-center qui gère :
+      // - Création d'un nouvel utilisateur (auth.users + profiles)
+      // - Liaison d'un utilisateur existant (autre centre → user_centers)
+      // - Envoi d'invitation email
+      // Tout côté serveur avec service_role, sans perturber la session admin
+
+      const { data: result, error: fnError } = await supabase.functions.invoke('create-user-for-center', {
+        body: {
+          email: data.email,
+          full_name: `${data.firstName} ${data.lastName}`.trim(),
+          role: data.role || 'student',
+          center_id: centerId,
+          phone: (data as any).phone || null,
+          password: data.sendInvitation ? null : data.password,
+          send_invitation: data.sendInvitation,
         },
       })
 
-      if (signUpError) throw signUpError
-      if (!signUpData.user) throw new Error('Échec de la création du compte')
-
-      // Restaurer la session admin si signUp a changé la session
-      if (adminSession && signUpData.session) {
-        await supabase.auth.setSession({
-          access_token: adminSession.access_token,
-          refresh_token: adminSession.refresh_token,
-        })
-      }
-
-      // Toujours utiliser le center_id de l'admin (pas celui du formulaire)
-      const centerId = currentUser.establishmentId
-
-      // Créer l'entrée dans la table profiles
-      const { data: newUser, error: userError } = await supabase
-        .from('profiles')
-        .insert({
-          id: signUpData.user.id,
-          email: data.email,
-          full_name: `${data.firstName} ${data.lastName}`,
-          center_id: centerId,
-          role: data.role || 'student',
-          is_active: true,
-        })
-        .select()
-        .single()
-
-      if (userError) throw userError
-
-      const transformed = transformUser(newUser)
-
-      // Envoyer l'email d'invitation si demandé
-      if (data.sendInvitation) {
-        const activeCtx = getActiveContext()
-        const centerName = activeCtx?.centerName || 'votre centre'
-        const invCenterId = activeCtx?.centerId || centerId || ''
-
-        const { error: inviteError } = await supabase.functions.invoke('send-invitation', {
-          body: {
-            email: data.email,
-            userName: `${data.firstName} ${data.lastName}`.trim(),
-            centerName,
-            centerId: invCenterId,
-            role: data.role || 'student',
-            redirectTo: window.location.origin, // fallback — edge function resolves production URL from centerId
-          },
-        })
-
-        if (inviteError) {
-          console.error('[useUsers] send-invitation error:', inviteError)
-          toast.error('Utilisateur créé mais l\'email d\'invitation n\'a pas pu être envoyé')
+      if (fnError) {
+        // Extraire le message d'erreur depuis la réponse de l'Edge Function
+        let errMsg = ''
+        try {
+          // FunctionsHttpError : la réponse est dans .context (Response object)
+          if (typeof fnError === 'object' && 'context' in fnError) {
+            const resp = (fnError as any).context
+            if (resp && typeof resp.json === 'function') {
+              const body = await resp.json()
+              errMsg = body?.error || ''
+            }
+          }
+          // Fallback: message direct
+          if (!errMsg && (fnError as any)?.message) {
+            const msg = (fnError as any).message
+            // Tenter de parser si c'est du JSON
+            try {
+              const parsed = JSON.parse(msg)
+              errMsg = parsed?.error || msg
+            } catch {
+              errMsg = msg
+            }
+          }
+        } catch (parseErr) {
+          console.error('[useUsers] Error parsing fnError:', parseErr, fnError)
         }
+        throw new Error(errMsg || 'Erreur edge function create-user-for-center')
       }
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Réponse inattendue de create-user-for-center')
+      }
+
+      const createdUser = result.user
+      const transformed = transformUser({
+        ...createdUser,
+        avatar_url: createdUser.avatar_url || null,
+        linkedin: createdUser.linkedin || null,
+        created_at: createdUser.created_at || new Date().toISOString(),
+        updated_at: createdUser.updated_at || new Date().toISOString(),
+      })
 
       setUsers(prev => [...prev, transformed])
+
+      const isLinked = result.linked === true
       toast.success(
-        data.sendInvitation
-          ? `Utilisateur "${transformed.firstName} ${transformed.lastName}" créé — invitation envoyée par email`
-          : `Utilisateur "${transformed.firstName} ${transformed.lastName}" créé avec succès`
+        isLinked
+          ? `Utilisateur existant "${data.firstName} ${data.lastName}" ajouté à votre centre`
+          : data.sendInvitation
+            ? `Utilisateur "${transformed.firstName} ${transformed.lastName}" créé — invitation envoyée`
+            : `Utilisateur "${transformed.firstName} ${transformed.lastName}" créé avec succès`
       )
 
-      // Audit logging
-      AuditService.logCrud('created', 'user', transformed.id, currentUser.id, currentUser.establishmentId, {
-        email: transformed.email,
-        role: transformed.role,
+      AuditService.logCrud('created', 'user', createdUser.id, currentUser.id, centerId, {
+        email: data.email,
+        role: data.role,
+        action: isLinked ? 'linked_from_other_center' : 'created',
         sendInvitation: data.sendInvitation,
       })
 
@@ -204,20 +284,29 @@ export function useUsers(): UseUsersReturn {
         const ln = updateData.lastName || ''
         userData.full_name = `${fn} ${ln}`.trim()
       }
-      if (updateData.email) userData.email = updateData.email
+      // Email is NOT updated in profiles here — it will be synced by the USER_UPDATED auth handler after confirmation
       if (updateData.profilePicture) userData.avatar_url = updateData.profilePicture
       if (updateData.phone !== undefined) userData.phone = updateData.phone || null
       if (updateData.linkedin !== undefined) userData.linkedin = updateData.linkedin || null
 
       if (isAdmin) {
-        if (updateData.role) userData.role = updateData.role
+        if (updateData.role) {
+          // Prevent privilege escalation to super_admin
+          const safeRoles = ['student', 'teacher', 'staff', 'admin', 'trainer', 'coordinator']
+          if (safeRoles.includes(updateData.role)) {
+            userData.role = updateData.role
+          }
+        }
         if (updateData.isActive !== undefined) userData.is_active = updateData.isActive
       }
+
+      const existingUser = users.find(u => u.id === id)
 
       const { data: updatedUser, error: updateError } = await supabase
         .from('profiles')
         .update(userData)
         .eq('id', id)
+        .eq('center_id', currentUser?.establishmentId)
         .select()
         .single()
 
@@ -225,14 +314,16 @@ export function useUsers(): UseUsersReturn {
 
       const transformed = transformUser(updatedUser)
 
-      // Mettre à jour l'email dans Supabase Auth si nécessaire et si c'est un admin
-      if (isAdmin && updateData.email) {
-        const { error: emailError } = await supabase.auth.admin.updateUserById(id, {
-          email: updateData.email,
+      // Email change: use change-email Edge Function for confirmation flow
+      if (isAdmin && updateData.email && updateData.email !== existingUser?.email) {
+        const { error: emailChangeError } = await supabase.functions.invoke('change-email', {
+          body: { user_id: id, new_email: updateData.email },
         })
-
-        if (emailError) {
-          console.warn('Could not update email in Auth:', emailError)
+        if (emailChangeError) {
+          console.error('[useUsers] change-email error:', emailChangeError)
+          toast.error('Le changement d\'email n\'a pas pu être initié')
+        } else {
+          toast.success(`Un email de confirmation a été envoyé à ${updateData.email}`)
         }
       }
 
@@ -269,13 +360,26 @@ export function useUsers(): UseUsersReturn {
     try {
       setError(null)
 
-      // Soft delete - marquer comme inactif
-      const { error: deleteError } = await supabase
+      // Soft delete - marquer comme inactif (scoped to center)
+      // Essayer d'abord profiles (profil direct), puis user_centers (lien multi-centre)
+      const { data: profileHit, error: deleteError } = await supabase
         .from('profiles')
         .update({ is_active: false })
         .eq('id', id)
+        .eq('center_id', currentUser?.establishmentId)
+        .select('id')
 
       if (deleteError) throw deleteError
+
+      // Si pas trouvé dans profiles, désactiver dans user_centers
+      if (!profileHit || profileHit.length === 0) {
+        const { error: ucError } = await supabase
+          .from('user_centers')
+          .update({ is_active: false })
+          .eq('user_id', id)
+          .eq('center_id', currentUser?.establishmentId)
+        if (ucError) throw ucError
+      }
 
       setUsers(prev => prev.filter(user => user.id !== id))
       toast.success('Utilisateur supprimé avec succès')
@@ -290,6 +394,145 @@ export function useUsers(): UseUsersReturn {
       throw error
     }
   }, [currentUser?.role, currentUser?.id, handleError])
+
+  // ==================== BLOCK / UNBLOCK ====================
+
+  const blockUser = useCallback(async (id: UUID): Promise<void> => {
+    if (currentUser?.role !== 'admin' && currentUser?.role !== 'super_admin') {
+      throw new Error('Seuls les administrateurs peuvent bloquer des utilisateurs')
+    }
+    if (id === currentUser?.id) {
+      throw new Error('Vous ne pouvez pas bloquer votre propre compte')
+    }
+    try {
+      setError(null)
+      // Update profile (direct ou via user_centers)
+      const { data: profileHit } = await supabase
+        .from('profiles')
+        .update({ is_active: false })
+        .eq('id', id)
+        .eq('center_id', currentUser?.establishmentId)
+        .select('id')
+
+      if (!profileHit || profileHit.length === 0) {
+        // Utilisateur lié via user_centers
+        const { error: ucError } = await supabase
+          .from('user_centers')
+          .update({ is_active: false })
+          .eq('user_id', id)
+          .eq('center_id', currentUser?.establishmentId)
+        if (ucError) throw ucError
+      }
+
+      // Ban in GoTrue seulement si c'est un profil direct (pas multi-centre)
+      if (profileHit && profileHit.length > 0) {
+        const { error: banError } = await supabase.functions.invoke('admin-update-user', {
+          body: { user_id: id, action: 'ban' },
+        })
+        if (banError) console.error('GoTrue ban error:', banError)
+      }
+
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, isActive: false } : u))
+      toast.success('Utilisateur bloqué')
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors du blocage')
+      toast.error(message)
+      throw error
+    }
+  }, [currentUser?.role, currentUser?.id, currentUser?.establishmentId, handleError])
+
+  const unblockUser = useCallback(async (id: UUID): Promise<void> => {
+    if (currentUser?.role !== 'admin' && currentUser?.role !== 'super_admin') {
+      throw new Error('Seuls les administrateurs peuvent débloquer des utilisateurs')
+    }
+    if (id === currentUser?.id) {
+      throw new Error('Vous ne pouvez pas débloquer votre propre compte')
+    }
+    try {
+      setError(null)
+      // Update profile (direct ou via user_centers)
+      const { data: profileHit } = await supabase
+        .from('profiles')
+        .update({ is_active: true })
+        .eq('id', id)
+        .eq('center_id', currentUser?.establishmentId)
+        .select('id')
+
+      if (!profileHit || profileHit.length === 0) {
+        // Utilisateur lié via user_centers
+        const { error: ucError } = await supabase
+          .from('user_centers')
+          .update({ is_active: true })
+          .eq('user_id', id)
+          .eq('center_id', currentUser?.establishmentId)
+        if (ucError) throw ucError
+      }
+
+      // Unban in GoTrue seulement si c'est un profil direct
+      if (profileHit && profileHit.length > 0) {
+        const { error: unbanError } = await supabase.functions.invoke('admin-update-user', {
+          body: { user_id: id, action: 'unban' },
+        })
+        if (unbanError) console.error('GoTrue unban error:', unbanError)
+      }
+
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, isActive: true } : u))
+      toast.success('Utilisateur débloqué')
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors du déblocage')
+      toast.error(message)
+      throw error
+    }
+  }, [currentUser?.role, currentUser?.id, currentUser?.establishmentId, handleError])
+
+  // ==================== PASSWORD RESET ====================
+
+  const sendPasswordReset = useCallback(async (userId: UUID): Promise<void> => {
+    const targetUser = users.find(u => u.id === userId)
+    if (!targetUser) throw new Error('Utilisateur introuvable')
+
+    const activeCtx = getActiveContext()
+    const centerName = activeCtx?.centerName || 'votre centre'
+    const centerId = activeCtx?.centerId || currentUser?.establishmentId || ''
+
+    const { error } = await supabase.functions.invoke('send-invitation', {
+      body: {
+        email: targetUser.email,
+        userName: `${targetUser.firstName} ${targetUser.lastName}`.trim(),
+        centerName,
+        centerId,
+        role: targetUser.role,
+        redirectTo: window.location.origin,
+        customSubject: 'Réinitialisation de votre mot de passe — AntiPlanning',
+        customHtmlContent: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+  <div style="background:linear-gradient(135deg,#FF5B46,#FBA625);color:white;padding:24px;border-radius:8px 8px 0 0">
+    <h1 style="margin:0;font-size:22px">Réinitialisation de mot de passe</h1>
+  </div>
+  <div style="padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;background:#fff">
+    <p style="font-size:15px;color:#333">Bonjour <strong>${targetUser.firstName}</strong>,</p>
+    <p style="font-size:15px;color:#333">Votre administrateur a initié une réinitialisation de votre mot de passe sur <strong>${centerName}</strong>.</p>
+    <p style="font-size:15px;color:#333">Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe :</p>
+    <p style="text-align:center;margin:28px 0">
+      <a href="{{setup_url}}" style="display:inline-block;background:linear-gradient(135deg,#FF5B46,#FBA625);color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">
+        Définir un nouveau mot de passe
+      </a>
+    </p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:16px">
+      Ce lien est valable 24 heures. Si vous n'avez pas demandé cette réinitialisation, contactez votre administrateur.
+    </p>
+  </div>
+  <p style="color:#9ca3af;font-size:11px;margin-top:16px;text-align:center">AntiPlanning — Ne pas répondre à cet email</p>
+</div>`,
+      },
+    })
+
+    if (error) {
+      console.error('[useUsers] password reset error:', error)
+      throw new Error('L\'email de réinitialisation n\'a pas pu être envoyé')
+    }
+
+    toast.success(`Email de réinitialisation envoyé à ${targetUser.email}`)
+  }, [users, currentUser?.establishmentId])
 
   // ==================== INVITATION ====================
 
@@ -455,6 +698,9 @@ export function useUsers(): UseUsersReturn {
     createUser,
     updateUser,
     deleteUser,
+    blockUser,
+    unblockUser,
+    sendPasswordReset,
     sendInvitationToUser,
     getUserById,
     getUsersByRole,

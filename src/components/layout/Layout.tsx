@@ -5,9 +5,9 @@ import { NotificationPanel } from './NotificationPanel'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useChatNotifications } from '@/hooks/useChat'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
-import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { User } from '@/types'
-import { Download, WifiOff, X } from 'lucide-react'
+import { Download, X, Share } from 'lucide-react'
+import { OfflineBanner } from '@/components/OfflineBanner'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -35,7 +35,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(getInitialTheme)
   const [notifPanelOpen, setNotifPanelOpen] = useState(false)
-  const [installDismissed, setInstallDismissed] = useState(() => sessionStorage.getItem('pwa-install-dismissed') === '1')
+  // Install prompt state is now managed inside useInstallPrompt (7-day localStorage dismiss)
   const {
     notifications,
     unreadCount,
@@ -44,9 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({
     deleteNotification,
   } = useNotifications()
   const { messages: chatMessages, totalUnread: chatUnreadCount } = useChatNotifications()
-  const { isInstallable, promptInstall } = useInstallPrompt()
-  const isOnline = useOnlineStatus()
-
+  const { isInstallable, showIosInstructions, promptInstall, dismiss: dismissInstall } = useInstallPrompt()
   // Appliquer le thème au montage et à chaque changement
   useEffect(() => {
     if (isDarkMode) {
@@ -79,33 +77,42 @@ export const Layout: React.FC<LayoutProps> = ({
     localStorage.setItem('theme', next ? 'dark' : 'light')
   }
 
-  const dismissInstall = () => {
-    setInstallDismissed(true)
-    sessionStorage.setItem('pwa-install-dismissed', '1')
-  }
-
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 transition-colors">
-      {/* Offline banner */}
-      {!isOnline && (
-        <div className="bg-amber-500 text-white text-center text-sm py-2 px-4 flex items-center justify-center gap-2">
-          <WifiOff size={16} />
-          <span>Vous êtes hors connexion — certaines fonctionnalités sont indisponibles</span>
-        </div>
-      )}
+      {/* Skip to content link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-medium focus:shadow-lg focus:outline-none"
+      >
+        Passer au contenu
+      </a>
 
-      {/* Install banner */}
-      {isInstallable && !installDismissed && (
+      {/* Offline banner */}
+      <OfflineBanner />
+
+      {/* Install banner (Android / Desktop) */}
+      {isInstallable && (
         <div className="bg-primary-600 text-white text-sm py-2 px-4 flex items-center justify-center gap-3">
           <Download size={16} />
-          <span>Installez Planning École pour un accès rapide</span>
+          <span>Installer Anti-Planning sur votre appareil</span>
           <button
             onClick={promptInstall}
             className="px-3 py-0.5 bg-white text-primary-700 rounded-md text-xs font-semibold hover:bg-primary-50 transition-colors"
           >
             Installer
           </button>
-          <button onClick={dismissInstall} className="ml-1 p-0.5 hover:bg-primary-700 rounded transition-colors">
+          <button onClick={dismissInstall} aria-label="Fermer" className="ml-1 p-0.5 hover:bg-primary-700 rounded transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Install banner (iOS - manual instructions) */}
+      {showIosInstructions && (
+        <div className="bg-primary-600 text-white text-sm py-2 px-4 flex items-center justify-center gap-3">
+          <Share size={16} />
+          <span>Appuyez sur Partager puis Ajouter a l'ecran d'accueil</span>
+          <button onClick={dismissInstall} aria-label="Fermer" className="ml-1 p-0.5 hover:bg-primary-700 rounded transition-colors">
             <X size={14} />
           </button>
         </div>
@@ -150,7 +157,7 @@ export const Layout: React.FC<LayoutProps> = ({
         />
 
         {/* Main content */}
-        <main className="flex-1 lg:ml-0">
+        <main id="main-content" className="flex-1 lg:ml-0">
           <div className="p-4 lg:p-6">
             {children}
           </div>

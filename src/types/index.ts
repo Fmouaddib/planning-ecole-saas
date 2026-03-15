@@ -17,7 +17,7 @@ export interface User {
   updatedAt: string
 }
 
-export type UserRole = 'admin' | 'teacher' | 'student' | 'staff' | 'super_admin'
+export type UserRole = 'admin' | 'teacher' | 'student' | 'staff' | 'super_admin' | 'trainer' | 'coordinator'
 
 export interface School {
   id: string
@@ -40,6 +40,17 @@ export interface SchoolSettings {
   slotDuration: number // en minutes
   theme: 'light' | 'dark' | 'auto'
   language: string
+}
+
+export interface Building {
+  id: string
+  centerId: string
+  name: string
+  address: string
+  floorCount: number
+  isAvailable: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Room {
@@ -103,7 +114,7 @@ export interface Booking {
   recurrence?: RecurrenceRule
   schoolId: string
   establishmentId: string
-  room?: { id: string; name: string; code?: string; room_type?: string; capacity?: number }
+  room?: { id: string; name: string; code?: string; room_type?: string; capacity?: number; buildingName?: string }
   user?: { id: string; firstName: string; lastName: string; email: string }
   attendees?: any[]
   cancelledAt?: string
@@ -316,6 +327,7 @@ export interface Class {
   id: string
   name: string
   diplomaId: string
+  programId?: string
   centerId: string
   academicYear: string
   academicYearId?: string
@@ -329,6 +341,7 @@ export interface Class {
   isActive: boolean
   createdAt: string
   diploma?: { id: string; title: string }
+  program?: { id: string; name: string }
 }
 
 export interface Subject {
@@ -527,11 +540,15 @@ export interface RoomFilters {
 
 export interface UseRoomsReturn {
   rooms: Room[]
+  buildings: Building[]
   isLoading: boolean
   error: string | null
   createRoom: (data: CreateRoomData) => Promise<Room>
   updateRoom: (data: UpdateRoomData) => Promise<Room>
   deleteRoom: (id: UUID) => Promise<void>
+  createBuilding: (data: { name: string; address?: string; floorCount?: number }) => Promise<Building>
+  updateBuilding: (id: string, data: { name?: string; address?: string; floorCount?: number }) => Promise<Building>
+  deleteBuilding: (id: string) => Promise<void>
   renameEquipment: (oldName: string, newName: string) => Promise<void>
   deleteEquipment: (name: string) => Promise<void>
   updateEquipmentCategory: (name: string, newCategory: EquipmentCategory) => Promise<void>
@@ -633,6 +650,9 @@ export interface UseUsersReturn {
   createUser: (data: RegisterData) => Promise<User>
   updateUser: (id: UUID, data: Partial<User>) => Promise<User>
   deleteUser: (id: UUID) => Promise<void>
+  blockUser: (id: UUID) => Promise<void>
+  unblockUser: (id: UUID) => Promise<void>
+  sendPasswordReset: (id: UUID) => Promise<void>
   sendInvitationToUser: (userId: UUID, options?: { customSubject?: string; customHtmlContent?: string }) => Promise<void>
   getUserById: (id: UUID) => User | undefined
   getUsersByRole: (role: UserRole) => User[]
@@ -888,6 +908,7 @@ export interface StudentContact {
   receiveBulletins: boolean
   receiveAbsences: boolean
   notes?: string
+  accessToken?: string
   createdAt: string
   updatedAt: string
 }

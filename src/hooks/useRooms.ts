@@ -1,14 +1,14 @@
 /**
- * Hook personnalisé pour la gestion des salles
- * Gère toutes les opérations CRUD sur les salles
+ * Hook personnalisé pour la gestion des salles et bâtiments
+ * Gère toutes les opérations CRUD sur les salles + bâtiments
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { Room, CreateRoomData, UpdateRoomData, RoomFilters, UseRoomsReturn, UUID, EquipmentCategory } from '@/types'
+import type { Room, Building, CreateRoomData, UpdateRoomData, RoomFilters, UseRoomsReturn, UUID, EquipmentCategory } from '@/types'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import { getErrorMessage } from '@/utils'
-import { transformRoom } from '@/utils/transforms'
+import { transformRoom, transformBuilding } from '@/utils/transforms'
 import { computeRenameUpdates, computeDeleteUpdates, computeCategoryUpdates } from '@/utils/equipmentCatalog'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
 import { AuditService } from '@/services/auditService'
@@ -16,6 +16,7 @@ import toast from 'react-hot-toast'
 
 export function useRooms(): UseRoomsReturn {
   const [rooms, setRooms] = useState<Room[]>([])
+  const [buildings, setBuildings] = useState<Building[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
@@ -35,6 +36,20 @@ export function useRooms(): UseRoomsReturn {
 
   // ==================== FETCH FUNCTIONS ====================
 
+  const fetchBuildings = useCallback(async () => {
+    if (isDemoMode || !user?.establishmentId) return
+
+    const { data, error: fetchError } = await supabase
+      .from('buildings')
+      .select('*')
+      .eq('center_id', user.establishmentId)
+      .eq('is_available', true)
+      .order('name')
+
+    if (fetchError) throw fetchError
+    setBuildings((data || []).map(transformBuilding))
+  }, [user?.establishmentId])
+
   const fetchRooms = useCallback(async () => {
     if (isDemoMode || !user?.establishmentId) {
       setIsLoading(false)
@@ -45,28 +60,123 @@ export function useRooms(): UseRoomsReturn {
       setIsLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('center_id', user.establishmentId)
-        .eq('is_available', true)
-        .order('name')
+      // Fetch buildings + rooms with building join in parallel
+      const [roomsResult] = await Promise.all([
+        supabase
+          .from('rooms')
+          .select('*, building:buildings(id, name)')
+          .eq('center_id', user.establishmentId)
+          .eq('is_available', true)
+          .order('name'),
+        fetchBuildings(),
+      ])
 
-      if (fetchError) throw fetchError
+      if (roomsResult.error) throw roomsResult.error
 
-      setRooms((data || []).map(transformRoom))
+      setRooms((roomsResult.data || []).map(transformRoom))
     } catch (error) {
       handleError(error, 'Erreur lors du chargement des salles')
     } finally {
       setIsLoading(false)
     }
-  }, [user?.establishmentId, handleError])
+  }, [user?.establishmentId, handleError, fetchBuildings])
 
   const refreshRooms = useCallback(async (): Promise<void> => {
     await fetchRooms()
   }, [fetchRooms])
 
-  // ==================== CRUD FUNCTIONS ====================
+  // ==================== BUILDING CRUD ====================
+
+  const createBuilding = useCallback(async (data: { name: string; address?: string; floorCount?: number }): Promise<Building> => {
+    if (!user?.establishmentId) throw new Error('Utilisateur non connecté')
+
+    try {
+      setError(null)
+      const { data: newBuilding, error: createError } = await supabase
+        .from('buildings')
+        .insert({
+          name: data.name,
+          address: data.address || '',
+          floor_count: data.floorCount || 1,
+          center_id: user.establishmentId,
+          is_available: true,
+        })
+        .select('*')
+        .single()
+
+      if (createError) throw createError
+
+      const transformed = transformBuilding(newBuilding)
+      setBuildings(prev => [...prev, transformed].sort((a, b) => a.name.localeCompare(b.name)))
+      toast.success(`Bâtiment "${transformed.name}" créé`)
+      AuditService.logCrud('created', 'building', transformed.id, user.id, user.establishmentId, { name: transformed.name })
+      return transformed
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors de la création du bâtiment')
+      toast.error(message)
+      throw error
+    }
+  }, [user?.establishmentId, user?.id, handleError])
+
+  const updateBuilding = useCallback(async (id: string, data: { name?: string; address?: string; floorCount?: number }): Promise<Building> => {
+    try {
+      setError(null)
+      const updateData: Record<string, unknown> = {}
+      if (data.name !== undefined) updateData.name = data.name
+      if (data.address !== undefined) updateData.address = data.address
+      if (data.floorCount !== undefined) updateData.floor_count = data.floorCount
+
+      const { data: updated, error: updateError } = await supabase
+        .from('buildings')
+        .update(updateData)
+        .eq('id', id)
+        .select('*')
+        .single()
+
+      if (updateError) throw updateError
+
+      const transformed = transformBuilding(updated)
+      setBuildings(prev => prev.map(b => b.id === id ? transformed : b))
+      toast.success(`Bâtiment "${transformed.name}" mis à jour`)
+      if (user) AuditService.logCrud('updated', 'building', id, user.id, user.establishmentId, { name: transformed.name })
+      return transformed
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors de la mise à jour du bâtiment')
+      toast.error(message)
+      throw error
+    }
+  }, [user, handleError])
+
+  const deleteBuilding = useCallback(async (id: string): Promise<void> => {
+    try {
+      setError(null)
+      // Soft delete
+      const { error: deleteError } = await supabase
+        .from('buildings')
+        .update({ is_available: false })
+        .eq('id', id)
+
+      if (deleteError) throw deleteError
+
+      // Détacher les salles de ce bâtiment
+      await supabase
+        .from('rooms')
+        .update({ building_id: null })
+        .eq('building_id', id)
+
+      setBuildings(prev => prev.filter(b => b.id !== id))
+      // Refresh rooms pour mettre à jour le buildingId
+      await fetchRooms()
+      toast.success('Bâtiment supprimé')
+      if (user) AuditService.logCrud('deleted', 'building', id, user.id, user.establishmentId)
+    } catch (error) {
+      const message = handleError(error, 'Erreur lors de la suppression du bâtiment')
+      toast.error(message)
+      throw error
+    }
+  }, [user, handleError, fetchRooms])
+
+  // ==================== ROOM CRUD FUNCTIONS ====================
 
   const createRoom = useCallback(async (data: CreateRoomData): Promise<Room> => {
     if (!user?.establishmentId) {
@@ -84,7 +194,7 @@ export function useRooms(): UseRoomsReturn {
         throw new Error(message)
       }
 
-      const roomData = {
+      const roomData: Record<string, unknown> = {
         name: data.name,
         capacity: data.capacity,
         room_type: data.roomType,
@@ -93,11 +203,16 @@ export function useRooms(): UseRoomsReturn {
         equipment: data.equipment || [],
         is_available: true,
       }
+      // Stocker building_id si fourni (UUID valide)
+      if (data.buildingId && data.buildingId.length > 10) {
+        roomData.building_id = data.buildingId
+        roomData.location = ''
+      }
 
       const { data: newRoom, error: createError } = await supabase
         .from('rooms')
         .insert(roomData)
-        .select('*')
+        .select('*, building:buildings(id, name)')
         .single()
 
       if (createError) throw createError
@@ -122,18 +237,28 @@ export function useRooms(): UseRoomsReturn {
     try {
       setError(null)
 
-      const updateData = {
+      const updateData: Record<string, unknown> = {
         name: data.name,
         capacity: data.capacity,
         room_type: data.roomType,
-        location: data.buildingId,
         equipment: data.equipment,
+      }
+
+      // Gérer building_id
+      if (data.buildingId !== undefined) {
+        if (data.buildingId && data.buildingId.length > 10) {
+          updateData.building_id = data.buildingId
+          updateData.location = ''
+        } else {
+          updateData.building_id = null
+          updateData.location = data.buildingId || ''
+        }
       }
 
       // Supprimer les propriétés undefined
       Object.keys(updateData).forEach(key => {
-        if (updateData[key as keyof typeof updateData] === undefined) {
-          delete updateData[key as keyof typeof updateData]
+        if (updateData[key] === undefined) {
+          delete updateData[key]
         }
       })
 
@@ -141,7 +266,7 @@ export function useRooms(): UseRoomsReturn {
         .from('rooms')
         .update(updateData)
         .eq('id', data.id)
-        .select('*')
+        .select('*, building:buildings(id, name)')
         .single()
 
       if (updateError) throw updateError
@@ -286,23 +411,16 @@ export function useRooms(): UseRoomsReturn {
 
   const filterRooms = useCallback((filters: RoomFilters): Room[] => {
     return rooms.filter(room => {
-      // Filtrer par type de salle
       if (filters.roomType && filters.roomType.length > 0) {
         if (!filters.roomType.includes(room.roomType)) return false
       }
-
-      // Filtrer par bâtiment
       if (filters.buildingId) {
         if (room.buildingId !== filters.buildingId) return false
       }
-
-      // Filtrer par capacité
       if (filters.capacity) {
         if (filters.capacity.min && room.capacity < filters.capacity.min) return false
         if (filters.capacity.max && room.capacity > filters.capacity.max) return false
       }
-
-      // Filtrer par équipement
       if (filters.equipment && filters.equipment.length > 0) {
         const roomEquipmentNames = room.equipment.map(eq => eq.name.toLowerCase())
         const hasRequiredEquipment = filters.equipment.some(equipName =>
@@ -310,12 +428,9 @@ export function useRooms(): UseRoomsReturn {
         )
         if (!hasRequiredEquipment) return false
       }
-
-      // Filtrer par statut actif
       if (filters.isActive !== undefined) {
         if (room.isActive !== filters.isActive) return false
       }
-
       return true
     })
   }, [rooms])
@@ -347,19 +462,49 @@ export function useRooms(): UseRoomsReturn {
     return rooms.reduce((total, room) => total + room.capacity, 0)
   }, [rooms])
 
-  // Grouper par type de salle (pas de buildings dans ce schéma)
-  const roomTypeLabels: Record<string, string> = {
-    classroom: 'Salles de cours',
-    lab: 'Laboratoires',
-    amphitheater: 'Amphithéâtres',
-    meeting_room: 'Salles de réunion',
-    computer_lab: 'Salles informatiques',
-    gym: 'Équipements sportifs',
-    library: 'Bibliothèques',
-    other: 'Autres',
-  }
-
+  // Grouper par bâtiment (vrais bâtiments si existants, sinon par type)
   const buildingsWithRooms = useMemo(() => {
+    if (buildings.length > 0) {
+      const result: { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }[] = []
+      const buildingMap = new Map<string, { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }>()
+
+      for (const b of buildings) {
+        buildingMap.set(b.id, { id: b.id, name: b.name, rooms: [] })
+      }
+
+      // Bâtiment "non assigné" pour les salles sans bâtiment
+      const unassigned: { id: string; name: string; capacity: number }[] = []
+
+      for (const room of rooms) {
+        if (room.buildingId && buildingMap.has(room.buildingId)) {
+          buildingMap.get(room.buildingId)!.rooms.push({ id: room.id, name: room.name, capacity: room.capacity })
+        } else {
+          unassigned.push({ id: room.id, name: room.name, capacity: room.capacity })
+        }
+      }
+
+      for (const b of buildingMap.values()) {
+        result.push(b)
+      }
+
+      if (unassigned.length > 0) {
+        result.push({ id: 'no-building', name: 'Non assignées', rooms: unassigned })
+      }
+
+      return result
+    }
+
+    // Fallback: grouper par type de salle
+    const roomTypeLabels: Record<string, string> = {
+      classroom: 'Salles de cours',
+      lab: 'Laboratoires',
+      amphitheater: 'Amphithéâtres',
+      conference: 'Salles de conférence',
+      gym: 'Équipements sportifs',
+      library: 'Bibliothèques',
+      office: 'Bureaux',
+    }
+
     const groupMap = new Map<string, { id: string; name: string; rooms: { id: string; name: string; capacity: number }[] }>()
 
     for (const room of rooms) {
@@ -373,7 +518,7 @@ export function useRooms(): UseRoomsReturn {
     }
 
     return Array.from(groupMap.values())
-  }, [rooms])
+  }, [rooms, buildings])
 
   // ==================== EFFECTS ====================
 
@@ -390,7 +535,7 @@ export function useRooms(): UseRoomsReturn {
     if (isDemoMode || !user?.establishmentId) return
 
     const channel = supabase
-      .channel('rooms-changes')
+      .channel('rooms-buildings-changes')
       .on(
         'postgres_changes',
         {
@@ -401,17 +546,27 @@ export function useRooms(): UseRoomsReturn {
         },
         (payload) => {
           console.log('Room change detected:', payload)
-
           switch (payload.eventType) {
             case 'INSERT':
             case 'UPDATE':
-              fetchRooms() // Refetch to get joined data (building)
+              fetchRooms()
               break
-
             case 'DELETE':
               setRooms(prev => prev.filter(room => room.id !== payload.old.id))
               break
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'buildings',
+          filter: `center_id=eq.${user.establishmentId}`,
+        },
+        () => {
+          fetchRooms() // Refresh both buildings and rooms
         }
       )
       .subscribe()
@@ -423,11 +578,15 @@ export function useRooms(): UseRoomsReturn {
 
   return {
     rooms,
+    buildings,
     isLoading,
     error,
     createRoom,
     updateRoom,
     deleteRoom,
+    createBuilding,
+    updateBuilding,
+    deleteBuilding,
     renameEquipment,
     deleteEquipment,
     updateEquipmentCategory,
@@ -435,7 +594,7 @@ export function useRooms(): UseRoomsReturn {
     filterRooms,
     refreshRooms,
     clearError,
-    // Valeurs calculées additionnelles
+    // Valeurs calculées
     roomsByType,
     roomsByBuilding,
     totalCapacity,

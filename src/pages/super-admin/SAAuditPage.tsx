@@ -1,4 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, type ReactNode } from 'react';
+import {
+  LogIn, LogOut, Plus, Pencil, Trash2, Building2, Calendar, Home,
+  BookOpen, GraduationCap, Users, BookOpenText, UserCog, CreditCard,
+  ClipboardList, Download, ChevronDown, ChevronRight, Search, FileText,
+} from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { exportToCSV } from '@/utils/csv-export';
@@ -8,7 +13,7 @@ import { SAAuditService } from '@/services/super-admin/audit';
 import { supabase } from '@/lib/supabase';
 import type { AuditLogEntry } from '@/types/super-admin';
 
-// ── Enrichissement des entrées avec noms utilisateurs et centres ──
+// -- Enrichissement des entrees avec noms utilisateurs et centres --
 
 async function enrichEntries(entries: AuditLogEntry[]): Promise<AuditLogEntry[]> {
   if (entries.length === 0) return [];
@@ -63,53 +68,63 @@ async function enrichEntries(entries: AuditLogEntry[]): Promise<AuditLogEntry[]>
   });
 }
 
-// ── Format helpers ──
+// -- Action icon/label/color mapping using lucide-react --
 
-const ACTION_INFO: Record<string, { icon: string; label: string; color: string }> = {
-  'user.login':               { icon: '\u{1F511}', label: 'Connexion',            color: '#6b7280' },
-  'user.logout':              { icon: '\u{1F6AA}', label: 'Deconnexion',          color: '#6b7280' },
-  'user.created':             { icon: '\u{2795}',  label: 'Utilisateur cree',     color: '#16a34a' },
-  'user.updated':             { icon: '\u{270F}',  label: 'Utilisateur modifie',  color: '#2563eb' },
-  'user.deleted':             { icon: '\u{1F5D1}', label: 'Utilisateur supprime', color: '#dc2626' },
-  'user.bulk_updated':        { icon: '\u{270F}',  label: 'Maj groupee',          color: '#2563eb' },
-  'center.created':           { icon: '\u{1F3E2}', label: 'Centre cree',          color: '#16a34a' },
-  'center.updated':           { icon: '\u{270F}',  label: 'Centre modifie',       color: '#2563eb' },
-  'center.deleted':           { icon: '\u{1F5D1}', label: 'Centre supprime',      color: '#dc2626' },
-  'subscription.activated':   { icon: '\u{2705}',  label: 'Abonnement active',    color: '#16a34a' },
-  'subscription.updated':     { icon: '\u{270F}',  label: 'Abonnement modifie',   color: '#2563eb' },
-  'subscription.cancelled':   { icon: '\u{274C}',  label: 'Abonnement annule',    color: '#dc2626' },
-  'session.created':          { icon: '\u{1F4C5}', label: 'Session creee',        color: '#16a34a' },
-  'session.updated':          { icon: '\u{270F}',  label: 'Session modifiee',     color: '#2563eb' },
-  'session.deleted':          { icon: '\u{1F5D1}', label: 'Session supprimee',    color: '#dc2626' },
-  'room.created':             { icon: '\u{1F3E0}', label: 'Salle creee',          color: '#16a34a' },
-  'room.updated':             { icon: '\u{270F}',  label: 'Salle modifiee',       color: '#2563eb' },
-  'room.deleted':             { icon: '\u{1F5D1}', label: 'Salle supprimee',      color: '#dc2626' },
-  'program.created':          { icon: '\u{1F4DA}', label: 'Programme cree',       color: '#16a34a' },
-  'program.updated':          { icon: '\u{270F}',  label: 'Programme modifie',    color: '#2563eb' },
-  'program.deleted':          { icon: '\u{1F5D1}', label: 'Programme supprime',   color: '#dc2626' },
-  'diploma.created':          { icon: '\u{1F393}', label: 'Diplome cree',         color: '#16a34a' },
-  'diploma.updated':          { icon: '\u{270F}',  label: 'Diplome modifie',      color: '#2563eb' },
-  'diploma.deleted':          { icon: '\u{1F5D1}', label: 'Diplome supprime',     color: '#dc2626' },
-  'class.created':            { icon: '\u{1F465}', label: 'Classe creee',         color: '#16a34a' },
-  'class.updated':            { icon: '\u{270F}',  label: 'Classe modifiee',      color: '#2563eb' },
-  'class.deleted':            { icon: '\u{1F5D1}', label: 'Classe supprimee',     color: '#dc2626' },
-  'subject.created':          { icon: '\u{1F4D6}', label: 'Matiere creee',        color: '#16a34a' },
-  'subject.updated':          { icon: '\u{270F}',  label: 'Matiere modifiee',     color: '#2563eb' },
-  'subject.deleted':          { icon: '\u{1F5D1}', label: 'Matiere supprimee',    color: '#dc2626' },
-  'teacher.created':          { icon: '\u{1F9D1}', label: 'Professeur ajoute',    color: '#16a34a' },
-  'teacher.updated':          { icon: '\u{270F}',  label: 'Professeur modifie',   color: '#2563eb' },
-  'teacher.deleted':          { icon: '\u{1F5D1}', label: 'Professeur retire',    color: '#dc2626' },
-  'plan.created':             { icon: '\u{2795}',  label: 'Plan cree',            color: '#16a34a' },
-  'plan.updated':             { icon: '\u{270F}',  label: 'Plan modifie',         color: '#2563eb' },
-  'plan.deleted':             { icon: '\u{1F5D1}', label: 'Plan supprime',        color: '#dc2626' },
-  'booking.created':          { icon: '\u{1F4C5}', label: 'Reservation creee',    color: '#16a34a' },
-  'booking.updated':          { icon: '\u{270F}',  label: 'Reservation modifiee', color: '#2563eb' },
-  'booking.deleted':          { icon: '\u{1F5D1}', label: 'Reservation supprimee', color: '#dc2626' },
-};
-
-function getActionInfo(action: string) {
-  return ACTION_INFO[action] || { icon: '\u{1F4CB}', label: action, color: '#6b7280' };
+interface ActionMeta {
+  icon: ReactNode;
+  label: string;
+  color: string;
 }
+
+const ICON_SIZE = 14;
+
+function getActionMeta(action: string): ActionMeta {
+  const map: Record<string, ActionMeta> = {
+    'user.login':               { icon: <LogIn size={ICON_SIZE} />,        label: 'Connexion',            color: '#6b7280' },
+    'user.logout':              { icon: <LogOut size={ICON_SIZE} />,       label: 'Deconnexion',          color: '#6b7280' },
+    'user.created':             { icon: <Plus size={ICON_SIZE} />,         label: 'Utilisateur cree',     color: '#16a34a' },
+    'user.updated':             { icon: <Pencil size={ICON_SIZE} />,       label: 'Utilisateur modifie',  color: '#2563eb' },
+    'user.deleted':             { icon: <Trash2 size={ICON_SIZE} />,       label: 'Utilisateur supprime', color: '#dc2626' },
+    'user.bulk_updated':        { icon: <Pencil size={ICON_SIZE} />,       label: 'Maj groupee',          color: '#2563eb' },
+    'center.created':           { icon: <Building2 size={ICON_SIZE} />,    label: 'Centre cree',          color: '#16a34a' },
+    'center.updated':           { icon: <Pencil size={ICON_SIZE} />,       label: 'Centre modifie',       color: '#2563eb' },
+    'center.deleted':           { icon: <Trash2 size={ICON_SIZE} />,       label: 'Centre supprime',      color: '#dc2626' },
+    'subscription.activated':   { icon: <CreditCard size={ICON_SIZE} />,   label: 'Abonnement active',    color: '#16a34a' },
+    'subscription.updated':     { icon: <Pencil size={ICON_SIZE} />,       label: 'Abonnement modifie',   color: '#2563eb' },
+    'subscription.cancelled':   { icon: <Trash2 size={ICON_SIZE} />,       label: 'Abonnement annule',    color: '#dc2626' },
+    'session.created':          { icon: <Calendar size={ICON_SIZE} />,     label: 'Session creee',        color: '#16a34a' },
+    'session.updated':          { icon: <Pencil size={ICON_SIZE} />,       label: 'Session modifiee',     color: '#2563eb' },
+    'session.deleted':          { icon: <Trash2 size={ICON_SIZE} />,       label: 'Session supprimee',    color: '#dc2626' },
+    'room.created':             { icon: <Home size={ICON_SIZE} />,         label: 'Salle creee',          color: '#16a34a' },
+    'room.updated':             { icon: <Pencil size={ICON_SIZE} />,       label: 'Salle modifiee',       color: '#2563eb' },
+    'room.deleted':             { icon: <Trash2 size={ICON_SIZE} />,       label: 'Salle supprimee',      color: '#dc2626' },
+    'program.created':          { icon: <BookOpen size={ICON_SIZE} />,     label: 'Programme cree',       color: '#16a34a' },
+    'program.updated':          { icon: <Pencil size={ICON_SIZE} />,       label: 'Programme modifie',    color: '#2563eb' },
+    'program.deleted':          { icon: <Trash2 size={ICON_SIZE} />,       label: 'Programme supprime',   color: '#dc2626' },
+    'diploma.created':          { icon: <GraduationCap size={ICON_SIZE} />,label: 'Diplome cree',         color: '#16a34a' },
+    'diploma.updated':          { icon: <Pencil size={ICON_SIZE} />,       label: 'Diplome modifie',      color: '#2563eb' },
+    'diploma.deleted':          { icon: <Trash2 size={ICON_SIZE} />,       label: 'Diplome supprime',     color: '#dc2626' },
+    'class.created':            { icon: <Users size={ICON_SIZE} />,        label: 'Classe creee',         color: '#16a34a' },
+    'class.updated':            { icon: <Pencil size={ICON_SIZE} />,       label: 'Classe modifiee',      color: '#2563eb' },
+    'class.deleted':            { icon: <Trash2 size={ICON_SIZE} />,       label: 'Classe supprimee',     color: '#dc2626' },
+    'subject.created':          { icon: <BookOpenText size={ICON_SIZE} />, label: 'Matiere creee',        color: '#16a34a' },
+    'subject.updated':          { icon: <Pencil size={ICON_SIZE} />,       label: 'Matiere modifiee',     color: '#2563eb' },
+    'subject.deleted':          { icon: <Trash2 size={ICON_SIZE} />,       label: 'Matiere supprimee',    color: '#dc2626' },
+    'teacher.created':          { icon: <UserCog size={ICON_SIZE} />,      label: 'Professeur ajoute',    color: '#16a34a' },
+    'teacher.updated':          { icon: <Pencil size={ICON_SIZE} />,       label: 'Professeur modifie',   color: '#2563eb' },
+    'teacher.deleted':          { icon: <Trash2 size={ICON_SIZE} />,       label: 'Professeur retire',    color: '#dc2626' },
+    'plan.created':             { icon: <Plus size={ICON_SIZE} />,         label: 'Plan cree',            color: '#16a34a' },
+    'plan.updated':             { icon: <Pencil size={ICON_SIZE} />,       label: 'Plan modifie',         color: '#2563eb' },
+    'plan.deleted':             { icon: <Trash2 size={ICON_SIZE} />,       label: 'Plan supprime',        color: '#dc2626' },
+    'booking.created':          { icon: <Calendar size={ICON_SIZE} />,     label: 'Reservation creee',    color: '#16a34a' },
+    'booking.updated':          { icon: <Pencil size={ICON_SIZE} />,       label: 'Reservation modifiee', color: '#2563eb' },
+    'booking.deleted':          { icon: <Trash2 size={ICON_SIZE} />,       label: 'Reservation supprimee', color: '#dc2626' },
+  };
+
+  return map[action] || { icon: <ClipboardList size={ICON_SIZE} />, label: action, color: '#6b7280' };
+}
+
+// -- Labels and filter groups --
 
 const ENTITY_LABELS: Record<string, string> = {
   user: 'Utilisateur', center: 'Centre', subscription: 'Abonnement', session: 'Session',
@@ -136,7 +151,11 @@ function formatDate(d: string) {
   return date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-// ── Component ──
+function getActionLabel(action: string): string {
+  return getActionMeta(action).label;
+}
+
+// -- Component --
 
 export const SAAuditPage = () => {
   const [actionFilter, setActionFilter] = useState('');
@@ -223,7 +242,7 @@ export const SAAuditPage = () => {
     exportToCSV(filteredEntries, [
       { header: 'Date', accessor: (e) => formatDate(e.created_at) },
       { header: 'Utilisateur', accessor: (e) => (e.details as Record<string, unknown>)?._user_name as string || e.user_email || 'Systeme' },
-      { header: 'Action', accessor: (e) => getActionInfo(e.action).label },
+      { header: 'Action', accessor: (e) => getActionLabel(e.action) },
       { header: 'Detail', accessor: (e) => (e.details as Record<string, unknown>)?._target_name as string || '' },
       { header: 'Centre', accessor: (e) => (e.details as Record<string, unknown>)?._center_name as string || '' },
       { header: 'Entite', accessor: (e) => ENTITY_LABELS[e.entity_type || ''] || e.entity_type || '' },
@@ -240,9 +259,10 @@ export const SAAuditPage = () => {
       <>
         <button
           className="sa-btn sa-btn-secondary"
-          style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+          style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           onClick={() => toggleRow(entry.id)}
         >
+          {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           {isExpanded ? 'Masquer' : 'Details'}
         </button>
         {isExpanded && (
@@ -263,10 +283,16 @@ export const SAAuditPage = () => {
     <div className="p-6">
       <div className="sa-page-header">
         <div>
-          <h1 className="sa-page-title">Journal d'audit</h1>
+          <h1 className="sa-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FileText size={22} />
+            Journal d'audit
+          </h1>
           <p className="sa-page-subtitle">{filteredEntries.length} action(s) enregistree(s)</p>
         </div>
-        <button className="sa-btn sa-btn-secondary" onClick={handleExportCSV}>Exporter CSV</button>
+        <button className="sa-btn sa-btn-secondary" onClick={handleExportCSV} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <Download size={14} />
+          Exporter CSV
+        </button>
       </div>
 
       {/* Filters */}
@@ -284,14 +310,17 @@ export const SAAuditPage = () => {
 
       {/* Search + Date Range */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', alignItems: 'flex-start' }}>
-        <input
-          type="text"
-          className="sa-search-input"
-          placeholder="Rechercher par nom, email, centre..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{ flex: '1 1 250px', minWidth: '200px' }}
-        />
+        <div style={{ flex: '1 1 250px', minWidth: '200px', position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sa-text-secondary)' }} />
+          <input
+            type="text"
+            className="sa-search-input"
+            placeholder="Rechercher par nom, email, centre..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: '100%', paddingLeft: '32px' }}
+          />
+        </div>
         <SADateRangePicker
           startDate={startDate}
           endDate={endDate}
@@ -329,7 +358,7 @@ export const SAAuditPage = () => {
                     const userName = (d._user_name as string) || entry.user_email || 'Systeme';
                     const centerName = (d._center_name as string) || '';
                     const targetName = (d._target_name as string) || '';
-                    const { icon, label, color } = getActionInfo(entry.action);
+                    const { icon, label, color } = getActionMeta(entry.action);
 
                     return (
                       <tr key={entry.id} style={{ borderBottom: '1px solid var(--sa-border-light)' }}>
@@ -348,15 +377,15 @@ export const SAAuditPage = () => {
                             padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 500,
                             background: color + '18', color,
                           }}>
-                            <span style={{ fontSize: '0.85rem' }}>{icon}</span>
+                            {icon}
                             {label}
                           </span>
                         </td>
                         <td style={{ ...tdStyle, color: 'var(--sa-text-primary)' }}>
-                          {targetName || '—'}
+                          {targetName || '\u2014'}
                         </td>
                         <td style={{ ...tdStyle, color: 'var(--sa-text-secondary)' }}>
-                          {centerName || '—'}
+                          {centerName || '\u2014'}
                         </td>
                         <td style={{ ...tdStyle, maxWidth: '120px' }}>
                           {renderDetails(entry)}

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, BookOpen, CalendarDays, Copy, Link2, MessageCircle } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, BookOpen, CalendarDays, Copy, Link2, MessageCircle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { SCHEDULE_TYPE_OPTIONS, DAY_OPTIONS, DEFAULT_DAYS_BY_TYPE, getScheduleTypeLabel, getScheduleTypeBadgeVariant, formatDaysShort } from '@/utils/scheduleUtils'
 import type { Diploma, Program, AcademicYear } from '@/types'
 import type { CoursEntity } from '@/hooks/useAcademicData'
@@ -63,13 +63,42 @@ export function CoursTab({
   const [duplicateTargetYearId, setDuplicateTargetYearId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  type SortKey = 'name' | 'code' | 'diploma' | 'program' | 'year' | 'profile'
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) { if (sortDir === 'asc') setSortDir('desc'); else { setSortKey(null); setSortDir('asc') } }
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const getDiplomaTitle = (diplomaId: string) => diplomas.find(d => d.id === diplomaId)?.title || '-'
+  const getProgramName = (programId?: string) => programId ? programs.find(p => p.id === programId)?.name || '-' : '-'
+
   const filtered = useMemo(() => {
     let result = coursList
     if (search) result = result.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.code.toLowerCase().includes(search.toLowerCase()))
     if (diplomaFilter) result = result.filter(c => c.diplomaId === diplomaFilter)
     if (yearFilter) result = result.filter(c => c.academicYearId === yearFilter)
+    if (sortKey) {
+      const dir = sortDir === 'asc' ? 1 : -1
+      result = [...result].sort((a, b) => {
+        switch (sortKey) {
+          case 'name': return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }) * dir
+          case 'code': return (a.code || '').localeCompare(b.code || '', 'fr', { sensitivity: 'base' }) * dir
+          case 'diploma': return getDiplomaTitle(a.diplomaId).localeCompare(getDiplomaTitle(b.diplomaId), 'fr', { sensitivity: 'base' }) * dir
+          case 'program': return getProgramName(a.programId).localeCompare(getProgramName(b.programId), 'fr', { sensitivity: 'base' }) * dir
+          case 'year': {
+            const aName = a.academicYearId ? (academicYears.find(y => y.id === a.academicYearId)?.name || '') : (a.academicYear || '')
+            const bName = b.academicYearId ? (academicYears.find(y => y.id === b.academicYearId)?.name || '') : (b.academicYear || '')
+            return aName.localeCompare(bName, 'fr', { sensitivity: 'base' }) * dir
+          }
+          case 'profile': return (a.scheduleType || '').localeCompare(b.scheduleType || '', 'fr', { sensitivity: 'base' }) * dir
+          default: return 0
+        }
+      })
+    }
     return result
-  }, [coursList, search, diplomaFilter, yearFilter])
+  }, [coursList, search, diplomaFilter, yearFilter, sortKey, sortDir, diplomas, programs, academicYears])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
@@ -157,9 +186,6 @@ export function CoursTab({
     catch { /* toast in hook */ } finally { setSubmitting(false) }
   }
 
-  const getDiplomaTitle = (diplomaId: string) => diplomas.find(d => d.id === diplomaId)?.title || '-'
-  const getProgramName = (programId?: string) => programId ? programs.find(p => p.id === programId)?.name || '-' : '-'
-
   return (
     <>
       {/* Filters */}
@@ -199,12 +225,21 @@ export function CoursTab({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Diplôme</th>
-                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Programme</th>
-                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Profil</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Année</th>
+                    {([
+                      { key: 'name' as SortKey, label: 'Nom', className: '' },
+                      { key: 'diploma' as SortKey, label: 'Diplôme', className: '' },
+                      { key: 'program' as SortKey, label: 'Programme', className: 'hidden sm:table-cell' },
+                      { key: 'code' as SortKey, label: 'Code', className: 'hidden sm:table-cell' },
+                      { key: 'profile' as SortKey, label: 'Profil', className: 'hidden md:table-cell' },
+                      { key: 'year' as SortKey, label: 'Année', className: 'hidden md:table-cell' },
+                    ]).map(col => (
+                      <th key={col.key} className={`${col.className} text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors`} onClick={() => toggleSort(col.key)}>
+                        <span className="inline-flex items-center gap-1">
+                          {col.label}
+                          {sortKey === col.key ? (sortDir === 'asc' ? <ArrowUp size={12} className="text-primary-500" /> : <ArrowDown size={12} className="text-primary-500" />) : <ArrowUpDown size={12} className="opacity-30" />}
+                        </span>
+                      </th>
+                    ))}
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -237,8 +272,8 @@ export function CoursTab({
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openDuplicate(c)} title="Dupliquer"><Copy size={14} className="text-primary-600" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(c)}><Pencil size={14} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => openDelete(c)}><Trash2 size={14} className="text-error-600" /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Modifier" onClick={() => openEdit(c)}><Pencil size={14} /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Supprimer" onClick={() => openDelete(c)}><Trash2 size={14} className="text-error-600" /></Button>
                         </div>
                       </td>
                     </tr>

@@ -57,6 +57,12 @@ export function useAttendance() {
     records: { studentId: string; status: AttendanceStatus; lateMinutes?: number; excuseReason?: string; notes?: string }[]
   ) => {
     if (isDemoMode) { toast.success('Présences enregistrées (mode démo)'); return }
+    // Role check: only teacher, admin, or staff can mark attendance
+    const allowedRoles = ['teacher', 'admin', 'super_admin', 'staff']
+    if (!user?.role || !allowedRoles.includes(user.role)) {
+      toast.error('Permission refusée : rôle insuffisant')
+      return
+    }
     setIsLoading(true)
     try {
       const centerId = user?.establishmentId

@@ -5,7 +5,7 @@
 
 import type { LoginCredentials, RegisterData, User, AuthUser } from '@/types'
 import { supabase } from '@/lib/supabase'
-import { getErrorMessage, parseFullName } from '@/utils'
+import { getErrorMessage, parseFullName, getUserFriendlyError } from '@/utils'
 
 export class AuthService {
   // ==================== AUTHENTICATION ====================
@@ -27,7 +27,7 @@ export class AuthService {
       const authUser = await this.getUserProfile(data.user.id)
       return authUser
     } catch (error) {
-      throw new Error(getErrorMessage(error))
+      throw new Error(getUserFriendlyError(error))
     }
   }
 
@@ -36,16 +36,18 @@ export class AuthService {
    */
   static async signUp(data: RegisterData): Promise<AuthUser> {
     try {
+      // Restrict self-registration to safe roles only
+      const safeRoles = ['student', 'teacher', 'staff', 'admin', 'trainer', 'coordinator']
+      const role = (data.role && safeRoles.includes(data.role)) ? data.role : 'student'
+
       // Créer le compte auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
           data: {
-            first_name: data.firstName,
-            last_name: data.lastName,
-            establishment_id: data.establishmentId,
-            role: data.role || 'student',
+            full_name: `${data.firstName} ${data.lastName}`,
+            role,
           },
         },
       })
@@ -53,16 +55,15 @@ export class AuthService {
       if (authError) throw authError
       if (!authData.user) throw new Error('Échec de la création du compte')
 
-      // Créer l'entrée dans la table users
+      // Créer l'entrée dans la table profiles
       const { error: userError } = await supabase
-        .from('users')
+        .from('profiles')
         .insert({
           id: authData.user.id,
           email: data.email,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          establishment_id: data.establishmentId,
-          role: data.role || 'student',
+          full_name: `${data.firstName} ${data.lastName}`,
+          center_id: data.establishmentId,
+          role,
         })
 
       if (userError) throw userError
@@ -70,7 +71,7 @@ export class AuthService {
       const authUser = await this.getUserProfile(authData.user.id)
       return authUser
     } catch (error) {
-      throw new Error(getErrorMessage(error))
+      throw new Error(getUserFriendlyError(error))
     }
   }
 
@@ -79,7 +80,7 @@ export class AuthService {
    */
   static async signOut(): Promise<void> {
     const { error } = await supabase.auth.signOut()
-    if (error) throw new Error(getErrorMessage(error))
+    if (error) throw new Error(getUserFriendlyError(error))
   }
 
   /**
@@ -129,7 +130,7 @@ export class AuthService {
   static async checkEmailExists(email: string): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id')
         .eq('email', email)
         .limit(1)
@@ -156,7 +157,7 @@ export class AuthService {
 
       if (error) throw error
     } catch (error) {
-      throw new Error(getErrorMessage(error))
+      throw new Error(getUserFriendlyError(error))
     }
   }
 
@@ -171,7 +172,7 @@ export class AuthService {
 
       if (error) throw error
     } catch (error) {
-      throw new Error(getErrorMessage(error))
+      throw new Error(getUserFriendlyError(error))
     }
   }
 
@@ -183,12 +184,11 @@ export class AuthService {
   static async updateProfile(userId: string, updates: Partial<User>): Promise<User> {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .update({
-          first_name: updates.firstName,
-          last_name: updates.lastName,
+          full_name: [updates.firstName, updates.lastName].filter(Boolean).join(' '),
           email: updates.email,
-          profile_picture: updates.profilePicture,
+          avatar_url: updates.profilePicture,
         })
         .eq('id', userId)
         .select()

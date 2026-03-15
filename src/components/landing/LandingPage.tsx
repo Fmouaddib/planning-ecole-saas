@@ -3,12 +3,13 @@ import {
   Calendar, ShieldCheck, Video, Mail, Check, ArrowRight, ArrowDown,
   FileBarChart, Building2, GraduationCap, Smartphone,
   UserPlus, Settings, CalendarCheck, ChevronDown,
-  Star, Quote, ClipboardCheck, BarChart3, UserCog, Upload,
+  ClipboardCheck, BarChart3, UserCog, Upload,
   Shield, Lock, Globe, Zap, TrendingUp, MessageCircle,
 } from 'lucide-react'
 import { priceTTC, formatPrice } from '@/utils/pricing'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { updatePageMeta } from '@/utils/seo'
 import { supabase } from '@/lib/supabase'
 import LandingLayout from './LandingLayout'
 
@@ -25,13 +26,20 @@ interface DBPlan {
 const POPULAR_SLUG = 'ecole-en-ligne'
 
 export default function LandingPage() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { reveal } = useScrollReveal()
   const [annualBilling, setAnnualBilling] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [dbPlans, setDbPlans] = useState<DBPlan[]>([])
+  const [liveStats, setLiveStats] = useState<{ centers: number; sessions: number; users: number } | null>(null)
 
   useEffect(() => {
+    updatePageMeta({
+      title: 'Planning intelligent pour centres de formation et ecoles',
+      description: 'Anti-Planning : le logiciel de gestion et planification pour centres de formation, ecoles et organismes. Planning, notes, presences, communication.',
+      path: '/',
+      keywords: 'planning ecole, logiciel planning formation, gestion centre de formation, logiciel education, emploi du temps ecole, SaaS education, planning enseignant, organisme de formation',
+    })
     supabase
       .from('subscription_plans')
       .select('slug, name, price_monthly, price_yearly, features, is_active, sort_order')
@@ -40,6 +48,9 @@ export default function LandingPage() {
       .then(({ data }) => {
         if (data && data.length > 0) setDbPlans(data as DBPlan[])
       })
+    supabase.rpc('get_landing_stats').then(({ data }) => {
+      if (data) setLiveStats(data as { centers: number; sessions: number; users: number })
+    })
   }, [])
 
   const features = [
@@ -96,15 +107,11 @@ export default function LandingPage() {
     { beforeKey: 'landing.pain.4.before', afterKey: 'landing.pain.4.after' },
   ]
 
-  const testimonials = [
-    { quoteKey: 'testimonial.1.quote', nameKey: 'testimonial.1.name', roleKey: 'testimonial.1.role', color: '#3b82f6', initials: 'MD' },
-    { quoteKey: 'testimonial.2.quote', nameKey: 'testimonial.2.name', roleKey: 'testimonial.2.role', color: '#8b5cf6', initials: 'TB' },
-    { quoteKey: 'testimonial.3.quote', nameKey: 'testimonial.3.name', roleKey: 'testimonial.3.role', color: '#14b8a6', initials: 'SM' },
-    { quoteKey: 'testimonial.4.quote', nameKey: 'testimonial.4.name', roleKey: 'testimonial.4.role', color: '#f97316', initials: 'LC' },
-    { quoteKey: 'testimonial.5.quote', nameKey: 'testimonial.5.name', roleKey: 'testimonial.5.role', color: '#ec4899', initials: 'PD' },
-    { quoteKey: 'testimonial.6.quote', nameKey: 'testimonial.6.name', roleKey: 'testimonial.6.role', color: '#06b6d4', initials: 'AR' },
-    { quoteKey: 'testimonial.7.quote', nameKey: 'testimonial.7.name', roleKey: 'testimonial.7.role', color: '#0ea5e9', initials: 'NB' },
-  ]
+  // TODO: Réactiver les témoignages plus tard
+  // const testimonials = [
+  //   { quoteKey: 'testimonial.1.quote', nameKey: 'testimonial.1.name', roleKey: 'testimonial.1.role', color: '#3b82f6', initials: 'MD' },
+  //   { quoteKey: 'testimonial.7.quote', nameKey: 'testimonial.7.name', roleKey: 'testimonial.7.role', color: '#0ea5e9', initials: 'NB' },
+  // ]
 
   return (
     <LandingLayout>
@@ -131,22 +138,25 @@ export default function LandingPage() {
                 {t('hero.cta.secondary')}
               </a>
             </div>
+            <p className="landing-hero-microcopy landing-hero-animate-delay-2">
+              {t('hero.microcopy')}
+            </p>
 
             {/* Social Proof Bar */}
             <div className="landing-hero-proof landing-hero-animate-delay-3">
               <div className="landing-hero-proof-item">
-                <span className="landing-hero-proof-number">250+</span>
-                <span>{t('landing.hero.proof.establishments').replace('250+ ', '')}</span>
+                <span className="landing-hero-proof-number">{liveStats ? liveStats.centers : '–'}</span>
+                <span>{lang === 'fr' ? 'centres' : 'centers'}</span>
               </div>
               <div className="landing-hero-proof-divider" />
               <div className="landing-hero-proof-item">
-                <span className="landing-hero-proof-number">5 000+</span>
-                <span>{t('landing.hero.proof.sessions').replace('5 000+ ', '').replace('5,000+ ', '')}</span>
+                <span className="landing-hero-proof-number">{liveStats ? liveStats.sessions.toLocaleString('fr-FR') : '–'}</span>
+                <span>{lang === 'fr' ? 'séances' : 'sessions'}</span>
               </div>
               <div className="landing-hero-proof-divider" />
               <div className="landing-hero-proof-item">
-                <span className="landing-hero-proof-number">99.9%</span>
-                <span>uptime</span>
+                <span className="landing-hero-proof-number">{liveStats ? liveStats.users : '–'}</span>
+                <span>{lang === 'fr' ? 'utilisateurs' : 'users'}</span>
               </div>
             </div>
           </div>
@@ -530,7 +540,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* =================== TESTIMONIALS (6) =================== */}
+      {/* =================== TESTIMONIALS — MASQUÉ PROVISOIREMENT =================== */}
+      {/* TODO: Réactiver la section témoignages quand prêt
       <section className="landing-testimonials" id="testimonials">
         <div className="landing-testimonials-inner">
           <div ref={reveal} style={{ textAlign: 'center' }}>
@@ -561,6 +572,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      */}
 
       {/* =================== TRUST BADGES =================== */}
       <div className="landing-trust">
@@ -632,7 +644,7 @@ export default function LandingPage() {
                     ))}
                   </ul>
                   <a
-                    href="#/signup"
+                    href={plan.slug === 'free' ? '#/onboarding' : `#/onboarding?plan=${plan.slug}&billing=${annualBilling ? 'yearly' : 'monthly'}`}
                     className={`landing-pricing-card-btn ${plan.btnStyle}`}
                   >
                     {plan.slug === 'free' ? t('pricing.cta.free') : t('pricing.cta.pro')}
@@ -696,6 +708,7 @@ export default function LandingPage() {
               {t('cta.demo')}
             </a>
           </div>
+          <p className="landing-cta-microcopy">{t('hero.microcopy')}</p>
           <div className="landing-cta-quote">
             <p className="landing-cta-quote-text">{t('cta.quote')}</p>
             <p className="landing-cta-quote-author">{t('cta.quoteAuthor')}</p>

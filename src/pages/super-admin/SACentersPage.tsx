@@ -135,7 +135,7 @@ export const SACentersPage = () => {
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
             {paginatedData.map((center) => (
               <div key={center.id} className="sa-plan-card" style={{ borderColor: center.is_active ? 'var(--sa-border-medium)' : '#fca5a5' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -173,7 +173,7 @@ export const SACentersPage = () => {
                   <p className="sa-text-muted" style={{ fontSize: '0.8rem', marginBottom: '12px' }}>{formatCenterAddress(center)}</p>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
                   {[
                     { label: 'Utilisateurs', value: center._count?.users || 0 },
                     { label: 'Sessions', value: center._count?.sessions || 0 },

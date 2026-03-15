@@ -22,6 +22,7 @@ import {
   Building2,
   TrendingUp,
   Calendar,
+  Video,
 } from 'lucide-react'
 import type { CalendarEvent } from '@/types'
 import { HOUR_START, HOUR_END } from './calendar-helpers'
@@ -314,6 +315,7 @@ export default function MonthView({
                       onEventClick(event)
                     }}
                   >
+                    {event.meetingUrl && <Video size={8} className="flex-shrink-0 opacity-90" />}
                     <span className="truncate">{event.title}</span>
                     {event.recurrence && <Repeat size={8} className="flex-shrink-0 opacity-80" />}
                   </button>

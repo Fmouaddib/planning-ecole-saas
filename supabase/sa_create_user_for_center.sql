@@ -49,11 +49,41 @@ BEGIN
     RAISE EXCEPTION 'Role invalide : "%"', p_role;
   END IF;
 
-  -- 4. Verifier doublon email
-  IF EXISTS (SELECT 1 FROM auth.users WHERE email = p_email) THEN
-    RAISE EXCEPTION 'Un compte avec l''email "%" existe deja', p_email;
+  -- 4. Verifier si l'email existe deja dans auth.users
+  SELECT id INTO v_new_id FROM auth.users WHERE email = p_email;
+
+  IF v_new_id IS NOT NULL THEN
+    -- ========== CAS MULTI-CENTRE : l'utilisateur existe déjà ==========
+
+    -- Vérifier qu'il n'est pas déjà dans ce centre (profil direct)
+    IF EXISTS (SELECT 1 FROM public.profiles WHERE id = v_new_id AND center_id = p_center_id) THEN
+      RAISE EXCEPTION 'Cet utilisateur est deja membre de ce centre';
+    END IF;
+
+    -- Vérifier qu'il n'est pas déjà lié via user_centers
+    IF EXISTS (SELECT 1 FROM public.user_centers WHERE user_id = v_new_id AND center_id = p_center_id AND is_active = true) THEN
+      RAISE EXCEPTION 'Cet utilisateur est deja lie a ce centre';
+    END IF;
+
+    -- Réactiver ou créer l'entrée user_centers
+    INSERT INTO public.user_centers (user_id, center_id, role, is_active, created_at, updated_at)
+    VALUES (v_new_id, p_center_id, p_role::user_role, true, now(), now())
+    ON CONFLICT (user_id, center_id)
+    DO UPDATE SET role = p_role::user_role, is_active = true, updated_at = now();
+
+    -- Retourner le résultat avec les infos du profil existant
+    SELECT json_build_object(
+      'id', p.id, 'email', p.email, 'full_name', p.full_name,
+      'role', p_role, 'center_id', p_center_id,
+      'phone', COALESCE(p_phone, p.phone), 'is_active', true,
+      'created_at', p.created_at, 'updated_at', now(),
+      'linked', true
+    ) INTO v_result FROM public.profiles p WHERE p.id = v_new_id;
+
+    RETURN v_result;
   END IF;
 
+  -- ========== CAS NORMAL : nouvel utilisateur ==========
   v_new_id := gen_random_uuid();
 
   -- 5. Inserer dans auth.users
@@ -114,7 +144,8 @@ BEGIN
     'id', p.id, 'email', p.email, 'full_name', p.full_name,
     'role', p.role::text, 'center_id', p.center_id,
     'phone', p.phone, 'is_active', p.is_active,
-    'created_at', p.created_at, 'updated_at', p.updated_at
+    'created_at', p.created_at, 'updated_at', p.updated_at,
+    'linked', false
   ) INTO v_result FROM public.profiles p WHERE p.id = v_new_id;
 
   RETURN v_result;

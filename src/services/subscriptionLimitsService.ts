@@ -25,6 +25,8 @@ const DEMO_PLAN: SubscriptionPlan = {
   priceMonthly: 0,
   priceYearly: 0,
   features: ['Toutes les fonctionnalités'],
+  hasChat: true,
+  hasSubjectLinks: true,
 }
 
 export class SubscriptionLimitsService {
@@ -65,6 +67,8 @@ export class SubscriptionLimitsService {
         priceMonthly: data.plan.price_monthly,
         priceYearly: data.plan.price_yearly || data.plan.price_monthly * 12,
         features: data.plan.features || [],
+        hasChat: data.plan.has_chat ?? false,
+        hasSubjectLinks: data.plan.has_subject_links ?? false,
       }
     } catch (error) {
       console.error('Error getting active plan:', error)
@@ -172,7 +176,7 @@ export class SubscriptionLimitsService {
       }
     } catch (error) {
       console.error('Error checking limit:', error)
-      return { allowed: true, current: 0, max: 0 }
+      return { allowed: false, current: 0, max: 0 }
     }
   }
 
@@ -290,7 +294,7 @@ export class SubscriptionLimitsService {
       return { allowed: usedToday < totalQuota, current: usedToday, max: totalQuota }
     } catch (error) {
       console.error('Error checking email quota:', error)
-      return { allowed: true, current: 0, max: 0 }
+      return { allowed: false, current: 0, max: 0 }
     }
   }
 

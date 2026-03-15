@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Sparkles, Shield, Lock, Users, Check,
   GraduationCap, Zap, Globe, Server,
@@ -6,13 +6,27 @@ import {
 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { updatePageMeta } from '@/utils/seo'
+import { supabase } from '@/lib/supabase'
 import LandingLayout from '@/components/landing/LandingLayout'
 
 export default function AboutPage() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { reveal } = useScrollReveal()
+  const [liveStats, setLiveStats] = useState<{ centers: number; sessions: number; users: number } | null>(null)
 
-  useEffect(() => { window.scrollTo(0, 0) }, [])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    updatePageMeta({
+      title: 'A propos',
+      description: 'A propos d\'Anti-Planning : notre mission est de simplifier la gestion des centres de formation avec un outil tout-en-un.',
+      path: '/about',
+      keywords: 'anti-planning, logiciel gestion formation, solution planning ecole, outil centre de formation, mission anti-planning',
+    })
+    supabase.rpc('get_landing_stats').then(({ data }) => {
+      if (data) setLiveStats(data as { centers: number; sessions: number; users: number })
+    })
+  }, [])
 
   const values = [
     { icon: Sparkles, color: '#FF5B46', titleKey: 'aboutPage.value.simplicity.title', descKey: 'aboutPage.value.simplicity.desc' },
@@ -63,14 +77,14 @@ export default function AboutPage() {
           </div>
           <div className="landing-numbers">
             {[
-              { numKey: 'aboutPage.numbers.establishments', labelKey: 'aboutPage.numbers.establishments.label' },
-              { numKey: 'aboutPage.numbers.sessions', labelKey: 'aboutPage.numbers.sessions.label' },
-              { numKey: 'aboutPage.numbers.users', labelKey: 'aboutPage.numbers.users.label' },
-              { numKey: 'aboutPage.numbers.uptime', labelKey: 'aboutPage.numbers.uptime.label' },
+              { num: liveStats ? String(liveStats.centers) : '–', label: lang === 'fr' ? 'Centres de formation' : 'Training centers' },
+              { num: liveStats ? liveStats.sessions.toLocaleString('fr-FR') : '–', label: lang === 'fr' ? 'Séances planifiées' : 'Scheduled sessions' },
+              { num: liveStats ? String(liveStats.users) : '–', label: lang === 'fr' ? 'Utilisateurs actifs' : 'Active users' },
+              { num: '99.9%', label: lang === 'fr' ? 'Disponibilité' : 'Uptime' },
             ].map((item, i) => (
-              <div key={item.numKey} className="landing-numbers-card" ref={reveal} data-reveal-delay={i + 1}>
-                <div className="number">{t(item.numKey)}</div>
-                <div className="label">{t(item.labelKey)}</div>
+              <div key={item.label} className="landing-numbers-card" ref={reveal} data-reveal-delay={i + 1}>
+                <div className="number">{item.num}</div>
+                <div className="label">{item.label}</div>
               </div>
             ))}
           </div>
@@ -147,6 +161,7 @@ export default function AboutPage() {
           <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
             {t('cta.button')}
           </a>
+          <p className="landing-cta-microcopy">{t('hero.microcopy')}</p>
         </div>
       </section>
     </LandingLayout>

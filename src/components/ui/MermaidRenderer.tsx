@@ -111,7 +111,15 @@ function markdownToHtml(md: string): string {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:#2563eb;text-decoration:underline">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match: string, text: string, url: string) => {
+      const isInternal = url.startsWith('#') || url.startsWith('/') || url.includes('anti-planning.com');
+      // For internal links with full URL, extract the hash part for SPA navigation
+      const href = isInternal && url.includes('anti-planning.com/#/')
+        ? url.replace(/^https?:\/\/[^/]+/, '')
+        : url;
+      const target = isInternal ? '' : ' target="_blank" rel="noopener noreferrer"';
+      return `<a href="${href}" style="color:#2563eb;text-decoration:underline"${target}>${text}</a>`;
+    })
     // Unordered lists
     .replace(/^- (.+)$/gm, '<li style="margin-left:20px;margin-bottom:4px">$1</li>')
     // Horizontal rules

@@ -78,6 +78,11 @@ export function useGrades() {
     date: string; coefficient: number; maxGrade: number; isPublished: boolean;
   }>): Promise<Evaluation | null> => {
     if (isDemoMode) { toast.success('Évaluation modifiée (mode démo)'); return null }
+    // Role check: only teacher (own) or admin
+    const allowedRoles = ['teacher', 'admin', 'super_admin', 'staff']
+    if (!user?.role || !allowedRoles.includes(user.role)) {
+      toast.error('Permission refusée'); return null
+    }
     setIsLoading(true)
     try {
       const updateData: Record<string, any> = {}
@@ -88,10 +93,15 @@ export function useGrades() {
       if (data.coefficient !== undefined) updateData.coefficient = data.coefficient
       if (data.maxGrade !== undefined) updateData.max_grade = data.maxGrade
       if (data.isPublished !== undefined) updateData.is_published = data.isPublished
-      const { data: result, error } = await supabase
+      let query = supabase
         .from('evaluations')
         .update(updateData)
         .eq('id', id)
+      // Teachers can only update their own evaluations
+      if (user?.role === 'teacher') {
+        query = query.eq('teacher_id', user.id)
+      }
+      const { data: result, error } = await query
         .select('*, subject:subjects!subject_id(id, name), class_:classes!class_id(id, name), teacher:profiles!teacher_id(id, full_name)')
         .single()
       if (error) throw error
@@ -104,19 +114,28 @@ export function useGrades() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [user?.id, user?.role])
 
   const deleteEvaluation = useCallback(async (id: string) => {
     if (isDemoMode) { toast.success('Évaluation supprimée (mode démo)'); return }
+    // Role check: only teacher (own) or admin
+    const allowedRoles = ['teacher', 'admin', 'super_admin', 'staff']
+    if (!user?.role || !allowedRoles.includes(user.role)) {
+      toast.error('Permission refusée'); return
+    }
     try {
-      const { error } = await supabase.from('evaluations').delete().eq('id', id)
+      let query = supabase.from('evaluations').delete().eq('id', id)
+      if (user?.role === 'teacher') {
+        query = query.eq('teacher_id', user.id)
+      }
+      const { error } = await query
       if (error) throw error
       toast.success('Évaluation supprimée')
     } catch (err) {
       console.error('Error deleting evaluation:', err)
       toast.error('Erreur lors de la suppression')
     }
-  }, [])
+  }, [user?.id, user?.role])
 
   const publishEvaluation = useCallback(async (id: string, published: boolean) => {
     return updateEvaluation(id, { isPublished: published })

@@ -5,6 +5,7 @@ import { Modal, ModalFooter, Button, Input, Select, Textarea } from '@/component
 import { AlertTriangle, FileText, Video } from 'lucide-react'
 import type { BookingType, Class } from '@/types'
 import { isClassDay, getExamPeriod } from '@/utils/scheduleUtils'
+import { localToISO } from '@/utils/helpers'
 
 interface VirtualRoomOption {
   value: string
@@ -96,7 +97,7 @@ export function CreateBookingModal({
   const [startTime, setStartTime] = useState(`${String(startH).padStart(2, '0')}:00`)
   const [endTime, setEndTime] = useState(`${String(endH).padStart(2, '0')}:00`)
   const [description, setDescription] = useState('')
-  const [sessionType, setSessionType] = useState<'in_person' | 'online' | 'hybrid'>('in_person')
+  const [sessionType, setSessionType] = useState<'in_person' | 'online' | 'hybrid'>(isOnlineSchool ? 'online' : 'in_person')
   const [meetingUrl, setMeetingUrl] = useState('')
   const [virtualRoomId, setVirtualRoomId] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -239,8 +240,8 @@ export function CreateBookingModal({
 
   const handleSubmit = () => {
     if (!validate()) return
-    const startDateTime = `${date}T${startTime}:00`
-    const endDateTime = `${date}T${endTime}:00`
+    const startDateTime = localToISO(date, startTime)
+    const endDateTime = localToISO(date, endTime)
     onSubmit({
       title: title.trim(),
       roomId,

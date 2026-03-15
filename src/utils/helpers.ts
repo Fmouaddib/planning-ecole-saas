@@ -70,6 +70,14 @@ export function formatTimeRange(startDate: string | Date, endDate: string | Date
 }
 
 /**
+ * Convertit date + heure locale en ISO UTC pour Supabase (timestamptz).
+ * Évite le décalage timezone quand on envoie une string naïve.
+ */
+export function localToISO(date: string, time: string): string {
+  return new Date(`${date}T${time}:00`).toISOString()
+}
+
+/**
  * Capitalise la première lettre d'une chaîne
  */
 export function capitalize(str: string): string {

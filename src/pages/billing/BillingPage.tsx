@@ -53,7 +53,7 @@ function BillingPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Facturation</h1>
           <p className="text-neutral-500 dark:text-neutral-400 mt-1">Gérez votre abonnement et vos options</p>
@@ -86,7 +86,7 @@ function BillingPage() {
             <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Plan actuel</h2>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-neutral-500 dark:text-neutral-400">Plan</p>
               <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100">

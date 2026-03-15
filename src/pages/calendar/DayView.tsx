@@ -8,7 +8,7 @@ import {
   differenceInMinutes,
   isBefore,
 } from 'date-fns'
-import { Repeat, AlertTriangle } from 'lucide-react'
+import { Repeat, AlertTriangle, Video } from 'lucide-react'
 import type { CalendarEvent } from '@/types'
 import {
   HOUR_START,
@@ -235,6 +235,7 @@ export default function DayView({
                 >
                   {calendarLabels.includes('title') && (
                     <div className="flex items-center gap-1">
+                      {event.meetingUrl && <Video size={12} className="flex-shrink-0 opacity-90" />}
                       <span className="font-medium truncate">{event.title}</span>
                       {event.recurrence && <Repeat size={12} className="flex-shrink-0 opacity-80" />}
                       {isConflict && <AlertTriangle size={12} className="flex-shrink-0 text-yellow-200" />}

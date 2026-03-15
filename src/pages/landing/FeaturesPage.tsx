@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { updatePageMeta } from '@/utils/seo'
 import LandingLayout from '@/components/landing/LandingLayout'
 
 const featureBlocks = [
@@ -332,7 +333,15 @@ export default function FeaturesPage() {
   const { t, lang } = useLang()
   const { reveal } = useScrollReveal()
 
-  useEffect(() => { window.scrollTo(0, 0) }, [])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    updatePageMeta({
+      title: 'Fonctionnalites',
+      description: 'Decouvrez toutes les fonctionnalites d\'Anti-Planning : planning interactif, gestion des notes, suivi des presences, visioconference integree.',
+      path: '/features',
+      keywords: 'fonctionnalites planning ecole, calendrier formation, gestion notes, suivi presences, visioconference formation, planning interactif, gestion salles cours',
+    })
+  }, [])
 
   return (
     <LandingLayout isDetailPage>
@@ -402,6 +411,7 @@ export default function FeaturesPage() {
           <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
             {t('cta.button')}
           </a>
+          <p className="landing-cta-microcopy">{t('hero.microcopy')}</p>
         </div>
       </section>
     </LandingLayout>

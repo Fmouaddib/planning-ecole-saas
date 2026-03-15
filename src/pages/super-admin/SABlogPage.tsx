@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { SABlogService, type BlogSettings, type BlogPost, type BlogTopic, type BlogLog, type TopicSuggestion, type SeoAudit } from '@/services/super-admin/blog'
 import { MarkdownWithMermaid } from '@/components/ui/MermaidRenderer'
+import { getLandingUrl } from '@/utils/subdomain'
 import toast from 'react-hot-toast'
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -547,15 +548,12 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
           <button className="sa-btn sa-btn-secondary" onClick={() => setSelectedPost(null)}>← Retour</button>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {selectedPost.status === 'published' && (
-              <a
-                href={`#/blog/${selectedPost.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
                 className="sa-btn sa-btn-secondary"
-                style={{ textDecoration: 'none' }}
+                onClick={() => window.open(`${getLandingUrl()}#/blog/${selectedPost.slug}`, '_blank')}
               >
                 🌐 Voir en ligne
-              </a>
+              </button>
             )}
             <button className={`sa-btn ${showImagePicker ? 'sa-btn-primary' : 'sa-btn-secondary'}`} onClick={handleOpenImagePicker}>
               🖼️ Image
@@ -592,6 +590,7 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
             <img
               src={(selectedPost as any).featured_image_url}
               alt={selectedPost.title}
+              loading="lazy"
               style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 12 }}
             />
             <button
@@ -618,7 +617,7 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
             {/* Current image */}
             {(selectedPost as any)?.featured_image_url && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, padding: 10, borderRadius: 8, background: 'var(--sa-bg-subtle)' }}>
-                <img src={(selectedPost as any).featured_image_url} alt="" style={{ width: 80, height: 50, objectFit: 'cover', borderRadius: 6 }} />
+                <img src={(selectedPost as any).featured_image_url} alt="" loading="lazy" style={{ width: 80, height: 50, objectFit: 'cover', borderRadius: 6 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontSize: 12, color: 'var(--sa-text-secondary)' }}>Image actuelle</span>
                 </div>
@@ -1107,15 +1106,12 @@ function PostsTab({ posts, onRefresh }: { posts: BlogPost[]; onRefresh: () => vo
                   <td style={{ fontSize: 13 }}>{new Date(p.created_at).toLocaleDateString('fr-FR')}</td>
                   <td>
                     {p.status === 'published' && (
-                      <a
-                        href={`#/blog/${p.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{ fontSize: 11, color: '#3b82f6', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+                      <button
+                        onClick={e => { e.stopPropagation(); window.open(`${getLandingUrl()}#/blog/${p.slug}`, '_blank') }}
+                        style={{ fontSize: 11, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', padding: 0 }}
                       >
                         🌐 Voir
-                      </a>
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -1197,7 +1193,12 @@ function TopicsTab({ topics, settings, onRefresh }: { topics: BlogTopic[]; setti
       toast.success('Article généré !')
       onRefresh()
     } catch (err: any) {
-      toast.error(err.message)
+      const msg = err.message || 'Erreur inconnue'
+      if (msg.includes('Invalid or expired token') || msg.includes('Missing authorization')) {
+        toast.error('Session expirée. Veuillez rafraîchir la page et réessayer.')
+      } else {
+        toast.error(msg)
+      }
     } finally {
       setGenerating(null)
     }

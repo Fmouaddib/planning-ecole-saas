@@ -34,6 +34,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
 }
 
 .landing-logo {
@@ -62,19 +63,88 @@
 .landing-nav-links {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.25rem;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .landing-nav-link {
   color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   transition: color 0.2s;
+  white-space: nowrap;
 }
 
 .landing-nav-link:hover {
   color: white;
+}
+
+/* Dropdown menus */
+.landing-nav-dropdown {
+  position: relative;
+}
+
+.landing-nav-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.landing-nav-chevron {
+  transition: transform 0.2s;
+  opacity: 0.7;
+}
+
+.landing-nav-chevron.open {
+  transform: rotate(180deg);
+}
+
+.landing-nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  min-width: 200px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0.5rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+  z-index: 60;
+}
+
+.landing-nav-dropdown-menu.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.landing-nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.6rem 0.875rem;
+  border-radius: 8px;
+  color: #1e293b;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.landing-nav-dropdown-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .landing-nav-actions {
@@ -279,6 +349,13 @@
 .landing-hero-btn-secondary:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.5);
+}
+
+.landing-hero-microcopy {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.01em;
 }
 
 /* Hero mockup */
@@ -1382,6 +1459,13 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+.landing-cta-microcopy {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.01em;
+}
+
 /* ===================== FOOTER ===================== */
 
 .landing-footer {
@@ -1533,7 +1617,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .landing-nav-links,
   .landing-nav-actions {
     display: none;
@@ -2779,4 +2863,93 @@
 .landing-feature-icon.sky {
   background: rgba(14, 165, 233, 0.15);
   color: #0ea5e9;
+}
+
+/* ── Contact Page Grid ─────────────────────────────── */
+.contact-grid {
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 768px) {
+  .contact-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+}
+
+/* ── Additional Mobile Fixes ─────────────────────── */
+
+/* Features grid: 2 cols on tablets */
+@media (max-width: 1100px) and (min-width: 769px) {
+  .landing-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Testimonials: 2 cols on tablets */
+@media (max-width: 960px) and (min-width: 769px) {
+  .landing-testimonials-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* Pain points: 2 cols on tablets */
+@media (max-width: 960px) and (min-width: 769px) {
+  .landing-pain-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Pricing single-column: wider on tablets */
+@media (max-width: 960px) {
+  .landing-pricing-grid {
+    max-width: 500px;
+  }
+}
+
+/* Showcase blocks: reduce gap on tablets */
+@media (max-width: 960px) and (min-width: 769px) {
+  .landing-showcase-block {
+    gap: 2rem;
+  }
+}
+
+/* Detail hero: fluid font sizing */
+.landing-detail-hero h1 {
+  font-size: clamp(1.5rem, 5vw, 3rem);
+}
+.landing-detail-hero p {
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+}
+
+/* Hero: fluid subtitle */
+.landing-hero-subtitle {
+  font-size: clamp(0.9rem, 2.5vw, 1.2rem);
+}
+
+/* Social proof: wrap earlier on tablets */
+@media (max-width: 768px) {
+  .landing-hero-proof {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+  .landing-hero-proof-divider {
+    display: none;
+  }
+}
+
+/* Compare table: smaller min-width */
+.landing-compare-table {
+  min-width: 600px;
+}
+
+/* Feature cards: smaller padding on small screens */
+@media (max-width: 640px) {
+  .landing-feature-card {
+    padding: 1.25rem;
+  }
+  .landing-pain-card {
+    padding: 1.25rem;
+  }
 }

@@ -7,7 +7,7 @@ import { Upload, AlertTriangle, CheckCircle, Download, X } from 'lucide-react'
 import { parseFile, type ParseResult } from '@/utils/import-parser'
 import { validateImport, type ImportType, type ValidationResult } from '@/utils/import-validators'
 import { executeImport, type ImportResult } from '@/utils/import-executor'
-import { downloadTemplate } from '@/utils/import-templates'
+import { downloadTemplate, type TemplateReferenceData } from '@/utils/import-templates'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { isDemoMode } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -20,10 +20,18 @@ interface ImportModalProps {
     classNames?: string[]
     diplomaNames?: string[]
     programNames?: string[]
+    subjectNames?: string[]
+    roomNames?: string[]
+    teacherEmails?: string[]
+    sessionTypeValues?: string[]
     classMap?: Map<string, string>
     diplomaMap?: Map<string, string>
     programMap?: Map<string, string>
+    subjectMap?: Map<string, string>
+    roomMap?: Map<string, string>
+    teacherEmailMap?: Map<string, string>
   }
+  referenceData?: TemplateReferenceData
   onComplete?: () => void
 }
 
@@ -34,9 +42,10 @@ const TYPE_LABELS: Record<ImportType, string> = {
   teachers: 'professeurs',
   subjects: 'matières',
   classes: 'classes',
+  sessions: 'séances',
 }
 
-export function ImportModal({ isOpen, onClose, type, context, onComplete }: ImportModalProps) {
+export function ImportModal({ isOpen, onClose, type, context, referenceData, onComplete }: ImportModalProps) {
   const { user } = useAuthContext()
   const fileRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState<Step>('upload')
@@ -93,6 +102,9 @@ export function ImportModal({ isOpen, onClose, type, context, onComplete }: Impo
         classMap: context?.classMap,
         programMap: context?.programMap,
         diplomaMap: context?.diplomaMap,
+        subjectMap: context?.subjectMap,
+        roomMap: context?.roomMap,
+        teacherEmailMap: context?.teacherEmailMap,
       })
       setImportResult(result)
       setStep('report')
@@ -145,7 +157,7 @@ export function ImportModal({ isOpen, onClose, type, context, onComplete }: Impo
             <p className="text-xs text-neutral-400 mt-3">Formats: .csv, .xlsx</p>
           </div>
           <button
-            onClick={() => downloadTemplate(type)}
+            onClick={() => downloadTemplate(type, referenceData)}
             className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
           >
             <Download size={14} />

@@ -31,19 +31,19 @@ export default function LandingFooter() {
         <div className="landing-footer-col">
           <h4>{t('footer.resources')}</h4>
           <a href="#/blog">{t('footer.blog')}</a>
-          <a href="#/">{t('footer.docs')}</a>
-          <a href="#/">{t('footer.guides')}</a>
+          <a href="#/how-it-works">{t('footer.howItWorks')}</a>
+          <a href="#/api-docs">API Documentation</a>
+          <a href="#/onboarding">Créer mon établissement</a>
         </div>
         <div className="landing-footer-col">
           <h4>{t('footer.support')}</h4>
-          <a href="#/">{t('footer.helpCenter')}</a>
-          <a href="#/">{t('footer.contact')}</a>
-          <a href="#/">{t('footer.status')}</a>
+          <a href="#/contact">{t('footer.contact')}</a>
+          <a href="mailto:contact@anti-planning.com">contact@anti-planning.com</a>
         </div>
         <div className="landing-footer-col">
           <h4>{t('footer.legal')}</h4>
-          <a href="#/">{t('footer.terms')}</a>
-          <a href="#/">{t('footer.privacy')}</a>
+          <a href="#/terms">{t('footer.terms')}</a>
+          <a href="#/privacy">{t('footer.privacy')}</a>
           <a href="#/about">{t('nav.about')}</a>
         </div>
       </div>

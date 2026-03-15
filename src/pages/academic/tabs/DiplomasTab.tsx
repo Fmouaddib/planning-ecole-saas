@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { filterBySearch } from '@/utils/helpers'
 import { Button, Input, Textarea, Modal, ModalFooter, Badge, EmptyState } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, GraduationCap } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, GraduationCap, ArrowUp, ArrowDown, ArrowUpDown, Download } from 'lucide-react'
+import { exportDiplomas } from '@/utils/export-academic'
 import type { Diploma, Program } from '@/types'
 
 interface DiplomaForm {
@@ -32,9 +33,32 @@ export function DiplomasTab({
   const [form, setForm] = useState<DiplomaForm>(emptyDiplomaForm)
   const [submitting, setSubmitting] = useState(false)
 
+  type SortKey = 'title' | 'programs' | 'description' | 'duration'
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) { if (sortDir === 'asc') setSortDir('desc'); else { setSortKey(null); setSortDir('asc') } }
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const getProgramCount = (diplomaId: string) => programs.filter(p => p.diplomaId === diplomaId).length
+
   const filtered = useMemo(() => {
-    return search ? filterBySearch(diplomas, search, ['title']) : diplomas
-  }, [diplomas, search])
+    let result = search ? filterBySearch(diplomas, search, ['title']) : [...diplomas]
+    if (sortKey) {
+      const dir = sortDir === 'asc' ? 1 : -1
+      result = [...result].sort((a, b) => {
+        switch (sortKey) {
+          case 'title': return a.title.localeCompare(b.title, 'fr', { sensitivity: 'base' }) * dir
+          case 'programs': return (getProgramCount(a.id) - getProgramCount(b.id)) * dir
+          case 'description': return (a.description || '').localeCompare(b.description || '', 'fr', { sensitivity: 'base' }) * dir
+          case 'duration': return (a.durationYears - b.durationYears) * dir
+          default: return 0
+        }
+      })
+    }
+    return result
+  }, [diplomas, search, sortKey, sortDir, programs])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
@@ -66,8 +90,6 @@ export function DiplomasTab({
     catch { /* toast in hook */ } finally { setSubmitting(false) }
   }
 
-  const getProgramCount = (diplomaId: string) => programs.filter(p => p.diplomaId === diplomaId).length
-
   return (
     <>
       {/* Filters */}
@@ -75,6 +97,11 @@ export function DiplomasTab({
         <div className="flex-1">
           <Input placeholder="Rechercher par titre..." leftIcon={Search} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+        {diplomas.length > 0 && (
+          <Button variant="secondary" leftIcon={Download} onClick={() => exportDiplomas(diplomas, programs)}>
+            Exporter
+          </Button>
+        )}
         <Button leftIcon={Plus} onClick={openCreate}>Ajouter un diplôme</Button>
       </div>
 
@@ -93,10 +120,19 @@ export function DiplomasTab({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Titre</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Programmes</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Description</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Durée</th>
+                    {([
+                      { key: 'title' as SortKey, label: 'Titre', className: '' },
+                      { key: 'programs' as SortKey, label: 'Programmes', className: '' },
+                      { key: 'description' as SortKey, label: 'Description', className: 'hidden md:table-cell' },
+                      { key: 'duration' as SortKey, label: 'Durée', className: '' },
+                    ]).map(col => (
+                      <th key={col.key} className={`${col.className} text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors`} onClick={() => toggleSort(col.key)}>
+                        <span className="inline-flex items-center gap-1">
+                          {col.label}
+                          {sortKey === col.key ? (sortDir === 'asc' ? <ArrowUp size={12} className="text-primary-500" /> : <ArrowDown size={12} className="text-primary-500" />) : <ArrowUpDown size={12} className="opacity-30" />}
+                        </span>
+                      </th>
+                    ))}
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -125,8 +161,8 @@ export function DiplomasTab({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(d)}><Pencil size={14} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => openDelete(d)}><Trash2 size={14} className="text-error-600" /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Modifier" onClick={() => openEdit(d)}><Pencil size={14} /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Supprimer" onClick={() => openDelete(d)}><Trash2 size={14} className="text-error-600" /></Button>
                         </div>
                       </td>
                     </tr>

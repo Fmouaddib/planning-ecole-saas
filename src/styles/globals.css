@@ -254,6 +254,17 @@
  *   Muted      #71717a  (zinc-500)  — placeholders, labels
  */
 
+/* --- Focus-visible: global outline for keyboard navigation --- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid theme('colors.primary.500');
+  outline-offset: 2px;
+}
+
 /* --- Focus ring dark offset --- */
 html.dark *:focus {
   --tw-ring-offset-color: #18181b;

@@ -118,7 +118,7 @@ function ChatPage() {
 
       <div className="flex-1 flex border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-hidden bg-white dark:bg-neutral-900 min-h-0">
         {/* Column 1: Channel list */}
-        <div className={`w-64 flex-shrink-0 border-r border-neutral-200 dark:border-neutral-700 ${
+        <div className={`w-full md:w-64 flex-shrink-0 border-r border-neutral-200 dark:border-neutral-700 ${
           mobileView === 'channels' ? 'block' : 'hidden md:block'
         }`}>
           <ChannelList
@@ -170,7 +170,7 @@ function ChatPage() {
 
         {/* Column 3: Info panel */}
         {showInfo && chat.activeChannel && (
-          <div className={`w-72 flex-shrink-0 border-l border-neutral-200 dark:border-neutral-700 ${
+          <div className={`w-full lg:w-72 flex-shrink-0 border-l border-neutral-200 dark:border-neutral-700 ${
             mobileView === 'info' ? 'block' : 'hidden lg:block'
           }`}>
             <InfoPanel

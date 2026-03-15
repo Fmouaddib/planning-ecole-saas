@@ -13,7 +13,7 @@ import {
   isBefore,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Repeat, AlertTriangle } from 'lucide-react'
+import { Repeat, AlertTriangle, Video } from 'lucide-react'
 import type { CalendarEvent } from '@/types'
 import {
   HOUR_START,
@@ -313,6 +313,7 @@ export default function WeekView({
                     >
                       {calendarLabels.includes('title') && (
                         <div className="flex items-center gap-1">
+                          {event.meetingUrl && <Video size={10} className="flex-shrink-0 opacity-90" />}
                           <span className="font-medium truncate">{event.title}</span>
                           {event.recurrence && <Repeat size={10} className="flex-shrink-0 opacity-80" />}
                           {isConflict && <AlertTriangle size={10} className="flex-shrink-0 text-yellow-200" />}

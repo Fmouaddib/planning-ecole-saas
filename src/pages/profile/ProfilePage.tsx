@@ -8,11 +8,12 @@ import { Button, Input, Modal, ModalFooter, HelpBanner } from '@/components/ui'
 import { AddonSubscribeModal } from '@/components/addons/AddonSubscribeModal'
 import type { SubscriptionPlanTier, SubscriptionStatus, ResourceUsage, AddonType } from '@/types'
 import { priceTTC, formatPrice } from '@/utils/pricing'
-import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell, MailCheck, Linkedin, ExternalLink } from 'lucide-react'
+import { User, KeyRound, Mail, LogOut, CreditCard, Check, Rocket, Crown, Package, Users, GraduationCap, X, Bell, MailCheck, Linkedin, ExternalLink, HelpCircle, Download } from 'lucide-react'
 import { supabase, isolatedClient } from '@/lib/supabase'
 import { SAAddonsService } from '@/services/super-admin/addons'
 import { useEmailPreferences, type EmailPreferences } from '@/hooks/useEmailPreferences'
 import { navigateTo } from '@/utils/navigation'
+import { exportCenterData } from '@/utils/export-center-data'
 import toast from 'react-hot-toast'
 
 const upgradePlans = [
@@ -87,6 +88,7 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
   const [editSaving, setEditSaving] = useState(false)
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   const tierConfig = plan?.tier ? PLAN_TIER_CONFIG[plan.tier] : null
   const statusConfig = subscription?.status ? STATUS_CONFIG[subscription.status] : null
@@ -289,14 +291,23 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
                   <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
                     Gérez votre abonnement, vos factures et vos moyens de paiement :
                   </p>
-                  <Button
-                    variant="secondary"
-                    leftIcon={CreditCard}
-                    onClick={openPortal}
-                    isLoading={portalLoading}
-                  >
-                    Gérer mon abonnement
-                  </Button>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant="secondary"
+                      leftIcon={CreditCard}
+                      onClick={openPortal}
+                      isLoading={portalLoading}
+                    >
+                      Gérer mon abonnement
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      leftIcon={CreditCard}
+                      onClick={() => navigateTo('/billing')}
+                    >
+                      Facturation
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <div className="space-y-4">
@@ -352,6 +363,15 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
                       )
                     })}
                   </div>
+                  <div className="pt-4">
+                    <Button
+                      variant="secondary"
+                      leftIcon={CreditCard}
+                      onClick={() => navigateTo('/billing')}
+                    >
+                      Facturation
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -380,8 +400,47 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
           <Button variant="secondary" onClick={() => { setPasswordModalOpen(true); setPasswordError(null); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }) }}>
             Changer le mot de passe
           </Button>
+          {(user?.role === 'admin' || user?.role === 'super_admin') && (
+            <Button
+              variant="secondary"
+              leftIcon={Download}
+              isLoading={exporting}
+              onClick={async () => {
+                if (!user?.establishmentId) {
+                  toast.error('Aucun centre rattache')
+                  return
+                }
+                setExporting(true)
+                try {
+                  // Fetch center name
+                  const { data: center } = await supabase
+                    .from('training_centers')
+                    .select('name')
+                    .eq('id', user.establishmentId)
+                    .single()
+                  await exportCenterData(user.establishmentId, center?.name || 'centre')
+                } finally {
+                  setExporting(false)
+                }
+              }}
+            >
+              Exporter mes donnees (RGPD)
+            </Button>
+          )}
+          {(user?.role === 'admin' || user?.role === 'super_admin') && (
+            <Button
+              variant="secondary"
+              leftIcon={HelpCircle}
+              onClick={() => {
+                localStorage.removeItem('onboarding_tour_completed')
+                navigateTo('/')
+              }}
+            >
+              Relancer la visite guidee
+            </Button>
+          )}
           <Button variant="danger" leftIcon={LogOut} onClick={onLogout}>
-            Se déconnecter
+            Se deconnecter
           </Button>
         </div>
       </div>
@@ -408,13 +467,18 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
               onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))}
             />
           </div>
-          <Input
-            label="Email"
-            type="email"
-            placeholder="votre@email.com"
-            value={editForm.email}
-            onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-          />
+          <div>
+            <Input
+              label="Email"
+              type="email"
+              placeholder="votre@email.com"
+              value={editForm.email}
+              onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+            />
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              Si vous modifiez votre email, un lien de confirmation sera envoyé à la nouvelle adresse. Le changement ne sera effectif qu'après confirmation.
+            </p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Téléphone"

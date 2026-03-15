@@ -105,7 +105,7 @@ export function useAcademicData() {
           .order('title'),
         supabase
           .from('classes')
-          .select('*, diploma:diplomas(id, title)')
+          .select('*, diploma:diplomas(id, title), program:programs(id, name)')
           .eq('center_id', user.establishmentId)
           .order('name'),
         supabase
@@ -164,6 +164,7 @@ export function useAcademicData() {
         id: c.id,
         name: c.name,
         diplomaId: c.diploma_id,
+        programId: c.program_id || undefined,
         centerId: c.center_id,
         academicYear: c.academic_year || '',
         academicYearId: c.academic_year_id || undefined,
@@ -177,6 +178,7 @@ export function useAcademicData() {
         isActive: c.is_active ?? true,
         createdAt: c.created_at,
         diploma: c.diploma || undefined,
+        program: c.program || undefined,
       }))
 
       const transformedSubjects: Subject[] = (subjectsRes.data || []).map((s: any) => ({
@@ -414,7 +416,7 @@ export function useAcademicData() {
 
   // ==================== CRUD Classes ====================
 
-  const createClass = useCallback(async (data: { name: string; diplomaId: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string }; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] }; examPeriods?: { name: string; startDate: string; endDate: string }[] }) => {
+  const createClass = useCallback(async (data: { name: string; diplomaId: string; programId?: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string }; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] }; examPeriods?: { name: string; startDate: string; endDate: string }[] }) => {
     assertAcademicWriteRole()
     if (!user?.establishmentId) throw new Error('Pas de centre rattaché')
     const { data: row, error } = await supabase
@@ -422,6 +424,7 @@ export function useAcademicData() {
       .insert({
         name: data.name,
         diploma_id: data.diplomaId,
+        program_id: data.programId || null,
         academic_year: data.academicYear || null,
         academic_year_id: data.academicYearId || null,
         start_date: data.startDate || null,
@@ -433,11 +436,12 @@ export function useAcademicData() {
         exam_periods: data.examPeriods || null,
         center_id: user.establishmentId,
       })
-      .select('*, diploma:diplomas(id, title)')
+      .select('*, diploma:diplomas(id, title), program:programs(id, name)')
       .single()
     if (error) { toast.error('Erreur création classe: ' + error.message); throw error }
     const newClass: Class = {
       id: row.id, name: row.name, diplomaId: row.diploma_id,
+      programId: row.program_id || undefined,
       centerId: row.center_id, academicYear: row.academic_year || '',
       academicYearId: row.academic_year_id || undefined,
       startDate: row.start_date || undefined, endDate: row.end_date || undefined,
@@ -448,6 +452,7 @@ export function useAcademicData() {
       examPeriods: row.exam_periods || undefined,
       isActive: row.is_active ?? true, createdAt: row.created_at,
       diploma: row.diploma || undefined,
+      program: row.program || undefined,
     }
     setClasses(prev => [...prev, newClass].sort((a, b) => a.name.localeCompare(b.name)))
     toast.success('Classe créée')
@@ -455,11 +460,12 @@ export function useAcademicData() {
     return newClass
   }, [user?.establishmentId])
 
-  const updateClass = useCallback(async (id: string, data: { name?: string; diplomaId?: string; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string } | null; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] } | null; examPeriods?: { name: string; startDate: string; endDate: string }[] | null }) => {
+  const updateClass = useCallback(async (id: string, data: { name?: string; diplomaId?: string; programId?: string | null; academicYear?: string; academicYearId?: string; startDate?: string; endDate?: string; scheduleType?: string; attendanceDays?: number[]; alternanceConfig?: { schoolWeeks: number; companyWeeks: number; referenceDate: string } | null; scheduleExceptions?: { schoolDays: string[]; companyDays: string[] } | null; examPeriods?: { name: string; startDate: string; endDate: string }[] | null }) => {
     assertAcademicWriteRole()
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.diplomaId !== undefined) payload.diploma_id = data.diplomaId
+    if (data.programId !== undefined) payload.program_id = data.programId || null
     if (data.academicYear !== undefined) payload.academic_year = data.academicYear || null
     if (data.academicYearId !== undefined) payload.academic_year_id = data.academicYearId || null
     if (data.startDate !== undefined) payload.start_date = data.startDate || null
@@ -470,10 +476,11 @@ export function useAcademicData() {
     if (data.scheduleExceptions !== undefined) payload.schedule_exceptions = data.scheduleExceptions
     if (data.examPeriods !== undefined) payload.exam_periods = data.examPeriods
     const { data: row, error } = await supabase.from('classes').update(payload).eq('id', id)
-      .select('*, diploma:diplomas(id, title)').single()
+      .select('*, diploma:diplomas(id, title), program:programs(id, name)').single()
     if (error) { toast.error('Erreur modification classe: ' + error.message); throw error }
     const updated: Class = {
       id: row.id, name: row.name, diplomaId: row.diploma_id,
+      programId: row.program_id || undefined,
       centerId: row.center_id, academicYear: row.academic_year || '',
       academicYearId: row.academic_year_id || undefined,
       startDate: row.start_date || undefined, endDate: row.end_date || undefined,
@@ -484,6 +491,7 @@ export function useAcademicData() {
       examPeriods: row.exam_periods || undefined,
       isActive: row.is_active ?? true, createdAt: row.created_at,
       diploma: row.diploma || undefined,
+      program: row.program || undefined,
     }
     setClasses(prev => prev.map(c => c.id === id ? updated : c))
     toast.success('Classe modifiée')
@@ -1248,6 +1256,7 @@ export function useAcademicData() {
     const newClass = await createClass({
       name: cours.name,
       diplomaId: cours.diplomaId,
+      programId: cours.programId,
       academicYear: yearName,
       academicYearId: targetAcademicYearId,
       scheduleType: cours.scheduleType,

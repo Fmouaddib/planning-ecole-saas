@@ -194,13 +194,13 @@ export function AcademicYearsTab({
                           <Star size={14} className="text-warning-500" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(y)} title="Modifier">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(y)} title="Modifier" aria-label="Modifier">
                         <Pencil size={14} />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => openDeleteSessions(y)} title="Supprimer les séances">
+                      <Button variant="ghost" size="sm" onClick={() => openDeleteSessions(y)} title="Supprimer les séances" aria-label="Supprimer les séances">
                         <AlertTriangle size={14} className="text-warning-600" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => openDelete(y)} title="Supprimer l'année">
+                      <Button variant="ghost" size="sm" onClick={() => openDelete(y)} title="Supprimer l'année" aria-label="Supprimer">
                         <Trash2 size={14} className="text-error-600" />
                       </Button>
                     </div>

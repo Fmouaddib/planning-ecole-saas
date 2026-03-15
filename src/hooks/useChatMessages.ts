@@ -266,13 +266,18 @@ export function useChatMessages(channelId: string | null) {
     ))
   }, [user])
 
-  // Delete message (soft)
+  // Delete message (soft) — only sender or admin can delete
   const deleteMessage = useCallback(async (messageId: string) => {
     if (!user || isDemoMode) return
-    const { error } = await supabase
+    let query = supabase
       .from('chat_messages')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', messageId)
+    // Non-admin users can only delete their own messages
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      query = query.eq('sender_id', user.id)
+    }
+    const { error } = await query
     if (error) {
       console.error('deleteMessage error:', error)
       return

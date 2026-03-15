@@ -21,7 +21,8 @@ import { useAuth } from './useAuth'
 import { useEmailNotifications } from './useEmailNotifications'
 import { useVisioMeetings } from './useVisioMeetings'
 import { useCenterSettings } from './useCenterSettings'
-import { getErrorMessage } from '@/utils'
+import { useSubscriptionInfo } from './useSubscriptionInfo'
+import { getUserFriendlyError } from '@/utils'
 import { transformBooking } from '@/utils/transforms'
 import { getAutoSubjectColor } from '@/utils/constants'
 import { SubscriptionLimitsService } from '@/services/subscriptionLimitsService'
@@ -36,6 +37,8 @@ export function useBookings(): UseBookingsReturn {
   const { notifySession } = useEmailNotifications()
   const { createMeeting, updateMeeting, deleteMeeting } = useVisioMeetings()
   const { settings: centerSettings } = useCenterSettings()
+  const { plan } = useSubscriptionInfo()
+  const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
 
   // ==================== HELPER FUNCTIONS ====================
 
@@ -44,7 +47,7 @@ export function useBookings(): UseBookingsReturn {
   }, [])
 
   const handleError = useCallback((error: unknown, _defaultMessage = 'Une erreur est survenue') => {
-    const message = getErrorMessage(error)
+    const message = getUserFriendlyError(error)
     setError(message)
     console.error('Bookings Error:', error)
     return message
@@ -66,7 +69,7 @@ export function useBookings(): UseBookingsReturn {
         .from('training_sessions')
         .select(`
           *,
-          room:rooms(id, name, room_type, capacity),
+          room:rooms(id, name, room_type, capacity, building_id, building:buildings(id, name)),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
           subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
@@ -105,6 +108,11 @@ export function useBookings(): UseBookingsReturn {
         .lt('start_time', endDateTime)
         .gt('end_time', startDateTime)
 
+      // Scope to current center to prevent cross-tenant conflicts
+      if (user?.establishmentId) {
+        query = query.eq('center_id', user.establishmentId)
+      }
+
       if (excludeBookingId) {
         query = query.neq('id', excludeBookingId)
       }
@@ -117,7 +125,7 @@ export function useBookings(): UseBookingsReturn {
       console.error('Error checking booking conflict:', error)
       return false
     }
-  }, [])
+  }, [user?.establishmentId])
 
   const checkTrainerConflict = useCallback(async (
     trainerId: UUID,
@@ -134,6 +142,11 @@ export function useBookings(): UseBookingsReturn {
         .lt('start_time', endDateTime)
         .gt('end_time', startDateTime)
 
+      // Scope to current center to prevent cross-tenant conflicts
+      if (user?.establishmentId) {
+        query = query.eq('center_id', user.establishmentId)
+      }
+
       if (excludeBookingId) {
         query = query.neq('id', excludeBookingId)
       }
@@ -146,7 +159,7 @@ export function useBookings(): UseBookingsReturn {
       console.error('Error checking trainer conflict:', error)
       return false
     }
-  }, [])
+  }, [user?.establishmentId])
 
   // ==================== CRUD FUNCTIONS ====================
 
@@ -188,7 +201,7 @@ export function useBookings(): UseBookingsReturn {
         additional_room_ids: data.additionalRoomIds?.length ? data.additionalRoomIds : [],
         trainer_id: user.id,
         center_id: user.establishmentId,
-        session_type: data.sessionType || 'in_person',
+        session_type: data.sessionType || (isOnlineSchool ? 'online' : 'in_person'),
         status: 'scheduled' as const,
         subject_id: data.subjectId || null,
         class_id: data.classId || null,
@@ -200,7 +213,7 @@ export function useBookings(): UseBookingsReturn {
         .insert(sessionData)
         .select(`
           *,
-          room:rooms(id, name, room_type, capacity),
+          room:rooms(id, name, room_type, capacity, building_id, building:buildings(id, name)),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
           subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
@@ -225,7 +238,7 @@ export function useBookings(): UseBookingsReturn {
       if (
         visioProvider &&
         centerSettings.visio_auto_create &&
-        transformed.sessionType !== 'in_person' &&
+        (isOnlineSchool || transformed.sessionType !== 'in_person') &&
         !data.meetingUrl
       ) {
         const startDt = new Date(transformed.startDateTime)
@@ -275,6 +288,11 @@ export function useBookings(): UseBookingsReturn {
   }, [user?.id, user?.establishmentId, checkBookingConflict, handleError, notifySession, centerSettings, createMeeting])
 
   const updateBooking = useCallback(async (data: UpdateBookingData): Promise<Booking> => {
+    // Role check: only admin, staff, or teacher (own sessions) can update
+    const allowedRoles = ['admin', 'super_admin', 'staff', 'teacher']
+    if (!user?.role || !allowedRoles.includes(user.role)) {
+      throw new Error('Permission refusée : rôle insuffisant pour modifier une séance')
+    }
     try {
       setError(null)
 
@@ -324,7 +342,7 @@ export function useBookings(): UseBookingsReturn {
         .eq('id', data.id)
         .select(`
           *,
-          room:rooms(id, name, room_type, capacity),
+          room:rooms(id, name, room_type, capacity, building_id, building:buildings(id, name)),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
           subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
@@ -352,8 +370,8 @@ export function useBookings(): UseBookingsReturn {
       // Visio update/delete (async, non-bloquant)
       const oldBooking = bookings.find(b => b.id === data.id)
       if (oldBooking?.visioMeetingId) {
-        if (data.sessionType === 'in_person') {
-          // Session became in_person → delete visio meeting
+        if (data.sessionType === 'in_person' && !isOnlineSchool) {
+          // Session became in_person → delete visio meeting (not for online schools)
           deleteMeeting(oldBooking.visioMeetingId, oldBooking.visioProvider).then(async () => {
             await supabase
               .from('training_sessions')
@@ -425,6 +443,10 @@ export function useBookings(): UseBookingsReturn {
   }, [user, bookings, checkBookingConflict, handleError, notifySession, updateMeeting, deleteMeeting])
 
   const deleteBooking = useCallback(async (id: UUID): Promise<void> => {
+    // Role check: only admin/staff can delete sessions
+    if (!user?.role || !['admin', 'super_admin', 'staff'].includes(user.role)) {
+      throw new Error('Permission refusée : rôle insuffisant pour supprimer une séance')
+    }
     try {
       setError(null)
 
@@ -458,6 +480,11 @@ export function useBookings(): UseBookingsReturn {
   }, [user, bookings, handleError, deleteMeeting])
 
   const cancelBooking = useCallback(async (id: UUID, _reason?: string): Promise<Booking> => {
+    // Role check: only admin, staff, or teacher can cancel sessions
+    const allowedRoles = ['admin', 'super_admin', 'staff', 'teacher']
+    if (!user?.role || !allowedRoles.includes(user.role)) {
+      throw new Error('Permission refusée : rôle insuffisant pour annuler une séance')
+    }
     try {
       setError(null)
 
@@ -477,7 +504,7 @@ export function useBookings(): UseBookingsReturn {
         .eq('id', id)
         .select(`
           *,
-          room:rooms(id, name, room_type, capacity),
+          room:rooms(id, name, room_type, capacity, building_id, building:buildings(id, name)),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
           subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
@@ -515,7 +542,7 @@ export function useBookings(): UseBookingsReturn {
         .eq('id', id)
         .select(`
           *,
-          room:rooms(id, name, room_type, capacity),
+          room:rooms(id, name, room_type, capacity, building_id, building:buildings(id, name)),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
           subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
@@ -561,7 +588,7 @@ export function useBookings(): UseBookingsReturn {
         room_id: s.roomId,
         trainer_id: s.trainerId,
         center_id: user.establishmentId,
-        session_type: 'in_person' as const,
+        session_type: isOnlineSchool ? 'online' as const : 'in_person' as const,
         status: 'scheduled' as const,
         subject_id: s.subjectId || null,
         class_id: s.classId || null,
@@ -572,7 +599,7 @@ export function useBookings(): UseBookingsReturn {
         .insert(allData)
         .select(`
           *,
-          room:rooms(id, name, room_type, capacity),
+          room:rooms(id, name, room_type, capacity, building_id, building:buildings(id, name)),
           trainer:profiles!training_sessions_trainer_id_fkey(id, full_name, email),
           subject:subjects(id, name, color),
           class_:classes(id, name, diploma:diplomas(id, title))
@@ -587,13 +614,45 @@ export function useBookings(): UseBookingsReturn {
 
       AuditService.logCrud('created', 'session', 'batch', user.id, user.establishmentId, { count: transformed.length, batch: true })
 
+      // Visio auto-create for batch (async, non-bloquant)
+      const visioProvider = centerSettings.visio_provider
+      if (visioProvider && centerSettings.visio_auto_create && (isOnlineSchool || transformed.some(t => t.sessionType !== 'in_person'))) {
+        const eligibleSessions = transformed.filter(t => isOnlineSchool || t.sessionType !== 'in_person')
+        for (const session of eligibleSessions) {
+          const startDt = new Date(session.startDateTime)
+          const endDt = new Date(session.endDateTime)
+          const durationMin = Math.round((endDt.getTime() - startDt.getTime()) / 60000)
+          createMeeting({
+            topic: session.title,
+            startTime: session.startDateTime,
+            duration: durationMin,
+          }).then(async (visio) => {
+            await supabase
+              .from('training_sessions')
+              .update({
+                meeting_url: visio.join_url,
+                visio_meeting_id: visio.meeting_id,
+                visio_join_url: visio.join_url,
+                visio_password: visio.password,
+                visio_provider: visioProvider,
+              })
+              .eq('id', session.id)
+            setBookings(prev =>
+              prev.map(b => b.id === session.id ? { ...b, meetingUrl: visio.join_url, visioMeetingId: visio.meeting_id, visioProvider } : b)
+            )
+          }).catch(err => console.error('[Visio] batch auto-create failed for', session.id, err))
+        }
+        const providerLabel = visioProvider === 'zoom' ? 'Zoom' : visioProvider === 'teams' ? 'Teams' : 'Google Meet'
+        toast.success(`Liens ${providerLabel} en cours de création pour ${eligibleSessions.length} séance(s)...`)
+      }
+
       return { created: transformed.length, failed: [] }
     } catch (error) {
       const message = handleError(error, 'Erreur lors de la création en lot')
       toast.error(message)
       throw error
     }
-  }, [user?.id, user?.establishmentId, handleError])
+  }, [user?.id, user?.establishmentId, handleError, centerSettings, createMeeting, isOnlineSchool])
 
   // ==================== QUERY FUNCTIONS ====================
 
@@ -664,7 +723,9 @@ export function useBookings(): UseBookingsReturn {
       start: booking.startDateTime,
       end: booking.endDateTime,
       roomId: booking.roomId,
-      roomName: booking.room?.name || 'Salle inconnue',
+      roomName: booking.room
+        ? (booking.room.buildingName ? `${booking.room.name} (${booking.room.buildingName})` : booking.room.name)
+        : 'Salle inconnue',
       additionalRoomIds: booking.additionalRoomIds || [],
       userId: booking.userId,
       userName: booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : 'Utilisateur inconnu',

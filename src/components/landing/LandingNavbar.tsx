@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Menu, X, ChevronDown } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 
 interface LandingNavbarProps {
@@ -7,18 +7,65 @@ interface LandingNavbarProps {
   isDetailPage?: boolean
 }
 
+interface NavItem {
+  href: string
+  label: string
+  badge?: boolean
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+type NavEntry = NavItem | NavGroup
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return 'items' in entry
+}
+
 export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = false }: LandingNavbarProps) {
   const { lang, toggleLang, t } = useLang()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const dropdownTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const navLinks = [
-    { href: '#/features', label: t('nav.features'), badge: true },
-    { href: '#/ecole-en-ligne', label: t('nav.onlineSchool') },
-    { href: '#/how-it-works', label: t('nav.howItWorks') },
+  const navEntries: NavEntry[] = [
+    {
+      label: t('nav.product'),
+      items: [
+        { href: '#/features', label: t('nav.features'), badge: true },
+        { href: '#/ecole-en-ligne', label: t('nav.onlineSchool') },
+        { href: '#/how-it-works', label: t('nav.howItWorks') },
+      ],
+    },
     { href: '#/pricing', label: t('nav.pricing') },
     { href: '#/blog', label: 'Blog' },
     { href: '#/about', label: t('nav.about') },
   ]
+
+  // All flat links for mobile menu
+  const allLinks: NavItem[] = navEntries.flatMap(entry =>
+    isGroup(entry) ? entry.items : [entry]
+  )
+
+  const handleMouseEnter = (label: string) => {
+    if (dropdownTimeout.current) clearTimeout(dropdownTimeout.current)
+    setOpenDropdown(label)
+  }
+
+  const handleMouseLeave = () => {
+    dropdownTimeout.current = setTimeout(() => setOpenDropdown(null), 150)
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const close = () => setOpenDropdown(null)
+    if (openDropdown) {
+      document.addEventListener('click', close)
+      return () => document.removeEventListener('click', close)
+    }
+  }, [openDropdown])
 
   return (
     <>
@@ -30,12 +77,34 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
           </a>
 
           <div className="landing-nav-links">
-            {navLinks.map((link) => (
-              <a key={link.href} href={link.href} className="landing-nav-link">
-                {link.label}
-                {link.badge && <span className="landing-nav-badge-new">{t('nav.badge.new')}</span>}
-              </a>
-            ))}
+            {navEntries.map((entry) =>
+              isGroup(entry) ? (
+                <div
+                  key={entry.label}
+                  className="landing-nav-dropdown"
+                  onMouseEnter={() => handleMouseEnter(entry.label)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <button className="landing-nav-link landing-nav-dropdown-trigger">
+                    {entry.label}
+                    <ChevronDown size={14} className={`landing-nav-chevron ${openDropdown === entry.label ? 'open' : ''}`} />
+                  </button>
+                  <div className={`landing-nav-dropdown-menu ${openDropdown === entry.label ? 'open' : ''}`}>
+                    {entry.items.map((item) => (
+                      <a key={item.href} href={item.href} className="landing-nav-dropdown-item" onClick={() => setOpenDropdown(null)}>
+                        {item.label}
+                        {item.badge && <span className="landing-nav-badge-new">{t('nav.badge.new')}</span>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <a key={entry.href} href={entry.href} className="landing-nav-link">
+                  {entry.label}
+                  {entry.badge && <span className="landing-nav-badge-new">{t('nav.badge.new')}</span>}
+                </a>
+              )
+            )}
           </div>
 
           <div className="landing-nav-actions">
@@ -54,7 +123,7 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
               </button>
             </div>
             <a href="#/login" className="landing-btn-ghost">{t('nav.login')}</a>
-            <a href="#/signup" className="landing-btn-coral">{t('nav.start')}</a>
+            <a href="#/onboarding" className="landing-btn-coral">{t('nav.start')}</a>
           </div>
 
           <button
@@ -75,7 +144,7 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
         >
           <X size={24} />
         </button>
-        {navLinks.map((link) => (
+        {allLinks.map((link) => (
           <a
             key={link.href}
             href={link.href}
@@ -103,7 +172,7 @@ export default function LandingNavbar({ scrolled, isDetailPage: _isDetailPage = 
         <a href="#/login" className="landing-btn-ghost" onClick={() => setMobileMenuOpen(false)}>
           {t('nav.login')}
         </a>
-        <a href="#/signup" className="landing-btn-coral landing-btn-coral-lg" onClick={() => setMobileMenuOpen(false)}>
+        <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg" onClick={() => setMobileMenuOpen(false)}>
           {t('nav.start')}
         </a>
       </div>

@@ -11,18 +11,10 @@ import {
   Menu,
   LogOut,
   HelpCircle,
+  CreditCard,
 } from 'lucide-react'
 import { User as UserType } from '@/types'
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrateur',
-  super_admin: 'Super Admin',
-  teacher: 'Enseignant',
-  trainer: 'Formateur',
-  student: 'Étudiant',
-  staff: 'Personnel',
-  coordinator: 'Coordinateur',
-}
+import { useLang } from '@/hooks/useLang'
 
 interface HeaderProps {
   user?: UserType | null
@@ -47,10 +39,10 @@ export const Header: React.FC<HeaderProps> = ({
   className,
   unreadCount = 0,
 }) => {
+  const { t } = useLang()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Fermer le menu au clic extérieur
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e: MouseEvent) => {
@@ -67,6 +59,8 @@ export const Header: React.FC<HeaderProps> = ({
     onNavigate?.(path)
   }
 
+  const roleLabel = user?.role ? t(`admin.role.${user.role}`) : ''
+
   return (
     <header
       className={clsx(
@@ -81,6 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Mobile menu button */}
         <button
           onClick={onMenuToggle}
+          aria-label="Menu"
           className="lg:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
         >
           <Menu size={20} className="text-neutral-600 dark:text-neutral-400" />
@@ -103,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <input
             type="text"
-            placeholder="Rechercher salles, événements..."
+            placeholder={t('admin.search.placeholder')}
             className="w-80 pl-10 pr-4 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-lg
                      text-neutral-900 dark:text-neutral-100 placeholder-neutral-500
                      focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
@@ -115,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right side */}
       <div className="flex items-center space-x-2">
         {/* Search button - Mobile only */}
-        <button className="md:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200">
+        <button aria-label="Rechercher" className="md:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200">
           <Search size={20} className="text-neutral-600 dark:text-neutral-400" />
         </button>
 
@@ -123,7 +118,8 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onThemeToggle}
           className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
-          title={isDarkMode ? 'Mode clair' : 'Mode sombre'}
+          title={isDarkMode ? t('admin.theme.light') : t('admin.theme.dark')}
+          aria-label={isDarkMode ? t('admin.theme.light') : t('admin.theme.dark')}
         >
           {isDarkMode ? (
             <Sun size={20} className="text-neutral-600 dark:text-neutral-400" />
@@ -137,6 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onNotificationsClick}
           className="relative p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
           title="Notifications"
+          aria-label="Notifications"
         >
           <Bell size={20} className="text-neutral-600 dark:text-neutral-400" />
           {unreadCount > 0 && (
@@ -171,7 +168,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {user.firstName} {user.lastName}
                 </p>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  {ROLE_LABELS[user.role] || user.role}
+                  {roleLabel || user.role}
                 </p>
               </div>
 
@@ -196,7 +193,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <User size={16} className="text-neutral-400" />
-                    Mon profil
+                    {t('admin.menu.profile')}
                   </button>
                   {user?.role && ['admin', 'staff', 'super_admin'].includes(user.role) && (
                     <button
@@ -204,7 +201,16 @@ export const Header: React.FC<HeaderProps> = ({
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                     >
                       <Settings size={16} className="text-neutral-400" />
-                      Paramètres
+                      {t('admin.menu.settings')}
+                    </button>
+                  )}
+                  {user?.role && ['admin', 'super_admin'].includes(user.role) && (
+                    <button
+                      onClick={() => navigate('/billing')}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <CreditCard size={16} className="text-neutral-400" />
+                      {t('admin.menu.billing')}
                     </button>
                   )}
                   <button
@@ -212,7 +218,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <HelpCircle size={16} className="text-neutral-400" />
-                    Aide & Support
+                    {t('admin.menu.help')}
                   </button>
                 </div>
 
@@ -223,7 +229,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-error-600 hover:bg-error-50 dark:hover:bg-error-950 transition-colors"
                   >
                     <LogOut size={16} />
-                    Se déconnecter
+                    {t('admin.menu.logout')}
                   </button>
                 </div>
               </div>

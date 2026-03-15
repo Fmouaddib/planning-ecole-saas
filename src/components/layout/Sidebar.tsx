@@ -14,7 +14,6 @@ import {
   ClipboardCheck,
   FileBarChart,
   UserCog,
-  CreditCard,
   ChevronDown,
   MessageCircle,
   ArrowLeftRight,
@@ -30,6 +29,7 @@ import { useAuthContext } from '@/contexts/AuthContext'
 import { getActiveContext } from '@/utils/userContext'
 import { isDemoMode } from '@/lib/supabase'
 import { getLandingUrl } from '@/utils/subdomain'
+import { useLang } from '@/hooks/useLang'
 
 interface NavigationItem {
   icon: React.ComponentType<any>
@@ -40,13 +40,7 @@ interface NavigationItem {
   active?: boolean
   roles?: UserRole[]
   group?: string
-}
-
-const GROUP_LABELS: Record<string, string> = {
-  enseignement: 'Enseignement',
-  gestion: 'Gestion',
-  fonctionnalites: 'Fonctionnalités',
-  parametres: 'Paramètres',
+  dataTour?: string
 }
 
 interface SidebarProps {
@@ -66,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   className
 }) => {
+  const { t } = useLang()
   const { plan } = useSubscriptionInfo()
   const isOnlineSchool = plan?.tier === 'ecole-en-ligne'
   const { hasAttendance, hasGrades, hasTeacherCollab } = useFeatureGate()
@@ -74,46 +69,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const activeCtx = getActiveContext()
   const hasMultipleContexts = contexts.length > 1
 
+  const groupLabels: Record<string, string> = {
+    enseignement: t('sidebar.group.enseignement'),
+    gestion: t('sidebar.group.gestion'),
+    fonctionnalites: t('sidebar.group.fonctionnalites'),
+  }
+
   const mainNavigation: NavigationItem[] = [
     // --- Top (ungrouped) ---
     {
       icon: Home,
-      label: 'Tableau de bord',
+      label: t('sidebar.dashboard'),
       href: '/',
       active: currentPath === '/'
     },
     {
       icon: Calendar,
-      label: isStudentRole(userRole) ? 'Mon emploi du temps' : isTeacherRole(userRole) ? 'Mon planning' : 'Planning',
+      label: isStudentRole(userRole) ? t('sidebar.mySchedule') : isTeacherRole(userRole) ? t('sidebar.myPlanning') : t('sidebar.planning'),
       href: '/planning',
-      active: currentPath === '/planning'
+      active: currentPath === '/planning',
+      dataTour: 'planning',
     },
     {
       icon: GraduationCap,
-      label: 'Référentiel',
+      label: t('sidebar.academic'),
       href: '/academic',
       active: currentPath === '/academic',
       roles: ['admin'],
+      dataTour: 'referentiel',
     },
     {
       icon: GraduationCap,
-      label: 'Ma classe',
+      label: t('sidebar.myClass'),
       href: '/my-class',
       active: currentPath === '/my-class',
       roles: ['student'] as UserRole[],
     },
     ...((plan?.hasChat || isDemoMode) ? [{
       icon: MessageCircle,
-      label: 'Messages',
+      label: t('sidebar.messages'),
       href: '/chat',
       active: currentPath === '/chat',
       badge: chatUnread > 0 ? String(chatUnread) : undefined,
+      dataTour: 'chat',
     }] : []),
     // --- Enseignement ---
     ...(isOnlineSchool
       ? [{
           icon: Video,
-          label: 'Visio',
+          label: t('sidebar.visio'),
           href: '/visio',
           active: currentPath === '/visio',
           roles: ['admin', 'staff'] as UserRole[],
@@ -121,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }]
       : [{
           icon: Clock,
-          label: isTeacherRole(userRole) ? 'Mes séances' : 'Séances',
+          label: isTeacherRole(userRole) ? t('sidebar.mySessions') : t('sidebar.sessions'),
           href: '/bookings',
           active: currentPath === '/bookings',
           group: 'enseignement',
@@ -129,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ),
     ...((hasTeacherCollab || isDemoMode || (!isTeacherRole(userRole))) ? [{
       icon: UserCog,
-      label: isTeacherRole(userRole) ? 'Collaboration' : 'Collaboration profs',
+      label: isTeacherRole(userRole) ? t('sidebar.collab') : t('sidebar.collabTeachers'),
       href: '/teacher-collab',
       active: currentPath === '/teacher-collab',
       roles: ['admin', 'staff', 'teacher'] as UserRole[],
@@ -139,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ...(!isOnlineSchool
       ? [{
           icon: Building2,
-          label: 'Salles',
+          label: t('sidebar.rooms'),
           href: '/rooms',
           active: currentPath === '/rooms',
           roles: ['admin', 'staff'] as UserRole[],
@@ -149,54 +153,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ),
     {
       icon: Users,
-      label: 'Utilisateurs',
+      label: t('sidebar.users'),
       href: '/users',
       active: currentPath === '/users',
       roles: ['admin'],
       group: 'gestion',
+      dataTour: 'users',
     },
     {
       icon: BarChart3,
-      label: 'Statistiques',
+      label: t('sidebar.analytics'),
       href: '/analytics',
       active: currentPath === '/analytics',
       roles: ['admin', 'staff'],
       group: 'gestion',
     },
-    // --- Fonctionnalités (refermé par défaut) ---
-    // Présences : visible seulement si addon actif (ou mode démo)
-    ...((hasAttendance || isDemoMode) ? [{
-      icon: ClipboardCheck,
-      label: isStudentRole(userRole) ? 'Mes présences' : isTeacherRole(userRole) ? 'Appel' : 'Présences',
-      href: '/attendance',
-      active: currentPath === '/attendance',
-      group: 'fonctionnalites',
-    }] : []),
-    // Notes : visible seulement si addon actif (ou mode démo)
-    ...((hasGrades || isDemoMode) ? [{
-      icon: FileBarChart,
-      label: isStudentRole(userRole) ? 'Mon bulletin' : isTeacherRole(userRole) ? 'Mes notes' : 'Notes',
-      href: '/grades',
-      active: currentPath === '/grades',
-      group: 'fonctionnalites',
-    }] : []),
     {
       icon: Mail,
-      label: 'Emails',
+      label: t('sidebar.emails'),
       href: '/emails',
       active: currentPath === '/emails',
       roles: ['admin'] as UserRole[],
       group: 'gestion',
     },
-    // --- Paramètres (refermé par défaut) ---
-    {
-      icon: CreditCard,
-      label: 'Facturation',
-      href: '/billing',
-      active: currentPath === '/billing',
-      roles: ['admin'] as UserRole[],
-      group: 'parametres',
-    },
+    // --- Fonctionnalités (refermé par défaut) ---
+    ...((hasAttendance || isDemoMode) ? [{
+      icon: ClipboardCheck,
+      label: isStudentRole(userRole) ? t('sidebar.myAttendance') : isTeacherRole(userRole) ? t('sidebar.rollCall') : t('sidebar.attendance'),
+      href: '/attendance',
+      active: currentPath === '/attendance',
+      group: 'fonctionnalites',
+      dataTour: 'attendance',
+    }] : []),
+    ...((hasGrades || isDemoMode) ? [{
+      icon: FileBarChart,
+      label: isStudentRole(userRole) ? t('sidebar.myTranscript') : isTeacherRole(userRole) ? t('sidebar.myGrades') : t('sidebar.grades'),
+      href: '/grades',
+      active: currentPath === '/grades',
+      group: 'fonctionnalites',
+    }] : []),
   ]
 
   const handleItemClick = (item: NavigationItem) => {
@@ -208,10 +203,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }
 
   const shouldShowItem = (item: NavigationItem) => {
-    // Masquer "Séances" pour les étudiants
     if (item.href === '/bookings' && isStudentRole(userRole)) return false
     if (!item.roles) return true
-    // super_admin a accès à toutes les sections sauf celles réservées aux étudiants
     if (userRole === 'super_admin') {
       return !item.roles.every(r => isStudentRole(r))
     }
@@ -221,20 +214,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const visibleItems = useMemo(() => mainNavigation.filter(shouldShowItem), [currentPath, userRole, isOnlineSchool, hasAttendance, hasGrades])
   const showGroupHeaders = visibleItems.length > 6
 
-  // Auto-expand group containing active item
   const activeGroup = useMemo(() => {
     const active = visibleItems.find(item => item.active && item.group)
     return active?.group || null
   }, [visibleItems])
 
-  // Collapsed state per group — default: fonctionnalites + administration collapsed
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ fonctionnalites: true, parametres: true })
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ enseignement: true, gestion: true, fonctionnalites: true })
 
   const toggleGroup = (group: string) => {
     setCollapsed(prev => ({ ...prev, [group]: !prev[group] }))
   }
 
-  // Group visible items for rendering
   const grouped = useMemo(() => {
     if (!showGroupHeaders) return [{ group: null, items: visibleItems }]
 
@@ -285,6 +275,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Fermer le menu"
             className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-200"
           >
             ×
@@ -292,11 +283,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+        <nav aria-label="Navigation principale" className="flex-1 overflow-y-auto p-3 space-y-0.5">
           {grouped.map((section, si) => {
             const isCollapsible = showGroupHeaders && !!section.group
             const groupKey = section.group || ''
-            // Force open if section contains active item
             const isCollapsed = isCollapsible && collapsed[groupKey] && activeGroup !== groupKey
 
             return (
@@ -307,7 +297,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className="w-full flex items-center justify-between mt-3 mb-0.5 px-3 py-1 rounded hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
                   >
                     <span className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
-                      {GROUP_LABELS[groupKey]}
+                      {groupLabels[groupKey]}
                     </span>
                     <ChevronDown
                       size={12}
@@ -331,15 +321,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onClick={() => handleItemClick(item)}
                     />
                   ))}
-                  {/* Super Admin button inside parametres group — only for super_admin */}
-                  {section.group === 'parametres' && userRole === 'super_admin' && (
+                  {/* Super Admin button inside gestion group — only for super_admin */}
+                  {section.group === 'gestion' && userRole === 'super_admin' && (
                     <button
                       onClick={() => { window.location.hash = '#/super-admin'; }}
                       className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-left transition-all duration-200 ease-out group text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100"
                     >
                       <div className="flex items-center space-x-3">
                         <Shield size={16} className="text-red-500 group-hover:text-red-600 transition-colors duration-200" />
-                        <span className="text-sm">Espace Super Admin</span>
+                        <span className="text-sm">{t('sidebar.superAdmin')}</span>
                       </div>
                       <span className="bg-red-100 text-red-800 text-[10px] font-medium px-1.5 py-0.5 rounded-full">SA</span>
                     </button>
@@ -359,14 +349,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {hasMultipleContexts && (
           <div className="px-3 pb-2">
             <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5 px-1">Espace actif</p>
+              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5 px-1">{t('sidebar.activeSpace')}</p>
               <div className="space-y-1">
                 {contexts.map((ctx, i) => {
                   const isActive = activeCtx?.centerId === ctx.centerId && activeCtx?.role === ctx.role
-                  const roleLabel = ctx.role === 'super_admin' ? 'Super Admin'
-                    : ctx.role === 'teacher' ? 'Professeur'
-                    : ctx.role === 'admin' ? 'Admin'
-                    : ctx.role === 'student' ? 'Étudiant'
+                  const roleLabel = ctx.role === 'super_admin' ? t('sidebar.role.superAdmin')
+                    : ctx.role === 'teacher' ? t('sidebar.role.teacher')
+                    : ctx.role === 'admin' ? t('sidebar.role.admin')
+                    : ctx.role === 'student' ? t('sidebar.role.student')
                     : ctx.role
                   return (
                     <button
@@ -405,12 +395,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
             >
               <Globe size={14} />
-              <span>Voir le site vitrine</span>
+              <span>{t('sidebar.viewSite')}</span>
             </a>
           )}
           <div className="text-xs text-neutral-500 dark:text-neutral-400">
             <p className="font-medium">AntiPlanning v1.0</p>
-            <p>Gestion premium pour établissements</p>
+            <p>{t('sidebar.tagline')}</p>
           </div>
         </div>
       </div>
@@ -424,11 +414,12 @@ interface NavItemProps {
 }
 
 const NavItem: React.FC<NavItemProps> = ({ item, onClick }) => {
-  const { icon: Icon, label, active, badge } = item
+  const { icon: Icon, label, active, badge, dataTour } = item
 
   return (
     <button
       onClick={onClick}
+      data-tour={dataTour}
       className={clsx(
         'w-full flex items-center justify-between px-3 py-1.5 rounded-lg',
         'text-left transition-all duration-200 ease-out group',

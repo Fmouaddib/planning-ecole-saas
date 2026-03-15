@@ -5,13 +5,22 @@ import {
 } from 'lucide-react'
 import { useLang } from '@/hooks/useLang'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { updatePageMeta } from '@/utils/seo'
 import LandingLayout from '@/components/landing/LandingLayout'
 
 export default function HowItWorksPage() {
   const { t } = useLang()
   const { reveal } = useScrollReveal()
 
-  useEffect(() => { window.scrollTo(0, 0) }, [])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    updatePageMeta({
+      title: 'Comment ca marche',
+      description: 'Comment fonctionne Anti-Planning ? Creez votre centre, configurez vos formations et gerez tout depuis une seule plateforme.',
+      path: '/how-it-works',
+      keywords: 'comment utiliser planning ecole, demarrer centre formation, configuration planning, tutoriel logiciel formation',
+    })
+  }, [])
 
   const steps = [
     {
@@ -121,6 +130,7 @@ export default function HowItWorksPage() {
           <a href="#/onboarding" className="landing-btn-coral landing-btn-coral-lg">
             {t('cta.button')}
           </a>
+          <p className="landing-cta-microcopy">{t('hero.microcopy')}</p>
         </div>
       </section>
     </LandingLayout>

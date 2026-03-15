@@ -3,7 +3,7 @@
  * Adapté au schéma réel : training_sessions, profiles, rooms
  */
 
-import type { Booking, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage, AvailabilityRequest, AvailabilityRequestResponse, ReplacementRequest, ReplacementCandidate, StudentContact, Bulletin, ChatChannel, ChatMember, ChatMessage, ChatAttachment, ChatReaction } from '@/types'
+import type { Booking, Building, Room, User, Program, InAppNotification, TeacherAvailability, TeacherUnavailability, SessionAssignment, SessionChangeRequest, PlanningMessage, AvailabilityRequest, AvailabilityRequestResponse, ReplacementRequest, ReplacementCandidate, StudentContact, Bulletin, ChatChannel, ChatMember, ChatMessage, ChatAttachment, ChatReaction } from '@/types'
 
 // ==================== BOOKING (from training_sessions) ====================
 
@@ -45,6 +45,7 @@ export function transformBooking(raw: Record<string, any>): Booking {
           name: raw.room.name,
           room_type: raw.room.room_type,
           capacity: raw.room.capacity,
+          buildingName: raw.room.building?.name || undefined,
         }
       : undefined,
     user: trainer
@@ -76,9 +77,25 @@ export function transformBooking(raw: Record<string, any>): Booking {
   }
 }
 
+// ==================== BUILDING (from buildings) ====================
+
+export function transformBuilding(raw: Record<string, any>): Building {
+  return {
+    id: raw.id,
+    centerId: raw.center_id,
+    name: raw.name,
+    address: raw.address || '',
+    floorCount: raw.floor_count ?? 1,
+    isAvailable: raw.is_available ?? true,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  }
+}
+
 // ==================== ROOM (from rooms) ====================
 
 export function transformRoom(raw: Record<string, any>): Room {
+  const buildingData = raw.building ?? raw.buildings
   return {
     id: raw.id,
     name: raw.name,
@@ -92,8 +109,8 @@ export function transformRoom(raw: Record<string, any>): Room {
     isActive: raw.is_available ?? true,
     schoolId: raw.center_id,
     establishmentId: raw.center_id,
-    buildingId: undefined, // pas de buildings dans ce schéma
-    building: undefined,
+    buildingId: raw.building_id || undefined,
+    building: buildingData ? { id: buildingData.id, name: buildingData.name } : undefined,
     floor: undefined,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
@@ -469,6 +486,7 @@ export function transformStudentContact(raw: Record<string, any>): StudentContac
     receiveBulletins: raw.receive_bulletins ?? true,
     receiveAbsences: raw.receive_absences ?? true,
     notes: raw.notes ?? undefined,
+    accessToken: raw.access_token ?? undefined,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   }

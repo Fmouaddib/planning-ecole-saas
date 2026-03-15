@@ -6,8 +6,8 @@ import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState,
 import { ROOM_TYPES, EQUIPMENT_CATEGORY_LABELS } from '@/utils/constants'
 import { buildEquipmentCatalog, catalogToOptions, namesToEquipment } from '@/utils/equipmentCatalog'
 import { filterBySearch } from '@/utils/helpers'
-import type { Room, CreateRoomData, RoomType, EquipmentCategory } from '@/types'
-import { Plus, Search, Pencil, Trash2, Building2, RefreshCw, Tag, ChevronDown, ChevronRight } from 'lucide-react'
+import type { Room, Building, CreateRoomData, RoomType, EquipmentCategory } from '@/types'
+import { Plus, Search, Pencil, Trash2, Building2, RefreshCw, Tag, ChevronDown, ChevronRight, MapPin } from 'lucide-react'
 import { startOfWeek, endOfWeek, differenceInMinutes } from 'date-fns'
 import { navigateTo } from '@/utils/navigation'
 
@@ -43,22 +43,32 @@ const emptyForm: CreateRoomData & { equipmentNames: string[] } = {
   roomType: 'classroom',
   description: '',
   floor: 0,
+  buildingId: '',
   equipmentNames: [],
 }
 
 function RoomsPage() {
-  const { rooms, isLoading, error, createRoom, updateRoom, deleteRoom, renameEquipment, deleteEquipment, updateEquipmentCategory, refreshRooms } = useRooms()
+  const {
+    rooms, buildings, isLoading, error,
+    createRoom, updateRoom, deleteRoom,
+    createBuilding, updateBuilding, deleteBuilding,
+    renameEquipment, deleteEquipment, updateEquipmentCategory, refreshRooms,
+  } = useRooms()
   const { bookings } = useBookings()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'rename' | 'deleteEquip' | 'changeCategory' | null>(null)
+  const [buildingFilter, setBuildingFilter] = useState('')
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'rename' | 'deleteEquip' | 'changeCategory' | 'createBuilding' | 'editBuilding' | 'deleteBuilding' | null>(null)
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null)
   const [form, setForm] = useState<CreateRoomData & { equipmentNames: string[] }>(emptyForm)
+  const [buildingForm, setBuildingForm] = useState({ name: '', address: '', floorCount: 1 })
   const [submitting, setSubmitting] = useState(false)
   const [customEquipment, setCustomEquipment] = useState('')
   const [renameOld, setRenameOld] = useState('')
   const [renameNew, setRenameNew] = useState('')
   const [showCatalog, setShowCatalog] = useState(false)
+  const [showBuildings, setShowBuildings] = useState(false)
   const [equipToDelete, setEquipToDelete] = useState('')
   const [equipToChangeCategory, setEquipToChangeCategory] = useState('')
   const [newCategory, setNewCategory] = useState<EquipmentCategory>('technology')
@@ -68,6 +78,9 @@ function RoomsPage() {
   // Catalogue d'équipements (prédéfinis + existants)
   const catalog = useMemo(() => buildEquipmentCatalog(rooms), [rooms])
   const equipmentOptions = useMemo(() => catalogToOptions(catalog), [catalog])
+
+  // Options bâtiments pour les selects
+  const buildingOptions = useMemo(() => buildings.map(b => ({ value: b.id, label: b.name })), [buildings])
 
   // Comptage : nombre de salles par équipement
   const equipmentCounts = useMemo(() => {
@@ -157,10 +170,27 @@ function RoomsPage() {
     if (typeFilter) {
       result = result.filter(r => r.roomType === typeFilter)
     }
+    if (buildingFilter) {
+      if (buildingFilter === 'no-building') {
+        result = result.filter(r => !r.buildingId)
+      } else {
+        result = result.filter(r => r.buildingId === buildingFilter)
+      }
+    }
     return result
-  }, [rooms, search, typeFilter])
+  }, [rooms, search, typeFilter, buildingFilter])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
+
+  // Nombre de salles par bâtiment
+  const roomCountByBuilding = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const room of rooms) {
+      const key = room.buildingId || 'no-building'
+      counts.set(key, (counts.get(key) || 0) + 1)
+    }
+    return counts
+  }, [rooms])
 
   // Handlers
   const openCreate = () => {
@@ -179,6 +209,7 @@ function RoomsPage() {
       roomType: room.roomType || room.type,
       description: room.description || '',
       floor: room.floor || 0,
+      buildingId: room.buildingId || '',
       equipmentNames: room.equipment.map(e => e.name),
     })
     setCustomEquipment('')
@@ -207,9 +238,27 @@ function RoomsPage() {
     setModalMode('changeCategory')
   }
 
+  const openCreateBuilding = () => {
+    setBuildingForm({ name: '', address: '', floorCount: 1 })
+    setSelectedBuilding(null)
+    setModalMode('createBuilding')
+  }
+
+  const openEditBuilding = (building: Building) => {
+    setSelectedBuilding(building)
+    setBuildingForm({ name: building.name, address: building.address, floorCount: building.floorCount })
+    setModalMode('editBuilding')
+  }
+
+  const openDeleteBuilding = (building: Building) => {
+    setSelectedBuilding(building)
+    setModalMode('deleteBuilding')
+  }
+
   const closeModal = () => {
     setModalMode(null)
     setSelectedRoom(null)
+    setSelectedBuilding(null)
   }
 
   const addCustomEquipment = () => {
@@ -299,6 +348,36 @@ function RoomsPage() {
     }
   }
 
+  const handleBuildingSubmit = async () => {
+    if (!buildingForm.name.trim()) return
+    setSubmitting(true)
+    try {
+      if (modalMode === 'createBuilding') {
+        await createBuilding(buildingForm)
+      } else if (modalMode === 'editBuilding' && selectedBuilding) {
+        await updateBuilding(selectedBuilding.id, buildingForm)
+      }
+      closeModal()
+    } catch {
+      // Error handled by hook toast
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteBuilding = async () => {
+    if (!selectedBuilding) return
+    setSubmitting(true)
+    try {
+      await deleteBuilding(selectedBuilding.id)
+      closeModal()
+    } catch {
+      // Error handled by hook toast
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   // Category options for select
   const categoryOptions = Object.entries(EQUIPMENT_CATEGORY_LABELS).map(([value, label]) => ({
     value,
@@ -332,19 +411,85 @@ function RoomsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Gestion des salles</h1>
-          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{rooms.length} salle{rooms.length > 1 ? 's' : ''} au total</p>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">
+            {rooms.length} salle{rooms.length > 1 ? 's' : ''} au total
+            {buildings.length > 0 && ` · ${buildings.length} bâtiment${buildings.length > 1 ? 's' : ''}`}
+          </p>
         </div>
-        <Button leftIcon={Plus} onClick={openCreate} className="mt-4 sm:mt-0">
-          Ajouter une salle
-        </Button>
+        <div className="flex gap-2 mt-4 sm:mt-0">
+          <Button variant="secondary" leftIcon={Building2} onClick={() => setShowBuildings(v => !v)}>
+            Bâtiments
+          </Button>
+          <Button leftIcon={Plus} onClick={openCreate}>
+            Ajouter une salle
+          </Button>
+        </div>
       </div>
 
       <HelpBanner storageKey="admin-rooms">
-        Gérez ici les salles physiques et leur équipement. Chaque salle possède un type (cours, labo, amphi…) et des équipements. Les séances du calendrier sont automatiquement liées aux salles disponibles.
+        Gérez ici les salles physiques et leur équipement. Organisez vos salles par bâtiment pour mieux structurer vos locaux. Les séances du calendrier sont automatiquement liées aux salles disponibles.
         <span className="flex gap-2 mt-2">
           <button onClick={() => navigateTo('/planning')} className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-700/40 transition-colors">Voir le planning →</button>
         </span>
       </HelpBanner>
+
+      {/* Section bâtiments (toggle) */}
+      {showBuildings && (
+        <div className="mb-6 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-soft overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center gap-2">
+              <Building2 size={18} className="text-neutral-500" />
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Bâtiments</h2>
+              <span className="text-sm text-neutral-400">{buildings.length}</span>
+            </div>
+            <Button size="sm" leftIcon={Plus} onClick={openCreateBuilding}>
+              Ajouter
+            </Button>
+          </div>
+
+          {buildings.length === 0 ? (
+            <div className="px-6 py-8 text-center text-neutral-400">
+              <Building2 size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Aucun bâtiment. Ajoutez votre premier bâtiment pour organiser vos salles.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+              {buildings.map(building => {
+                const roomCount = roomCountByBuilding.get(building.id) || 0
+                return (
+                  <div
+                    key={building.id}
+                    className="flex items-start justify-between p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Building2 size={16} className="text-primary-500 shrink-0" />
+                        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 truncate">{building.name}</h3>
+                      </div>
+                      {building.address && (
+                        <p className="text-xs text-neutral-400 mt-1 flex items-center gap-1 truncate">
+                          <MapPin size={12} /> {building.address}
+                        </p>
+                      )}
+                      <p className="text-xs text-neutral-500 mt-1">
+                        {roomCount} salle{roomCount > 1 ? 's' : ''} · {building.floorCount} étage{building.floorCount > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 ml-2 shrink-0">
+                      <Button variant="ghost" size="sm" onClick={() => openEditBuilding(building)}>
+                        <Pencil size={14} />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => openDeleteBuilding(building)}>
+                        <Trash2 size={14} className="text-error-600" />
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -363,6 +508,19 @@ function RoomsPage() {
             onChange={e => setTypeFilter(e.target.value)}
           />
         </div>
+        {buildings.length > 0 && (
+          <div className="w-full sm:w-48">
+            <Select
+              options={[
+                { value: '', label: 'Tous les bâtiments' },
+                ...buildingOptions,
+                { value: 'no-building', label: 'Non assignées' },
+              ]}
+              value={buildingFilter}
+              onChange={e => setBuildingFilter(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Table or Empty */}
@@ -370,8 +528,8 @@ function RoomsPage() {
         <EmptyState
           icon={Building2}
           title="Aucune salle trouvée"
-          description={search || typeFilter ? 'Aucune salle ne correspond à vos critères de recherche.' : 'Commencez par ajouter votre première salle.'}
-          action={!search && !typeFilter ? { label: 'Ajouter une salle', onClick: openCreate, icon: Plus } : undefined}
+          description={search || typeFilter || buildingFilter ? 'Aucune salle ne correspond à vos critères de recherche.' : 'Commencez par ajouter votre première salle.'}
+          action={!search && !typeFilter && !buildingFilter ? { label: 'Ajouter une salle', onClick: openCreate, icon: Plus } : undefined}
         />
       ) : (
         <>
@@ -381,11 +539,12 @@ function RoomsPage() {
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
+                    {buildings.length > 0 && (
+                      <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Bâtiment</th>
+                    )}
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Type</th>
                     <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Capacité</th>
                     <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Occupation</th>
-                    <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Étage</th>
                     <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Équipements</th>
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
@@ -398,9 +557,19 @@ function RoomsPage() {
                       <tr key={room.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                         <td className="px-4 py-3">
                           <span className="font-medium text-neutral-900 dark:text-neutral-100">{room.name}</span>
-                          <span className="block md:hidden text-xs text-neutral-400 mt-0.5">{room.code}</span>
                         </td>
-                        <td className="hidden md:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{room.code}</td>
+                        {buildings.length > 0 && (
+                          <td className="hidden md:table-cell px-4 py-3">
+                            {room.building ? (
+                              <Badge variant="neutral" size="sm">
+                                <Building2 size={12} className="mr-1" />
+                                {room.building.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-sm text-neutral-400">—</span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-4 py-3">
                           <Badge variant={roomTypeBadgeVariant[room.roomType || room.type] || 'neutral'} size="sm">
                             {roomTypeLabels[room.roomType || room.type] || room.roomType || room.type}
@@ -422,7 +591,6 @@ function RoomsPage() {
                             )
                           })()}
                         </td>
-                        <td className="hidden lg:table-cell px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">{room.floor ?? '-'}</td>
                         <td className="hidden lg:table-cell px-4 py-3">
                           {eqList.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
@@ -558,7 +726,7 @@ function RoomsPage() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Create/Edit Room Modal */}
       <Modal
         isOpen={modalMode === 'create' || modalMode === 'edit'}
         onClose={closeModal}
@@ -574,21 +742,14 @@ function RoomsPage() {
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               required
             />
-            <Input
-              label="Code"
-              placeholder="Ex: A101"
-              value={form.code}
-              onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Type de salle"
               options={roomTypeOptions}
               value={form.roomType}
               onChange={e => setForm(f => ({ ...f, roomType: e.target.value as RoomType }))}
             />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Capacité"
               type="number"
@@ -596,13 +757,22 @@ function RoomsPage() {
               value={form.capacity}
               onChange={e => setForm(f => ({ ...f, capacity: parseInt(e.target.value) || 0 }))}
             />
+            {buildings.length > 0 ? (
+              <Select
+                label="Bâtiment"
+                options={[{ value: '', label: 'Aucun bâtiment' }, ...buildingOptions]}
+                value={form.buildingId || ''}
+                onChange={e => setForm(f => ({ ...f, buildingId: e.target.value }))}
+              />
+            ) : (
+              <Input
+                label="Étage"
+                type="number"
+                value={form.floor || 0}
+                onChange={e => setForm(f => ({ ...f, floor: parseInt(e.target.value) || 0 }))}
+              />
+            )}
           </div>
-          <Input
-            label="Étage"
-            type="number"
-            value={form.floor || 0}
-            onChange={e => setForm(f => ({ ...f, floor: parseInt(e.target.value) || 0 }))}
-          />
 
           {/* Sélecteur d'équipements */}
           <MultiSelect
@@ -640,14 +810,14 @@ function RoomsPage() {
           <Button
             onClick={handleSubmit}
             isLoading={submitting}
-            disabled={!form.name || !form.code}
+            disabled={!form.name}
           >
             {modalMode === 'create' ? 'Créer' : 'Enregistrer'}
           </Button>
         </ModalFooter>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Room Confirmation Modal */}
       <Modal
         isOpen={modalMode === 'delete'}
         onClose={closeModal}
@@ -661,6 +831,73 @@ function RoomsPage() {
         <ModalFooter>
           <Button variant="secondary" onClick={closeModal}>Annuler</Button>
           <Button variant="danger" onClick={handleDelete} isLoading={submitting}>
+            Supprimer
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Create/Edit Building Modal */}
+      <Modal
+        isOpen={modalMode === 'createBuilding' || modalMode === 'editBuilding'}
+        onClose={closeModal}
+        title={modalMode === 'createBuilding' ? 'Ajouter un bâtiment' : 'Modifier le bâtiment'}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Nom du bâtiment"
+            placeholder="Ex: Bâtiment A"
+            value={buildingForm.name}
+            onChange={e => setBuildingForm(f => ({ ...f, name: e.target.value }))}
+            required
+            autoFocus
+          />
+          <Input
+            label="Adresse"
+            placeholder="Ex: 12 rue de la Paix, 75001 Paris"
+            value={buildingForm.address}
+            onChange={e => setBuildingForm(f => ({ ...f, address: e.target.value }))}
+          />
+          <Input
+            label="Nombre d'étages"
+            type="number"
+            min={1}
+            value={buildingForm.floorCount}
+            onChange={e => setBuildingForm(f => ({ ...f, floorCount: parseInt(e.target.value) || 1 }))}
+          />
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+          <Button
+            onClick={handleBuildingSubmit}
+            isLoading={submitting}
+            disabled={!buildingForm.name.trim()}
+          >
+            {modalMode === 'createBuilding' ? 'Créer' : 'Enregistrer'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Building Confirmation Modal */}
+      <Modal
+        isOpen={modalMode === 'deleteBuilding'}
+        onClose={closeModal}
+        title="Supprimer le bâtiment"
+        size="sm"
+      >
+        <div className="space-y-3">
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Êtes-vous sûr de vouloir supprimer le bâtiment <strong>{selectedBuilding?.name}</strong> ?
+          </p>
+          {selectedBuilding && (roomCountByBuilding.get(selectedBuilding.id) || 0) > 0 && (
+            <p className="text-sm text-warning-600 bg-warning-50 dark:bg-warning-950/30 rounded-lg px-3 py-2">
+              Les {roomCountByBuilding.get(selectedBuilding.id)} salle{(roomCountByBuilding.get(selectedBuilding.id) || 0) > 1 ? 's' : ''} de ce bâtiment ne seront pas supprimées, mais seront détachées du bâtiment.
+            </p>
+          )}
+        </div>
+        <ModalFooter>
+          <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+          <Button variant="danger" onClick={handleDeleteBuilding} isLoading={submitting}>
             Supprimer
           </Button>
         </ModalFooter>

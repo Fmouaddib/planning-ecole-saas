@@ -14,6 +14,7 @@ import type { BookingType, BatchCreateSessionInput, Class } from '@/types'
 import { generateRecurrenceDates } from '@/utils/recurrence'
 import type { RecurrenceConfig } from '@/utils/recurrence'
 import { isClassDay, getExamPeriod } from '@/utils/scheduleUtils'
+import { localToISO } from '@/utils/helpers'
 
 interface BatchCreateModalProps {
   isOpen: boolean
@@ -246,8 +247,8 @@ function BatchCreateModal({
       const batch = toCheck.slice(i, i + batchSize)
       const results = await Promise.allSettled(
         batch.map(async (r) => {
-          const startDT = `${r.date}T${r.startTime}:00`
-          const endDT = `${r.date}T${r.endTime}:00`
+          const startDT = localToISO(r.date, r.startTime)
+          const endDT = localToISO(r.date, r.endTime)
           const [roomConflict, trainerConflict] = await Promise.all([
             checkRoomConflict(r.roomId, startDT, endDT),
             checkTrainerConflict(r.trainerId, startDT, endDT),
@@ -363,8 +364,8 @@ function BatchCreateModal({
     try {
       const inputs: BatchCreateSessionInput[] = toCreate.map(r => ({
         title: getSubjectName(r.subjectId),
-        startDateTime: `${r.date}T${r.startTime}:00`,
-        endDateTime: `${r.date}T${r.endTime}:00`,
+        startDateTime: localToISO(r.date, r.startTime),
+        endDateTime: localToISO(r.date, r.endTime),
         roomId: r.roomId,
         trainerId: r.trainerId,
         bookingType: r.bookingType,

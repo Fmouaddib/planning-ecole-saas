@@ -35,7 +35,7 @@ export class SACentersService {
           supabase.from('training_sessions').select('id', { count: 'exact', head: true }).eq('center_id', center.id),
           supabase.from('rooms').select('id', { count: 'exact', head: true }).eq('center_id', center.id),
           supabase.from('programs').select('id', { count: 'exact', head: true }).eq('center_id', center.id),
-          supabase.from('center_subscriptions').select('*, plan:subscription_plans(*)').eq('center_id', center.id).maybeSingle(),
+          supabase.from('center_subscriptions').select('*, plan:subscription_plans(*)').eq('center_id', center.id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
         ]);
         return {
           ...center, is_active: center.is_active ?? true, settings: center.settings || {},

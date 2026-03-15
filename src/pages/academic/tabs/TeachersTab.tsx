@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { filterBySearch } from '@/utils/helpers'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, MultiSelect } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, UserCheck, Send, Linkedin, Mail, Phone, ExternalLink, UserPlus, Settings2, Save } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, UserCheck, Send, Linkedin, Mail, Phone, ExternalLink, UserPlus, Settings2, Save, ArrowUp, ArrowDown, ArrowUpDown, Download } from 'lucide-react'
+import { exportTeachers } from '@/utils/export-academic'
 import { supabase } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { useCenterSettings } from '@/hooks/useCenterSettings'
@@ -89,13 +90,43 @@ export function TeachersTab({
   const [templateBody, setTemplateBody] = useState('')
   const [savingTemplate, setSavingTemplate] = useState(false)
 
+  type SortKey = 'name' | 'email' | 'subjects' | 'access'
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) { if (sortDir === 'asc') setSortDir('desc'); else { setSortKey(null); setSortDir('asc') } }
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
   const filtered = useMemo(() => {
     let result = teachers
     if (search) result = filterBySearch(result, search, ['firstName', 'lastName', 'email'])
-    if (accessFilter === 'active') result = result.filter(t => t.role === 'teacher')
-    if (accessFilter === 'inactive') result = result.filter(t => t.role !== 'teacher')
+    if (accessFilter === 'active') result = result.filter(t => {
+      if (isLinkedTeacherFn(t.id)) return getLinkedTeacherActive(t.id)
+      return t.role === 'teacher'
+    })
+    if (accessFilter === 'inactive') result = result.filter(t => {
+      if (isLinkedTeacherFn(t.id)) return !getLinkedTeacherActive(t.id)
+      return t.role !== 'teacher'
+    })
+    if (sortKey) {
+      const dir = sortDir === 'asc' ? 1 : -1
+      result = [...result].sort((a, b) => {
+        switch (sortKey) {
+          case 'name': return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr', { sensitivity: 'base' }) * dir
+          case 'email': return a.email.localeCompare(b.email, 'fr', { sensitivity: 'base' }) * dir
+          case 'subjects': return (getSubjectIdsForTeacher(a.id).length - getSubjectIdsForTeacher(b.id).length) * dir
+          case 'access': {
+            const aActive = isLinkedTeacherFn(a.id) ? getLinkedTeacherActive(a.id) : a.role === 'teacher'
+            const bActive = isLinkedTeacherFn(b.id) ? getLinkedTeacherActive(b.id) : b.role === 'teacher'
+            return ((aActive ? 1 : 0) - (bActive ? 1 : 0)) * dir
+          }
+          default: return 0
+        }
+      })
+    }
     return result
-  }, [teachers, search, accessFilter])
+  }, [teachers, search, accessFilter, sortKey, sortDir, getSubjectIdsForTeacher])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
@@ -321,6 +352,11 @@ export function TeachersTab({
             onChange={e => setAccessFilter(e.target.value as '' | 'active' | 'inactive')}
           />
         </div>
+        {teachers.length > 0 && (
+          <Button variant="secondary" leftIcon={Download} onClick={() => exportTeachers(teachers, subjects, getSubjectIdsForTeacher)}>
+            Exporter
+          </Button>
+        )}
         <Button leftIcon={Plus} onClick={openCreate}>Ajouter un professeur</Button>
       </div>
 
@@ -339,10 +375,19 @@ export function TeachersTab({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Email</th>
-                    <th className="hidden lg:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Matieres</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Acces professeur</th>
+                    {([
+                      { key: 'name' as SortKey, label: 'Nom', className: '' },
+                      { key: 'email' as SortKey, label: 'Email', className: '' },
+                      { key: 'subjects' as SortKey, label: 'Matières', className: 'hidden lg:table-cell' },
+                      { key: 'access' as SortKey, label: 'Accès professeur', className: 'hidden md:table-cell' },
+                    ]).map(col => (
+                      <th key={col.key} className={`${col.className} text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors`} onClick={() => toggleSort(col.key)}>
+                        <span className="inline-flex items-center gap-1">
+                          {col.label}
+                          {sortKey === col.key ? (sortDir === 'asc' ? <ArrowUp size={12} className="text-primary-500" /> : <ArrowDown size={12} className="text-primary-500" />) : <ArrowUpDown size={12} className="opacity-30" />}
+                        </span>
+                      </th>
+                    ))}
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -418,8 +463,8 @@ export function TeachersTab({
                           <Button variant="ghost" size="sm" onClick={() => openInvite(t)} title="Envoyer une invitation">
                             <Send size={14} className="text-primary-500" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(t)}><Pencil size={14} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => openDelete(t)}><Trash2 size={14} className="text-error-600" /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Modifier" onClick={() => openEdit(t)}><Pencil size={14} /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Supprimer" onClick={() => openDelete(t)}><Trash2 size={14} className="text-error-600" /></Button>
                         </div>
                       </td>
                     </tr>

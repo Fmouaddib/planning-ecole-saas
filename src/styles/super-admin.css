@@ -939,6 +939,7 @@
   --sa-bulk-bg: #eff6ff;
   --sa-bulk-text: #1e40af;
   --sa-text-accent: #002F5D;
+  --sa-accent: #e74c3c;
   --sa-subscription-active-bg: #f0fdf4;
   --sa-subscription-active-text: #171717;
   --sa-subscription-none-bg: #fef3c7;
@@ -955,6 +956,7 @@
   --sa-bulk-bg: #172554;
   --sa-bulk-text: #93c5fd;
   --sa-text-accent: #93c5fd;
+  --sa-accent: #f87171;
   --sa-subscription-active-bg: #052e16;
   --sa-subscription-active-text: #86efac;
   --sa-subscription-none-bg: #422006;

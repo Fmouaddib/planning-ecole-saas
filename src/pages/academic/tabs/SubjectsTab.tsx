@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from 'react'
 import { usePagination } from '@/hooks/usePagination'
 import { filterBySearch } from '@/utils/helpers'
 import { Button, Input, Select, Textarea, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner } from '@/components/ui'
-import { Plus, Search, Pencil, Trash2, BookOpen, Rss, Copy, Check, Send, RefreshCcw, Pause, Play, MessageCircle, Globe, FileText, ExternalLink } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, BookOpen, Rss, Copy, Check, Send, RefreshCcw, Pause, Play, MessageCircle, Globe, FileText, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown, Download } from 'lucide-react'
+import { exportSubjects } from '@/utils/export-academic'
 import { useCalendarFeeds, getFeedUrl } from '@/hooks/useCalendarFeeds'
 import { getAutoSubjectColor } from '@/utils/constants'
 import type { CalendarFeed } from '@/hooks/useCalendarFeeds'
@@ -46,6 +47,21 @@ export function SubjectsTab({
   const [form, setForm] = useState<SubjectForm>(emptySubjectForm)
   const [submitting, setSubmitting] = useState(false)
 
+  // Sort state
+  type SortKey = 'name' | 'code' | 'program' | 'category' | 'description'
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else { setSortKey(null); setSortDir('asc') } // 3rd click resets
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
   // iCal feeds
   const { getOrCreateFeed, regenerateToken, toggleFeedActive, shareFeedByEmail } = useCalendarFeeds()
   const [icalFeed, setIcalFeed] = useState<CalendarFeed | null>(null)
@@ -54,14 +70,32 @@ export function SubjectsTab({
   const [emailInput, setEmailInput] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
 
+  const getProgramName = (programId?: string) => programs.find(p => p.id === programId)?.name || '-'
+
   const filtered = useMemo(() => {
     let result = subjects
     if (search) result = filterBySearch(result, search, ['name', 'code'])
     if (programFilter) result = result.filter(s => s.programId === programFilter)
-    return result
-  }, [subjects, search, programFilter])
 
-  const getProgramName = (programId?: string) => programs.find(p => p.id === programId)?.name || '-'
+    // Sort
+    if (sortKey) {
+      const dir = sortDir === 'asc' ? 1 : -1
+      result = [...result].sort((a, b) => {
+        let valA = ''
+        let valB = ''
+        switch (sortKey) {
+          case 'name': valA = a.name; valB = b.name; break
+          case 'code': valA = a.code || ''; valB = b.code || ''; break
+          case 'program': valA = getProgramName(a.programId); valB = getProgramName(b.programId); break
+          case 'category': valA = a.category || ''; valB = b.category || ''; break
+          case 'description': valA = a.description || ''; valB = b.description || ''; break
+        }
+        return valA.localeCompare(valB, 'fr', { sensitivity: 'base' }) * dir
+      })
+    }
+
+    return result
+  }, [subjects, search, programFilter, sortKey, sortDir, programs])
 
   const { paginatedData, page, totalPages, totalItems, nextPage, prevPage, canNext, canPrev } = usePagination(filtered)
 
@@ -123,6 +157,11 @@ export function SubjectsTab({
             onChange={e => setProgramFilter(e.target.value)}
           />
         </div>
+        {subjects.length > 0 && (
+          <Button variant="secondary" leftIcon={Download} onClick={() => exportSubjects(subjects)}>
+            Exporter
+          </Button>
+        )}
         <Button leftIcon={Plus} onClick={openCreate}>Ajouter une matière</Button>
       </div>
 
@@ -141,11 +180,31 @@ export function SubjectsTab({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950">
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Nom</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Code</th>
-                    <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Programme</th>
-                    <th className="hidden sm:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Catégorie</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Description</th>
+                    {([
+                      { key: 'name' as SortKey, label: 'Nom', className: '' },
+                      { key: 'code' as SortKey, label: 'Code', className: '' },
+                      { key: 'program' as SortKey, label: 'Programme', className: '' },
+                      { key: 'category' as SortKey, label: 'Catégorie', className: 'hidden sm:table-cell' },
+                      { key: 'description' as SortKey, label: 'Description', className: 'hidden md:table-cell' },
+                    ]).map(col => {
+                      const active = sortKey === col.key
+                      return (
+                        <th
+                          key={col.key}
+                          className={`${col.className} text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors`}
+                          onClick={() => toggleSort(col.key)}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {col.label}
+                            {active ? (
+                              sortDir === 'asc' ? <ArrowUp size={12} className="text-primary-500" /> : <ArrowDown size={12} className="text-primary-500" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-30" />
+                            )}
+                          </span>
+                        </th>
+                      )
+                    })}
                     {hasSubjectLinks && <th className="hidden lg:table-cell text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Liens</th>}
                     <th className="text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider px-4 py-3">Actions</th>
                   </tr>
@@ -201,8 +260,8 @@ export function SubjectsTab({
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openIcal(s)} title="Flux calendrier iCal"><Rss size={14} className="text-primary-600" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(s)}><Pencil size={14} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => openDelete(s)}><Trash2 size={14} className="text-error-600" /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Modifier" onClick={() => openEdit(s)}><Pencil size={14} /></Button>
+                          <Button variant="ghost" size="sm" aria-label="Supprimer" onClick={() => openDelete(s)}><Trash2 size={14} className="text-error-600" /></Button>
                         </div>
                       </td>
                     </tr>

@@ -713,7 +713,7 @@ function AnalyticsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Statistiques</h1>
           <p className="text-neutral-500 dark:text-neutral-400 mt-1">Vue d'ensemble de l'activité</p>

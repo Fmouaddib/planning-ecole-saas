@@ -14,7 +14,7 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data.json()
   } catch {
-    data = { title: 'Planning Ecole', body: event.data.text() }
+    data = { title: 'Anti-Planning', body: event.data.text() }
   }
 
   const options: NotificationOptions & { vibrate?: number[] } = {
@@ -26,7 +26,7 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Planning Ecole', options)
+    self.registration.showNotification(data.title || 'Anti-Planning', options)
   )
 })
 

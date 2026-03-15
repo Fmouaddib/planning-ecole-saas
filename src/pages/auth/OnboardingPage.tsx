@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import {
-  Eye, EyeOff, Lock, Mail, Building2, Phone, MapPin,
-  ArrowRight, ArrowLeft, User, CheckCircle, Copy, Check, Crown, Zap, Rocket
+  Eye, EyeOff, Lock, Mail, Building2,
+  ArrowRight, ArrowLeft, CheckCircle, Copy, Check, Crown, Zap, Rocket
 } from 'lucide-react'
 import { Button, Input, Card, CardContent } from '@/components/ui'
 import { priceTTC, formatPrice } from '@/utils/pricing'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { OnboardingService } from '@/services/onboardingService'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
+import { useLang } from '@/hooks/useLang'
 import toast, { Toaster } from 'react-hot-toast'
 
 interface StepIndicatorProps {
@@ -36,7 +37,7 @@ function StepIndicator({ current, total }: StepIndicatorProps) {
               {isDone ? <Check size={16} /> : step}
             </div>
             {step < total && (
-              <div className={`w-12 h-0.5 ${isDone ? 'bg-success-500' : 'bg-neutral-200 dark:bg-neutral-700'}`} />
+              <div className={`w-12 h-0.5 transition-all duration-300 ${isDone ? 'bg-success-500' : 'bg-neutral-200 dark:bg-neutral-700'}`} />
             )}
           </div>
         )
@@ -45,7 +46,19 @@ function StepIndicator({ current, total }: StepIndicatorProps) {
   )
 }
 
-function getPasswordStrength(password: string): { level: number; label: string; color: string } {
+function ProgressBar({ current, total }: { current: number; total: number }) {
+  const pct = (current / total) * 100
+  return (
+    <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-1.5 mb-6">
+      <div
+        className="h-1.5 rounded-full bg-primary-500 transition-all duration-500"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  )
+}
+
+function getPasswordStrength(password: string, t: (k: string) => string): { level: number; label: string; color: string } {
   if (password.length === 0) return { level: 0, label: '', color: '' }
   let score = 0
   if (password.length >= 8) score++
@@ -53,119 +66,97 @@ function getPasswordStrength(password: string): { level: number; label: string; 
   if (/[A-Z]/.test(password)) score++
   if (/\d/.test(password)) score++
   if (/[^A-Za-z0-9]/.test(password)) score++
-  if (score <= 2) return { level: 1, label: 'Faible', color: 'bg-error-500' }
-  if (score <= 3) return { level: 2, label: 'Moyen', color: 'bg-warning-500' }
-  if (score <= 4) return { level: 3, label: 'Fort', color: 'bg-success-500' }
-  return { level: 4, label: 'Très fort', color: 'bg-success-600' }
+  if (score <= 2) return { level: 1, label: t('onboarding.passwordStrength.weak'), color: 'bg-error-500' }
+  if (score <= 3) return { level: 2, label: t('onboarding.passwordStrength.medium'), color: 'bg-warning-500' }
+  if (score <= 4) return { level: 3, label: t('onboarding.passwordStrength.strong'), color: 'bg-success-500' }
+  return { level: 4, label: t('onboarding.passwordStrength.veryStrong'), color: 'bg-success-600' }
 }
 
-// Plan cards pour l'étape 3
+// Plan cards pour l'étape 2
 const onboardingPlans = [
-  { slug: 'free', nameKey: 'Gratuit', price: 0, priceYearly: 0, icon: Zap, color: 'bg-gray-100 text-gray-600', features: ['3 enseignants', '3 salles', '50 séances/mois'] },
-  { slug: 'ecole-en-ligne', nameKey: 'École en ligne', price: 59, priceYearly: 47, icon: Rocket, color: 'bg-teal-100 text-teal-600', features: ['15 enseignants', '200 étudiants', 'Visio intégrée'] },
-  { slug: 'pro', nameKey: 'Pro', price: 99, priceYearly: 79, icon: Crown, color: 'bg-blue-100 text-blue-600', features: ['50 enseignants', 'Salles illimitées', 'Export & stats'] },
-  { slug: 'enterprise', nameKey: 'Enterprise', price: 149, priceYearly: 119, icon: Crown, color: 'bg-purple-100 text-purple-600', features: ['Illimité', 'Multi-campus', 'SLA 99.9%'] },
+  { slug: 'free', nameKey: 'Gratuit', nameKeyEn: 'Free', price: 0, priceYearly: 0, icon: Zap, color: 'bg-gray-100 text-gray-600', features: ['3 enseignants', '3 salles', '50 séances/mois'], featuresEn: ['3 teachers', '3 rooms', '50 sessions/mo'] },
+  { slug: 'ecole-en-ligne', nameKey: 'École en ligne', nameKeyEn: 'Online School', price: 59, priceYearly: 47, icon: Rocket, color: 'bg-teal-100 text-teal-600', features: ['15 enseignants', '200 étudiants', 'Visio intégrée'], featuresEn: ['15 teachers', '200 students', 'Integrated video'] },
+  { slug: 'pro', nameKey: 'Pro', nameKeyEn: 'Pro', price: 99, priceYearly: 79, icon: Crown, color: 'bg-blue-100 text-blue-600', features: ['50 enseignants', 'Salles illimitées', 'Export & stats'], featuresEn: ['50 teachers', 'Unlimited rooms', 'Export & stats'] },
+  { slug: 'enterprise', nameKey: 'Enterprise', nameKeyEn: 'Enterprise', price: 149, priceYearly: 119, icon: Crown, color: 'bg-purple-100 text-purple-600', features: ['Illimité', 'Multi-campus', 'SLA 99.9%'], featuresEn: ['Unlimited', 'Multi-campus', '99.9% SLA'] },
 ]
 
 export default function OnboardingPage() {
+  const { t, lang } = useLang()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const { openCheckout, isLoading: checkoutLoading } = useStripeCheckout()
 
-  // Étape 1 : Compte admin
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  // Étape 1 : Compte + Centre (fusionnés — 3 champs essentiels)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  // Étape 2 : Info centre
   const [centerName, setCenterName] = useState('')
-  const [acronym, setAcronym] = useState('')
-  const [address, setAddress] = useState('')
-  const [postalCode, setPostalCode] = useState('')
-  const [city, setCity] = useState('')
-  const [phone, setPhone] = useState('')
-  const [contactEmail, setContactEmail] = useState('')
 
-  // Étape 3 : Plan
+  // Étape 2 : Plan
   const [selectedPlan, setSelectedPlan] = useState('free')
   const [annualBilling, setAnnualBilling] = useState(false)
 
   // Résultat
   const [enrollmentCode, setEnrollmentCode] = useState<string | null>(null)
+  const [createdCenterName, setCreatedCenterName] = useState('')
 
-  // Parse URL params (?plan=&billing=) et checkout return (?checkout=success)
+  // Plan pré-sélectionné depuis l'URL
+  const [urlPlan, setUrlPlan] = useState<string | null>(null)
+
+  // Parse URL params
   useEffect(() => {
     const hash = window.location.hash
     const queryIndex = hash.indexOf('?')
     if (queryIndex === -1) return
     const params = new URLSearchParams(hash.slice(queryIndex))
-    if (params.get('plan')) setSelectedPlan(params.get('plan')!)
+    if (params.get('plan')) {
+      const plan = params.get('plan')!
+      setSelectedPlan(plan)
+      if (plan !== 'free') setUrlPlan(plan)
+    }
     if (params.get('billing') === 'yearly') setAnnualBilling(true)
     if (params.get('checkout') === 'success') {
-      toast.success('Paiement réussi ! Votre abonnement est actif.')
-      // Nettoyer l'URL
+      toast.success(t('onboarding.toast.paymentSuccess'))
       window.location.hash = '#/onboarding'
-      setStep(4) // Aller directement au succès
+      setStep(3)
     }
     if (params.get('checkout') === 'cancelled') {
-      toast.error('Paiement annulé.')
+      toast.error(t('onboarding.toast.paymentCancelled'))
       window.location.hash = '#/onboarding'
     }
   }, [])
 
-  const passwordStrength = getPasswordStrength(password)
+  const passwordStrength = getPasswordStrength(password, t)
 
-  // Nettoie l'email : trim, lowercase, suppression caractères invisibles
   const sanitizeEmail = (raw: string): string =>
     raw.trim().toLowerCase().replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
 
   const validateStep1 = (): string | null => {
-    if (!firstName.trim()) return 'Le prénom est requis'
-    if (!lastName.trim()) return 'Le nom est requis'
     const cleanEmail = sanitizeEmail(email)
-    if (!cleanEmail) return 'L\'email est requis'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return 'Format d\'email invalide'
-    if (!password) return 'Le mot de passe est requis'
-    if (password.length < 8) return 'Le mot de passe doit contenir au moins 8 caractères'
+    if (!cleanEmail) return t('onboarding.error.emailRequired')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return t('onboarding.error.emailInvalid')
+    if (!password) return t('onboarding.error.passwordRequired')
+    if (password.length < 8) return t('onboarding.error.passwordLength')
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return 'Le mot de passe doit contenir une majuscule, une minuscule et un chiffre'
+      return t('onboarding.error.passwordStrength')
     }
-    if (password !== confirmPassword) return 'Les mots de passe ne correspondent pas'
+    if (!centerName.trim()) return t('onboarding.error.centerRequired')
     return null
-  }
-
-  const validateStep2 = (): string | null => {
-    if (!centerName.trim()) return 'Le nom de l\'établissement est requis'
-    return null
-  }
-
-  const handleNextStep = () => {
-    const err = validateStep1()
-    if (err) {
-      setError(err)
-      return
-    }
-    setError(null)
-    setStep(2)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const err = validateStep2()
+    const err = validateStep1()
     if (err) {
       setError(err)
       return
     }
 
     if (isDemoMode) {
-      setError('L\'inscription n\'est pas disponible en mode démo. Configurez les variables Supabase.')
+      setError(t('onboarding.error.demoMode'))
       return
     }
 
@@ -181,52 +172,66 @@ export default function OnboardingPage() {
         password,
         options: {
           data: {
-            full_name: `${firstName.trim()} ${lastName.trim()}`,
+            full_name: centerName.trim(), // sera modifiable dans le profil
             role: 'admin',
           },
         },
       })
 
       if (authError) {
-        // Messages d'erreur plus explicites
         if (authError.message.includes('invalid') || authError.message.includes('Invalid')) {
-          throw new Error(`Adresse email refusée par le serveur. Essayez une autre adresse email ou vérifiez la configuration Supabase.`)
+          throw new Error(t('onboarding.error.emailInvalid'))
         }
         if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
-          throw new Error('Cette adresse email est déjà utilisée. Connectez-vous ou utilisez une autre adresse.')
+          throw new Error(t('onboarding.error.emailTaken'))
         }
         if (authError.message.includes('rate') || authError.status === 429) {
-          throw new Error('Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.')
+          throw new Error(t('onboarding.error.rateLimit'))
         }
         throw authError
       }
-      if (!authData.user) throw new Error('Échec de la création du compte')
+      if (!authData.user) throw new Error(t('onboarding.error.generic'))
 
-      // Vérifier si l'email nécessite une confirmation
       if (authData.user.identities?.length === 0) {
-        throw new Error('Cette adresse email est déjà utilisée. Connectez-vous ou utilisez une autre adresse.')
+        throw new Error(t('onboarding.error.emailTaken'))
       }
 
-      // 2. Attendre que le trigger handle_new_user crée le profil
+      // 2. Attendre que le trigger crée le profil
       const profileReady = await OnboardingService.waitForProfile(authData.user.id)
-      if (!profileReady) throw new Error('Timeout lors de la création du profil. Veuillez réessayer.')
+      if (!profileReady) throw new Error(t('onboarding.error.profileTimeout'))
 
-      // 3. Créer le centre via RPC
+      // 3. Créer le centre
       const result = await OnboardingService.createCenterWithAdmin({
         centerName: centerName.trim(),
-        acronym: acronym.trim() || undefined,
-        address: address.trim() || undefined,
-        postalCode: postalCode.trim() || undefined,
-        city: city.trim() || undefined,
-        phone: phone.trim() || undefined,
-        email: contactEmail.trim() || undefined,
       })
 
       setEnrollmentCode(result.enrollment_code)
-      setStep(3) // Aller à l'étape Plan
-      toast.success('Établissement créé avec succès !')
+      setCreatedCenterName(centerName.trim())
+
+      // Envoyer l'email de bienvenue (non bloquant)
+      OnboardingService.sendWelcomeEmail({
+        email: sanitizeEmail(email),
+        firstName: centerName.trim(),
+        centerName: centerName.trim(),
+        enrollmentCode: result.enrollment_code,
+      })
+
+      // Si plan payant pré-sélectionné, aller au paiement directement
+      if (urlPlan && urlPlan !== 'free') {
+        toast.success(t('onboarding.toast.redirectPayment'))
+        await openCheckout({
+          planSlug: urlPlan,
+          billingCycle: annualBilling ? 'yearly' : 'monthly',
+          successUrl: `${window.location.origin}/#/checkout-success`,
+          cancelUrl: `${window.location.origin}/#/onboarding?checkout=cancelled`,
+        })
+        return
+      }
+
+      setStep(2) // Choix du plan
+      toast.success(t('onboarding.toast.created'))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erreur lors de la création'
+      const msg = err instanceof Error ? err.message : t('onboarding.error.generic')
       setError(msg)
       toast.error(msg)
     } finally {
@@ -239,21 +244,18 @@ export default function OnboardingPage() {
     try {
       await navigator.clipboard.writeText(enrollmentCode)
       setCopied(true)
-      toast.success('Code copié !')
+      toast.success(t('onboarding.toast.codeCopied'))
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Fallback
-      toast.error('Impossible de copier')
+      toast.error('Copy failed')
     }
   }
 
   const handleSelectPlan = async (planSlug: string) => {
     if (planSlug === 'free') {
-      // Plan gratuit : passer directement au succès
-      setStep(4)
+      setStep(3)
       return
     }
-    // Plan payant : rediriger vers Stripe Checkout
     await openCheckout({
       planSlug,
       billingCycle: annualBilling ? 'yearly' : 'monthly',
@@ -263,24 +265,27 @@ export default function OnboardingPage() {
   }
 
   const handleGoToDashboard = () => {
-    window.location.hash = '#/login'
+    // Auto-login : la session Supabase est déjà active, pas besoin de re-login
+    window.location.hash = '#/'
     window.location.reload()
   }
+
+  const totalSteps = urlPlan ? 1 : 2
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-accent-50 dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center p-4">
       <Toaster position="top-center" />
-      <div className={`w-full ${step === 3 ? 'max-w-2xl' : 'max-w-lg'} transition-all`}>
+      <div className={`w-full ${step === 2 ? 'max-w-2xl' : 'max-w-lg'} transition-all`}>
         {/* Retour */}
         <a
           href="#/"
           className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200 mb-4"
         >
           <ArrowLeft size={16} />
-          Retour à l'accueil
+          {t('onboarding.backHome')}
         </a>
 
-        {/* Logo */}
+        {/* Logo + titre */}
         <div className="text-center mb-6">
           <div
             className="mx-auto h-16 w-16 rounded-2xl flex items-center justify-center mb-4 shadow-medium"
@@ -289,38 +294,38 @@ export default function OnboardingPage() {
             <span className="text-white font-extrabold text-2xl">A</span>
           </div>
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 font-display mb-2">
-            {step === 4 ? 'Félicitations !' : 'Créer mon établissement'}
+            {step === 3 ? t('onboarding.title.success') : t('onboarding.title')}
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400">
-            {step === 1 && 'Commencez par créer votre compte administrateur'}
-            {step === 2 && 'Renseignez les informations de votre établissement'}
-            {step === 3 && 'Choisissez votre formule'}
-            {step === 4 && 'Votre établissement est prêt à utiliser'}
+            {step === 1 && t('onboarding.step1.subtitle')}
+            {step === 2 && t('onboarding.step2.subtitle')}
+            {step === 3 && (createdCenterName + ' ' + t('onboarding.success.created'))}
           </p>
         </div>
 
-        {step < 3 && <StepIndicator current={step} total={3} />}
-        {step === 3 && <StepIndicator current={3} total={3} />}
+        {/* Progress bar */}
+        {step <= totalSteps && <ProgressBar current={step} total={totalSteps} />}
+        {step <= totalSteps && <StepIndicator current={step} total={totalSteps} />}
 
         <Card variant="elevated" className="shadow-strong">
           <CardContent>
-            {/* =================== Étape 4 : Succès =================== */}
-            {step === 4 && (
+            {/* =================== Étape 3 : Succès =================== */}
+            {step === 3 && (
               <div className="text-center py-4">
                 <div className="mx-auto h-14 w-14 rounded-full bg-success-100 dark:bg-success-900/30 flex items-center justify-center mb-4">
                   <CheckCircle className="h-7 w-7 text-success-600 dark:text-success-400" />
                 </div>
                 <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
-                  {acronym.trim() || centerName} est créé !
+                  {createdCenterName} {t('onboarding.success.created')}
                 </h2>
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
-                  Partagez ce code avec vos enseignants et étudiants pour qu'ils rejoignent votre établissement.
+                  {t('onboarding.success.shareCode')}
                 </p>
 
                 {/* Code d'inscription */}
                 <div className="bg-neutral-50 dark:bg-neutral-800 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl p-6 mb-6">
                   <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2 uppercase tracking-wider font-medium">
-                    Code d'inscription
+                    {t('onboarding.success.enrollmentCode')}
                   </p>
                   <div className="flex items-center justify-center gap-3">
                     <span className="text-3xl font-mono font-bold text-primary-600 dark:text-primary-400 tracking-widest">
@@ -329,7 +334,7 @@ export default function OnboardingPage() {
                     <button
                       onClick={handleCopyCode}
                       className="p-2 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-                      title="Copier le code"
+                      title={t('onboarding.toast.codeCopied')}
                     >
                       {copied ? (
                         <Check size={20} className="text-success-600" />
@@ -347,18 +352,18 @@ export default function OnboardingPage() {
                   rightIcon={ArrowRight}
                   onClick={handleGoToDashboard}
                 >
-                  Accéder à mon espace
+                  {t('onboarding.success.goToDashboard')}
                 </Button>
               </div>
             )}
 
-            {/* =================== Étape 3 : Choix du plan =================== */}
-            {step === 3 && (
+            {/* =================== Étape 2 : Choix du plan =================== */}
+            {step === 2 && (
               <div className="space-y-5">
                 {/* Toggle mensuel/annuel */}
                 <div className="flex items-center justify-center gap-3">
                   <span className={`text-sm font-medium ${!annualBilling ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400'}`}>
-                    Mensuel
+                    {t('onboarding.plan.monthly')}
                   </span>
                   <button
                     type="button"
@@ -368,7 +373,7 @@ export default function OnboardingPage() {
                     <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${annualBilling ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                   <span className={`text-sm font-medium ${annualBilling ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400'}`}>
-                    Annuel
+                    {t('onboarding.plan.annual')}
                   </span>
                   {annualBilling && (
                     <span className="text-xs font-semibold text-success-600 bg-success-50 px-2 py-0.5 rounded-full">
@@ -383,6 +388,8 @@ export default function OnboardingPage() {
                     const price = annualBilling ? plan.priceYearly : plan.price
                     const isSelected = selectedPlan === plan.slug
                     const Icon = plan.icon
+                    const features = lang === 'en' ? plan.featuresEn : plan.features
+                    const name = lang === 'en' ? plan.nameKeyEn : plan.nameKey
                     return (
                       <button
                         key={plan.slug}
@@ -399,22 +406,22 @@ export default function OnboardingPage() {
                             <Icon size={16} />
                           </div>
                           <span className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">
-                            {plan.nameKey}
+                            {name}
                           </span>
                         </div>
                         <div className="mb-2">
                           <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                            {price === 0 ? 'Gratuit' : `${price}€`}
+                            {price === 0 ? t('onboarding.plan.free') : `${price}€`}
                           </span>
-                          {price > 0 && <span className="text-sm text-neutral-500"> HT/mois</span>}
+                          {price > 0 && <span className="text-sm text-neutral-500"> {t('onboarding.plan.htMonth')}</span>}
                           {price > 0 && (
                             <div className="text-xs text-neutral-400 mt-0.5">
-                              soit {formatPrice(priceTTC(price))}€ TTC
+                              {t('pricing.ttcPrefix')} {formatPrice(priceTTC(price))}€ TTC
                             </div>
                           )}
                         </div>
                         <ul className="space-y-1">
-                          {plan.features.map((f, i) => (
+                          {features.map((f, i) => (
                             <li key={i} className="flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400">
                               <Check size={12} className="text-success-500 shrink-0" />
                               {f}
@@ -426,6 +433,19 @@ export default function OnboardingPage() {
                   })}
                 </div>
 
+                {/* Code d'inscription — affiché ici aussi */}
+                {enrollmentCode && (
+                  <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-medium">{t('onboarding.success.enrollmentCode')}</p>
+                      <span className="text-lg font-mono font-bold text-primary-600 tracking-wider">{enrollmentCode}</span>
+                    </div>
+                    <button onClick={handleCopyCode} className="p-1.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors">
+                      {copied ? <Check size={16} className="text-success-600" /> : <Copy size={16} className="text-neutral-400" />}
+                    </button>
+                  </div>
+                )}
+
                 <Button
                   type="button"
                   variant="primary"
@@ -436,53 +456,28 @@ export default function OnboardingPage() {
                   isLoading={checkoutLoading}
                   disabled={checkoutLoading}
                 >
-                  {selectedPlan === 'free' ? 'Commencer gratuitement' : 'Continuer vers le paiement'}
+                  {selectedPlan === 'free' ? t('onboarding.plan.startFree') : t('onboarding.plan.goToPayment')}
                 </Button>
 
                 <p className="text-xs text-neutral-400 text-center">
-                  Vous pourrez changer de plan à tout moment depuis votre profil.
+                  {t('onboarding.plan.changeLater')}
                 </p>
               </div>
             )}
 
-            {/* =================== Étape 1 : Compte =================== */}
+            {/* =================== Étape 1 : Compte + Centre (fusionnés) =================== */}
             {step === 1 && (
-              <form
-                onSubmit={(e) => { e.preventDefault(); handleNextStep() }}
-                className="space-y-5"
-              >
+              <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
                   <div className="bg-error-50 dark:bg-error-950 border border-error-200 dark:border-error-800 text-error-700 dark:text-error-300 px-4 py-3 rounded-lg">
                     <p className="text-sm">{error}</p>
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    type="text"
-                    label="Prénom"
-                    placeholder="Jean"
-                    value={firstName}
-                    onChange={(e) => { setFirstName(e.target.value); setError(null) }}
-                    leftIcon={User}
-                    disabled={isLoading}
-                    required
-                  />
-                  <Input
-                    type="text"
-                    label="Nom"
-                    placeholder="Dupont"
-                    value={lastName}
-                    onChange={(e) => { setLastName(e.target.value); setError(null) }}
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
-
                 <Input
                   type="email"
-                  label="Adresse email"
-                  placeholder="jean.dupont@etablissement.fr"
+                  label={t('onboarding.field.email')}
+                  placeholder={t('onboarding.field.email.placeholder')}
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(null) }}
                   leftIcon={Mail}
@@ -494,8 +489,8 @@ export default function OnboardingPage() {
                 <div className="space-y-2">
                   <Input
                     type={showPassword ? 'text' : 'password'}
-                    label="Mot de passe"
-                    placeholder="Minimum 8 caractères"
+                    label={t('onboarding.field.password')}
+                    placeholder={t('onboarding.field.password.placeholder')}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setError(null) }}
                     leftIcon={Lock}
@@ -508,7 +503,7 @@ export default function OnboardingPage() {
                   {password && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-neutral-500 dark:text-neutral-400">Force du mot de passe</span>
+                        <span className="text-neutral-500 dark:text-neutral-400">{t('onboarding.passwordStrength')}</span>
                         <span className={`font-medium ${
                           passwordStrength.level === 1 ? 'text-error-600' :
                           passwordStrength.level === 2 ? 'text-warning-600' :
@@ -528,16 +523,14 @@ export default function OnboardingPage() {
                 </div>
 
                 <Input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  label="Confirmer le mot de passe"
-                  placeholder="Retapez votre mot de passe"
-                  value={confirmPassword}
-                  onChange={(e) => { setConfirmPassword(e.target.value); setError(null) }}
-                  leftIcon={Lock}
-                  rightIcon={showConfirmPassword ? EyeOff : Eye}
-                  onRightIconClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  type="text"
+                  label={t('onboarding.field.centerName')}
+                  placeholder={t('onboarding.field.centerName.placeholder')}
+                  value={centerName}
+                  onChange={(e) => { setCenterName(e.target.value); setError(null) }}
+                  leftIcon={Building2}
                   disabled={isLoading}
-                  autoComplete="new-password"
+                  autoComplete="organization"
                   required
                 />
 
@@ -547,135 +540,42 @@ export default function OnboardingPage() {
                   size="lg"
                   fullWidth
                   rightIcon={ArrowRight}
+                  isLoading={isLoading}
+                  disabled={isLoading}
                 >
-                  Suivant
+                  {t('onboarding.step1.cta')}
                 </Button>
+
+                {/* Micro-copy de réassurance */}
+                <p className="text-xs text-neutral-400 text-center">
+                  {t('onboarding.microcopy')}
+                </p>
               </form>
             )}
 
-            {/* =================== Étape 2 : Centre =================== */}
-            {step === 2 && (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {error && (
-                  <div className="bg-error-50 dark:bg-error-950 border border-error-200 dark:border-error-800 text-error-700 dark:text-error-300 px-4 py-3 rounded-lg">
-                    <p className="text-sm">{error}</p>
-                  </div>
-                )}
-
-                <Input
-                  type="text"
-                  label="Nom de l'établissement"
-                  placeholder="Ex: Institut Supérieur de Paris"
-                  value={centerName}
-                  onChange={(e) => { setCenterName(e.target.value); setError(null) }}
-                  leftIcon={Building2}
-                  disabled={isLoading}
-                  required
-                />
-
-                <Input
-                  type="text"
-                  label="Acronyme / Sigle"
-                  placeholder="Ex: ISP"
-                  value={acronym}
-                  onChange={(e) => setAcronym(e.target.value)}
-                  disabled={isLoading}
-                  helper="Facultatif — sera utilisé comme nom court dans l'application"
-                />
-
-                <Input
-                  type="text"
-                  label="Adresse"
-                  placeholder="123 rue de l'Éducation"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  leftIcon={MapPin}
-                  disabled={isLoading}
-                  helper="Facultatif"
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    type="text"
-                    label="Code postal"
-                    placeholder="75001"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    disabled={isLoading}
-                    helper="Facultatif"
-                  />
-                  <Input
-                    type="text"
-                    label="Ville"
-                    placeholder="Paris"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    disabled={isLoading}
-                    helper="Facultatif"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    type="tel"
-                    label="Téléphone"
-                    placeholder="01 23 45 67 89"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    leftIcon={Phone}
-                    disabled={isLoading}
-                    helper="Facultatif"
-                  />
-                  <Input
-                    type="email"
-                    label="Email de contact"
-                    placeholder="contact@ecole.fr"
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    leftIcon={Mail}
-                    disabled={isLoading}
-                    helper="Facultatif"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => { setStep(1); setError(null) }}
-                    disabled={isLoading}
-                  >
-                    <ArrowLeft size={18} className="mr-1" />
-                    Retour
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    isLoading={isLoading}
-                    rightIcon={ArrowRight}
-                    disabled={isLoading}
-                  >
-                    Créer mon établissement
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            {/* Lien vers connexion (étapes 1 et 2) */}
-            {step < 3 && (
-              <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700 text-center">
+            {/* Liens en bas (étapes 1 et 2) */}
+            {step <= 2 && (
+              <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700 text-center space-y-2">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                  Déjà un compte ?{' '}
+                  {t('onboarding.alreadyAccount')}{' '}
                   <a
                     href="#/login"
                     className="text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200"
                   >
-                    Se connecter
+                    {t('onboarding.login')}
                   </a>
                 </p>
+                {step === 1 && (
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                    {t('onboarding.haveCode')}{' '}
+                    <a
+                      href="#/signup"
+                      className="text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200"
+                    >
+                      {t('onboarding.joinCenter')}
+                    </a>
+                  </p>
+                )}
               </div>
             )}
           </CardContent>

@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   ClipboardCheck, UserCheck, Clock, AlertTriangle,
   Calendar, Filter, Search, Check, X,
-  BarChart3, Download, Send, ToggleLeft, ToggleRight, Lock,
+  BarChart3, Download, Send, ToggleLeft, ToggleRight, Lock, Printer,
 } from 'lucide-react'
 import { isDemoMode } from '@/lib/supabase'
 import { useAuthContext } from '@/contexts/AuthContext'
@@ -17,6 +17,7 @@ import { useBookings } from '@/hooks/useBookings'
 import { useBulletins } from '@/hooks/useBulletins'
 import { useStudentContacts } from '@/hooks/useStudentContacts'
 import { generateAttendanceCertificatePDF } from '@/utils/export-bulletin'
+import { printAttendanceSheet } from '@/utils/export-print'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -150,7 +151,7 @@ function AttendanceMarkingModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden"
+        className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-2xl max-w-[calc(100%-2rem)] mx-4 sm:mx-auto max-h-[85vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -319,6 +320,25 @@ function TeacherView() {
                     </div>
                     <div className="text-xs text-neutral-500">marques</div>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      printAttendanceSheet({
+                        centerName: 'Mon Centre',
+                        className: session.className,
+                        subjectName: session.title,
+                        date: new Date(session.date),
+                        students: DEMO_STUDENTS_IN_SESSION.map(s => {
+                          const parts = s.name.split(' ')
+                          return { lastName: parts[0] || '', firstName: parts.slice(1).join(' ') || '' }
+                        }),
+                      })
+                    }}
+                    className="p-1.5 rounded-lg text-neutral-400 hover:text-primary-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    title="Imprimer feuille d'appel"
+                  >
+                    <Printer size={16} />
+                  </button>
                   {isDisabled ? (
                     <Badge variant="neutral" size="sm" icon={Lock}>Desactive</Badge>
                   ) : isComplete ? (
@@ -513,7 +533,7 @@ function AdminView() {
           </h3>
           {todaySessions.map(session => (
             <div key={session.id} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
                   <h4 className="font-medium text-neutral-900 dark:text-neutral-100">{session.title}</h4>
                   <p className="text-xs text-neutral-500">
@@ -575,6 +595,26 @@ function AdminView() {
         </div>
         <Button variant="secondary" size="sm" leftIcon={Download}>
           Exporter
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={Printer}
+          onClick={() => {
+            // Build student list from filtered stats for attendance sheet
+            const students = filteredStats.map(s => {
+              const parts = s.studentName.split(' ')
+              return { lastName: parts[0] || '', firstName: parts.slice(1).join(' ') || '' }
+            })
+            printAttendanceSheet({
+              centerName: 'Mon Centre',
+              className: classFilter !== 'all' ? classFilter : 'Toutes les classes',
+              date: new Date(),
+              students,
+            })
+          }}
+        >
+          Feuille d'appel
         </Button>
       </div>
 

@@ -49,7 +49,9 @@ export default function SetupAccountPage({ tokenHash }: SetupAccountPageProps) {
         if (cancelled) return
 
         if (verifyError) {
-          console.error('[SetupAccount] verifyOtp error:', verifyError)
+          if (import.meta.env.DEV) console.error('[SetupAccount] verifyOtp error:', verifyError)
+          // Clear token from URL even on error to prevent replay attempts
+          history.replaceState(null, '', window.location.pathname + '#/setup-account')
           setError('Le lien d\'invitation est invalide ou a expiré. Contactez votre administrateur pour recevoir un nouveau lien.')
           setStep('error')
           return
@@ -58,10 +60,13 @@ export default function SetupAccountPage({ tokenHash }: SetupAccountPageProps) {
         // Extract email from the session
         const userEmail = data.user?.email || data.session?.user?.email || ''
         setEmail(userEmail)
+        // Clear token from URL to prevent replay
+        history.replaceState(null, '', window.location.pathname + '#/setup-account')
         setStep('form')
       } catch (err) {
         if (cancelled) return
-        console.error('[SetupAccount] unexpected error:', err)
+        if (import.meta.env.DEV) console.error('[SetupAccount] unexpected error:', err)
+        history.replaceState(null, '', window.location.pathname + '#/setup-account')
         setError('Une erreur inattendue est survenue. Veuillez réessayer.')
         setStep('error')
       }

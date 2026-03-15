@@ -7,12 +7,21 @@ export interface TeamsConfig {
   userId: string;
 }
 
+function isValidTenantId(id: string): boolean {
+  // Must be a valid UUID or alphanumeric string (no path traversal)
+  return /^[a-zA-Z0-9\-]+$/.test(id) && id.length < 256;
+}
+
 export function extractTeamsConfig(settings: Record<string, unknown>): TeamsConfig {
   if (!settings?.teams_tenant_id || !settings?.teams_client_id || !settings?.teams_client_secret || !settings?.teams_user_id) {
     throw new Error("Configuration Teams incomplète — remplissez tous les champs dans Paramètres");
   }
+  const tenantId = settings.teams_tenant_id as string;
+  if (!isValidTenantId(tenantId)) {
+    throw new Error("teams_tenant_id invalide — doit être un UUID ou identifiant alphanumérique");
+  }
   return {
-    tenantId: settings.teams_tenant_id as string,
+    tenantId,
     clientId: settings.teams_client_id as string,
     clientSecret: settings.teams_client_secret as string,
     userId: settings.teams_user_id as string,
@@ -20,7 +29,7 @@ export function extractTeamsConfig(settings: Record<string, unknown>): TeamsConf
 }
 
 async function getAccessToken(config: TeamsConfig): Promise<string> {
-  const res = await fetch(`https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`, {
+  const res = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}/oauth2/v2.0/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -39,7 +48,7 @@ async function getAccessToken(config: TeamsConfig): Promise<string> {
 
 export async function teamsTest(config: TeamsConfig): Promise<{ success: boolean; message: string }> {
   const token = await getAccessToken(config);
-  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${config.userId}`, {
+  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.userId)}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
@@ -54,7 +63,7 @@ export async function teamsCreate(config: TeamsConfig, params: { topic: string; 
   const token = await getAccessToken(config);
   const startDate = new Date(params.startTime);
   const endDate = new Date(startDate.getTime() + params.duration * 60000);
-  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${config.userId}/onlineMeetings`, {
+  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.userId)}/onlineMeetings`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -81,7 +90,7 @@ export async function teamsUpdate(config: TeamsConfig, meetingId: string, params
       body.endDateTime = new Date(new Date(params.startTime).getTime() + params.duration * 60000).toISOString();
     }
   }
-  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${config.userId}/onlineMeetings/${meetingId}`, {
+  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.userId)}/onlineMeetings/${encodeURIComponent(meetingId)}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -94,7 +103,7 @@ export async function teamsUpdate(config: TeamsConfig, meetingId: string, params
 
 export async function teamsDelete(config: TeamsConfig, meetingId: string) {
   const token = await getAccessToken(config);
-  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${config.userId}/onlineMeetings/${meetingId}`, {
+  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.userId)}/onlineMeetings/${encodeURIComponent(meetingId)}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });

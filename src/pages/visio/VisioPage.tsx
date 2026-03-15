@@ -9,7 +9,7 @@ import { usePagination } from '@/hooks/usePagination'
 import { Button, Input, Select, Modal, ModalFooter, Badge, EmptyState, LoadingSpinner, HelpBanner, MultiSelect } from '@/components/ui'
 import { VISIO_PLATFORMS } from '@/utils/constants'
 import { navigateTo } from '@/utils/navigation'
-import { filterBySearch } from '@/utils/helpers'
+import { filterBySearch, localToISO } from '@/utils/helpers'
 import type { VirtualRoom, CreateVirtualRoomData, VirtualRoomPlatform, Booking, BookingType } from '@/types'
 import {
   Video,
@@ -82,7 +82,7 @@ function VisioPage() {
     inProgressSessions,
     stats,
   } = useVisio()
-  const { createBooking, cancelBooking } = useBookings()
+  const { createBooking, updateBooking, cancelBooking, refreshBookings } = useBookings()
   const { rooms } = useRooms()
   const {
     diplomaOptions,
@@ -112,11 +112,21 @@ function VisioPage() {
   const [selectedDiplomes, setSelectedDiplomes] = useState<string[]>([])
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [showCreateSession, setShowCreateSession] = useState(false)
-  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'cancel-session' | null>(null)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'delete' | 'cancel-session' | 'edit-session' | null>(null)
   const [selectedRoom, setSelectedRoom] = useState<VirtualRoom | null>(null)
   const [selectedSession, setSelectedSession] = useState<Booking | null>(null)
   const [form, setForm] = useState<CreateVirtualRoomData>(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+
+  // Edit session form state
+  const [editSessionTitle, setEditSessionTitle] = useState('')
+  const [editSessionDate, setEditSessionDate] = useState('')
+  const [editSessionStartTime, setEditSessionStartTime] = useState('')
+  const [editSessionEndTime, setEditSessionEndTime] = useState('')
+  const [editSessionMeetingUrl, setEditSessionMeetingUrl] = useState('')
+  const [editSessionDescription, setEditSessionDescription] = useState('')
+  const [editSessionType, setEditSessionType] = useState<'in_person' | 'online' | 'hybrid'>('online')
+  const [editSessionRoomId, setEditSessionRoomId] = useState('')
 
   // ==================== Filter options ====================
 
@@ -223,6 +233,44 @@ function VisioPage() {
     setSelectedRoom(null)
     setSelectedSession(null)
     setForm(emptyForm)
+  }
+
+  const openEditSession = useCallback((session: Booking) => {
+    setSelectedSession(session)
+    setEditSessionTitle(session.title)
+    const startDt = new Date(session.startDateTime)
+    const endDt = new Date(session.endDateTime)
+    setEditSessionDate(format(startDt, 'yyyy-MM-dd'))
+    setEditSessionStartTime(format(startDt, 'HH:mm'))
+    setEditSessionEndTime(format(endDt, 'HH:mm'))
+    setEditSessionMeetingUrl(session.meetingUrl || '')
+    setEditSessionDescription(session.description || '')
+    setEditSessionType(session.sessionType || 'online')
+    setEditSessionRoomId(session.roomId || '')
+    setModalMode('edit-session')
+  }, [])
+
+  const handleEditSession = async () => {
+    if (!selectedSession || !editSessionTitle.trim()) return
+    setSubmitting(true)
+    try {
+      await updateBooking({
+        id: selectedSession.id,
+        title: editSessionTitle.trim(),
+        startDateTime: localToISO(editSessionDate, editSessionStartTime),
+        endDateTime: localToISO(editSessionDate, editSessionEndTime),
+        meetingUrl: editSessionMeetingUrl.trim() || undefined,
+        description: editSessionDescription.trim() || undefined,
+        sessionType: editSessionType,
+        roomId: editSessionRoomId || undefined,
+      })
+      await refreshBookings()
+      closeModal()
+    } catch {
+      // handled in hook
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const openCancelSession = useCallback((session: Booking) => {
@@ -499,6 +547,7 @@ function VisioPage() {
           totalFiltered={filteredSessions.length}
           isAdmin={isAdmin}
           onCancelSession={openCancelSession}
+          onEditSession={openEditSession}
         />
       )}
 
@@ -624,6 +673,104 @@ function VisioPage() {
         </Suspense>
       )}
 
+      {/* Edit Session Modal */}
+      {modalMode === 'edit-session' && selectedSession && (
+        <Modal isOpen onClose={closeModal} title="Modifier la séance" size="md">
+          <div className="p-4 space-y-4">
+            <Input
+              label="Titre"
+              value={editSessionTitle}
+              onChange={e => setEditSessionTitle(e.target.value)}
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Input
+                label="Date"
+                type="date"
+                value={editSessionDate}
+                onChange={e => setEditSessionDate(e.target.value)}
+              />
+              <Input
+                label="Début"
+                type="time"
+                value={editSessionStartTime}
+                onChange={e => setEditSessionStartTime(e.target.value)}
+              />
+              <Input
+                label="Fin"
+                type="time"
+                value={editSessionEndTime}
+                onChange={e => setEditSessionEndTime(e.target.value)}
+              />
+            </div>
+            {editSessionEndTime && editSessionStartTime && editSessionEndTime <= editSessionStartTime && (
+              <p className="text-xs text-red-500">L'heure de fin doit être après l'heure de début</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Select
+                label="Mode"
+                value={editSessionType}
+                onChange={e => setEditSessionType(e.target.value as 'in_person' | 'online' | 'hybrid')}
+                options={[
+                  { value: 'in_person', label: 'Présentiel' },
+                  { value: 'online', label: 'En ligne' },
+                  { value: 'hybrid', label: 'Hybride' },
+                ]}
+              />
+              {rooms.length > 0 && (
+                <Select
+                  label="Salle (optionnel)"
+                  value={editSessionRoomId}
+                  onChange={e => setEditSessionRoomId(e.target.value)}
+                  options={[{ value: '', label: '— Aucune —' }, ...roomOptions]}
+                />
+              )}
+            </div>
+            <div>
+              <Input
+                label="Lien visio"
+                value={editSessionMeetingUrl}
+                onChange={e => setEditSessionMeetingUrl(e.target.value)}
+                placeholder="https://..."
+              />
+              {editSessionMeetingUrl && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <a
+                    href={editSessionMeetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+                  >
+                    <ExternalLink size={12} />
+                    Tester le lien
+                  </a>
+                  <button
+                    onClick={() => copyToClipboard(editSessionMeetingUrl)}
+                    className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-700"
+                  >
+                    <Copy size={12} />
+                    Copier
+                  </button>
+                </div>
+              )}
+            </div>
+            <Input
+              label="Description (optionnel)"
+              value={editSessionDescription}
+              onChange={e => setEditSessionDescription(e.target.value)}
+            />
+          </div>
+          <ModalFooter>
+            <Button variant="secondary" onClick={closeModal}>Annuler</Button>
+            <Button
+              onClick={handleEditSession}
+              disabled={submitting || !editSessionTitle.trim() || (editSessionEndTime <= editSessionStartTime)}
+            >
+              {submitting ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
       {/* Cancel Session Confirmation Modal */}
       {modalMode === 'cancel-session' && selectedSession && (
         <Modal isOpen onClose={closeModal} title="Annuler la séance" size="sm">
@@ -657,12 +804,14 @@ function UpcomingTab({
   totalFiltered,
   isAdmin,
   onCancelSession,
+  onEditSession,
 }: {
   sessions: Booking[]
   pagination: ReturnType<typeof usePagination<Booking>>
   totalFiltered: number
   isAdmin: boolean
   onCancelSession: (session: Booking) => void
+  onEditSession: (session: Booking) => void
 }) {
   if (totalFiltered === 0) {
     return (
@@ -729,13 +878,22 @@ function UpcomingTab({
                         <ExternalLink size={14} />
                       </a>
                       {isAdmin && (
-                        <button
-                          onClick={() => onCancelSession(session)}
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-                          title="Annuler la séance"
-                        >
-                          <XCircle size={14} />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => onEditSession(session)}
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                            title="Modifier la séance"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => onCancelSession(session)}
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                            title="Annuler la séance"
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>

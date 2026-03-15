@@ -2,21 +2,93 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Application SaaS de planning pour établissements supérieurs" />
-    <meta name="author" content="Planning École SaaS" />
-    <meta name="theme-color" content="#3b82f6" />
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Anti-Planning : le logiciel de gestion et planification pour centres de formation, ecoles et organismes. Planning, notes, presences, communication." />
+    <meta name="author" content="Anti-Planning" />
+    <meta name="theme-color" content="#FF5B46" />
+    <meta name="keywords" content="planning ecole, logiciel planning formation, gestion centre de formation, logiciel education, emploi du temps ecole, SaaS education, planning enseignant, gestion salle de cours, logiciel formation professionnelle, organisme de formation, planning pedagogique, gestion des notes, suivi presences, visioconference formation" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Anti-Planning" />
+    <meta property="og:title" content="Anti-Planning - Logiciel de gestion pour centres de formation" />
+    <meta property="og:description" content="Anti-Planning : le logiciel de gestion et planification pour centres de formation, ecoles et organismes. Planning, notes, presences, communication." />
+    <meta property="og:url" content="https://anti-planning.com" />
+    <meta property="og:image" content="https://anti-planning.com/pwa-512x512.png" />
+    <meta property="og:locale" content="fr_FR" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Anti-Planning - Logiciel de gestion pour centres de formation" />
+    <meta name="twitter:description" content="Anti-Planning : le logiciel de gestion et planification pour centres de formation, ecoles et organismes." />
+    <meta name="twitter:image" content="https://anti-planning.com/pwa-512x512.png" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://anti-planning.com" />
+
+    <!-- PWA / Mobile -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Anti-Planning" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <title>Planning École SaaS</title>
+
+    <!-- JSON-LD Structured Data: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Anti-Planning",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Education",
+      "operatingSystem": "Web",
+      "description": "Logiciel SaaS de gestion et planification pour centres de formation, ecoles et organismes de formation. Planning, notes, presences, visioconference, communication.",
+      "url": "https://anti-planning.com",
+      "inLanguage": "fr",
+      "offers": {
+        "@type": "AggregateOffer",
+        "lowPrice": "0",
+        "highPrice": "149",
+        "priceCurrency": "EUR",
+        "offerCount": "4"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "Anti-Planning",
+        "url": "https://anti-planning.com"
+      },
+      "featureList": "Planning interactif, Gestion des notes, Suivi des presences, Visioconference integree, Messagerie, Bulletins scolaires, Import CSV/Excel"
+    }
+    </script>
+
+    <!-- JSON-LD Structured Data: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Anti-Planning",
+      "url": "https://anti-planning.com",
+      "logo": "https://anti-planning.com/pwa-512x512.png",
+      "description": "Anti-Planning est un logiciel SaaS de gestion et planification pour centres de formation et ecoles.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "contact@anti-planning.com",
+        "contactType": "customer service",
+        "availableLanguage": ["French", "English"]
+      },
+      "sameAs": []
+    }
+    </script>
+
+    <title>Anti-Planning - Logiciel de gestion pour centres de formation et ecoles</title>
     <script>
       (function(){var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')})();
     </script>

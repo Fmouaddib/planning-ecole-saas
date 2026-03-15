@@ -337,7 +337,7 @@ function TeacherView() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCreateModal(false)}>
           <div
-            className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-lg p-6"
+            className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-lg max-w-[calc(100%-2rem)] mx-4 sm:mx-auto p-6"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
@@ -357,7 +357,7 @@ function TeacherView() {
                   className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Classe</label>
                   <select className="w-full px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500">
@@ -375,7 +375,7 @@ function TeacherView() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Date</label>
                   <input
